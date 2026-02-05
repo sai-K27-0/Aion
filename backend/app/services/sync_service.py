@@ -121,12 +121,41 @@ class SyncService:
     """
     
     def __init__(self):
-        self.registered_devices: Dict[str, DeviceInfo] = {}
-        self.device_sync_times: Dict[str, datetime] = {}
+        # In-memory cache for fast lookups (populated from DB)
+        self._device_cache: Dict[str, DeviceInfo] = {}
+        self._cache_initialized = False
+    
+    @property
+    def registered_devices(self) -> Dict[str, DeviceInfo]:
+        """Get registered devices (from cache)."""
+        return self._device_cache
     
     # =========================================================================
-    # Device Management
+    # Device Management (Database-Backed)
     # =========================================================================
+    
+    async def _ensure_cache_initialized(self):
+        """Load devices from database into cache if not already done."""
+        if self._cache_initialized:
+            return
+        
+        from app.models.device import Device
+        
+        async with async_session_maker() as session:
+            result = await session.execute(select(Device).where(Device.is_active == True))
+            devices = result.scalars().all()
+            
+            for device in devices:
+                self._device_cache[device.id] = DeviceInfo(
+                    device_id=device.id,
+                    device_name=device.device_name,
+                    device_type=device.device_type,
+                    platform=device.platform,
+                    last_sync=device.last_sync,
+                    registered_at=device.created_at,
+                )
+        
+        self._cache_initialized = True
     
     def register_device(
         self,
@@ -134,26 +163,226 @@ class SyncService:
         device_name: str,
         device_type: str,
         platform: str,
+        user_id: Optional[str] = None,
     ) -> DeviceInfo:
-        """Register a new device for syncing."""
+        """
+        Register a new device for syncing (sync version - updates cache).
+        Use register_device_async for database persistence.
+        """
         device = DeviceInfo(
             device_id=device_id,
             device_name=device_name,
             device_type=device_type,
             platform=platform,
         )
-        self.registered_devices[device_id] = device
+        self._device_cache[device_id] = device
+        
+        # Schedule async database write (fire and forget)
+        asyncio.create_task(self._persist_device(device, user_id))
+        
         return device
     
+    async def _persist_device(self, device_info: DeviceInfo, user_id: Optional[str] = None):
+        """Persist device to database."""
+        from app.models.device import Device
+        
+        try:
+            async with async_session_maker() as session:
+                # Check if device exists
+                result = await session.execute(
+                    select(Device).where(Device.id == device_info.device_id)
+                )
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    # Update existing device
+                    existing.device_name = device_info.device_name
+                    existing.device_type = device_info.device_type
+                    existing.platform = device_info.platform
+                    existing.is_active = True
+                    if user_id:
+                        existing.user_id = user_id
+                else:
+                    # Create new device
+                    device = Device(
+                        id=device_info.device_id,
+                        device_name=device_info.device_name,
+                        device_type=device_info.device_type,
+                        platform=device_info.platform,
+                        user_id=user_id,
+                    )
+                    session.add(device)
+                
+                await session.commit()
+        except Exception as e:
+            print(f"[Sync] Failed to persist device: {e}")
+    
+    async def register_device_async(
+        self,
+        device_id: str,
+        device_name: str,
+        device_type: str,
+        platform: str,
+        user_id: Optional[str] = None,
+        app_version: Optional[str] = None,
+    ) -> DeviceInfo:
+        """Register a new device with database persistence."""
+        from app.models.device import Device
+        
+        async with async_session_maker() as session:
+            # Check if device exists
+            result = await session.execute(
+                select(Device).where(Device.id == device_id)
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                # Update existing device
+                existing.device_name = device_name
+                existing.device_type = device_type
+                existing.platform = platform
+                existing.is_active = True
+                if user_id:
+                    existing.user_id = user_id
+                if app_version:
+                    existing.app_version = app_version
+                await session.commit()
+                
+                device_info = DeviceInfo(
+                    device_id=existing.id,
+                    device_name=existing.device_name,
+                    device_type=existing.device_type,
+                    platform=existing.platform,
+                    last_sync=existing.last_sync,
+                    registered_at=existing.created_at,
+                )
+            else:
+                # Create new device
+                device = Device(
+                    id=device_id,
+                    device_name=device_name,
+                    device_type=device_type,
+                    platform=platform,
+                    user_id=user_id,
+                    app_version=app_version,
+                )
+                session.add(device)
+                await session.commit()
+                
+                device_info = DeviceInfo(
+                    device_id=device.id,
+                    device_name=device.device_name,
+                    device_type=device.device_type,
+                    platform=device.platform,
+                    registered_at=device.created_at,
+                )
+            
+            # Update cache
+            self._device_cache[device_id] = device_info
+            
+            return device_info
+    
     def get_device(self, device_id: str) -> Optional[DeviceInfo]:
-        """Get device info by ID."""
-        return self.registered_devices.get(device_id)
+        """Get device info by ID from cache."""
+        return self._device_cache.get(device_id)
+    
+    async def get_device_async(self, device_id: str) -> Optional[DeviceInfo]:
+        """Get device info by ID from database."""
+        from app.models.device import Device
+        
+        # Check cache first
+        if device_id in self._device_cache:
+            return self._device_cache[device_id]
+        
+        # Query database
+        async with async_session_maker() as session:
+            result = await session.execute(
+                select(Device).where(Device.id == device_id)
+            )
+            device = result.scalar_one_or_none()
+            
+            if device:
+                device_info = DeviceInfo(
+                    device_id=device.id,
+                    device_name=device.device_name,
+                    device_type=device.device_type,
+                    platform=device.platform,
+                    last_sync=device.last_sync,
+                    registered_at=device.created_at,
+                )
+                self._device_cache[device_id] = device_info
+                return device_info
+            
+            return None
     
     def update_device_sync_time(self, device_id: str, sync_time: datetime):
-        """Update the last sync time for a device."""
-        self.device_sync_times[device_id] = sync_time
-        if device_id in self.registered_devices:
-            self.registered_devices[device_id].last_sync = sync_time
+        """Update the last sync time for a device (updates cache and schedules DB write)."""
+        if device_id in self._device_cache:
+            self._device_cache[device_id].last_sync = sync_time
+        
+        # Schedule async database write
+        asyncio.create_task(self._update_device_sync_time_db(device_id, sync_time))
+    
+    async def _update_device_sync_time_db(self, device_id: str, sync_time: datetime):
+        """Update device sync time in database."""
+        from app.models.device import Device
+        
+        try:
+            async with async_session_maker() as session:
+                await session.execute(
+                    update(Device)
+                    .where(Device.id == device_id)
+                    .values(last_sync=sync_time)
+                )
+                await session.commit()
+        except Exception as e:
+            print(f"[Sync] Failed to update device sync time: {e}")
+    
+    async def get_all_devices(self, user_id: Optional[str] = None) -> List[DeviceInfo]:
+        """Get all registered devices from database."""
+        from app.models.device import Device
+        
+        async with async_session_maker() as session:
+            query = select(Device).where(Device.is_active == True)
+            if user_id:
+                query = query.where(Device.user_id == user_id)
+            
+            result = await session.execute(query)
+            devices = result.scalars().all()
+            
+            return [
+                DeviceInfo(
+                    device_id=d.id,
+                    device_name=d.device_name,
+                    device_type=d.device_type,
+                    platform=d.platform,
+                    last_sync=d.last_sync,
+                    registered_at=d.created_at,
+                )
+                for d in devices
+            ]
+    
+    async def deactivate_device(self, device_id: str) -> bool:
+        """Deactivate a device (soft delete)."""
+        from app.models.device import Device
+        
+        try:
+            async with async_session_maker() as session:
+                await session.execute(
+                    update(Device)
+                    .where(Device.id == device_id)
+                    .values(is_active=False)
+                )
+                await session.commit()
+            
+            # Remove from cache
+            if device_id in self._device_cache:
+                del self._device_cache[device_id]
+            
+            return True
+        except Exception as e:
+            print(f"[Sync] Failed to deactivate device: {e}")
+            return False
     
     # =========================================================================
     # Pull Changes (Server -> Client)

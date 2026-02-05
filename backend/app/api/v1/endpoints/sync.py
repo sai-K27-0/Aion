@@ -540,23 +540,46 @@ async def resolve_conflict(request: ConflictResolution):
     summary="List Devices",
     description="List all registered devices.",
 )
-async def list_devices():
-    """List all registered devices."""
+async def list_devices(user_id: Optional[str] = Query(None, description="Filter by user ID")):
+    """List all registered devices from database."""
     sync_service = get_sync_service()
     
-    devices = [
-        {
-            "device_id": d.device_id,
-            "device_name": d.device_name,
-            "device_type": d.device_type,
-            "platform": d.platform,
-            "last_sync": d.last_sync.isoformat() if d.last_sync else None,
-            "registered_at": d.registered_at.isoformat(),
-        }
-        for d in sync_service.registered_devices.values()
-    ]
+    devices = await sync_service.get_all_devices(user_id=user_id)
     
-    return {"devices": devices, "count": len(devices)}
+    return {
+        "devices": [
+            {
+                "device_id": d.device_id,
+                "device_name": d.device_name,
+                "device_type": d.device_type,
+                "platform": d.platform,
+                "last_sync": d.last_sync.isoformat() if d.last_sync else None,
+                "registered_at": d.registered_at.isoformat(),
+            }
+            for d in devices
+        ],
+        "count": len(devices),
+    }
+
+
+@router.delete(
+    "/devices/{device_id}",
+    summary="Deactivate Device",
+    description="Deactivate a registered device.",
+)
+async def deactivate_device(device_id: str):
+    """Deactivate a device (soft delete)."""
+    sync_service = get_sync_service()
+    
+    success = await sync_service.deactivate_device(device_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Device not found or already deactivated",
+        )
+    
+    return {"success": True, "message": "Device deactivated"}
 
 
 @router.get(

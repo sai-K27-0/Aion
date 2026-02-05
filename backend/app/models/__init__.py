@@ -5,10 +5,11 @@ from app.models.trigger import Trigger
 from app.models.user import User
 from app.models.conversation import Conversation, ConversationMessage, ExtractedFact
 from app.models.plan import Plan, PlanStep, PlanStatus, StepStatus
+from app.models.device import Device
 
 __all__ = [
     "Block", "BlockField", "BlockEntry", "BlockContent", 
-    "Trigger", "User",
+    "Trigger", "User", "Device",
     "Conversation", "ConversationMessage", "ExtractedFact",
     "Plan", "PlanStep", "PlanStatus", "StepStatus",
 ]
