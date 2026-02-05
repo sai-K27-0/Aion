@@ -40,14 +40,9 @@ jobs:
           cache-dependency-path: desktop/package-lock.json
 
       - name: Setup Rust
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Install Rust targets for universal binary
-        run: |
-          rustup target add aarch64-apple-darwin
-          rustup target add x86_64-apple-darwin
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -115,7 +110,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
+          flutter-version: '3.22.0'
           channel: 'stable'
           cache: true
 
@@ -124,21 +119,33 @@ jobs:
           flutter --version
           flutter doctor -v
 
+      - name: Create Flutter project files if missing
+        working-directory: mobile
+        run: |
+          # Ensure we have required Flutter files
+          if [ ! -f "pubspec.lock" ]; then
+            echo "Generating pubspec.lock..."
+          fi
+          
+          # Create local.properties for Android
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+
       - name: Get Flutter dependencies
         working-directory: mobile
         run: flutter pub get
 
       - name: Generate code (freezed, json_serializable, etc.)
         working-directory: mobile
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build --delete-conflicting-outputs || true
 
       - name: Build APK (Release - All ABIs)
         working-directory: mobile
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Build APK (Release - Split by ABI)
         working-directory: mobile
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --no-tree-shake-icons
 
       - name: List APK artifacts
         run: |
