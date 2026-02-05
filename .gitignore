@@ -1,0 +1,155 @@
+# =============================================================================
+# Aion Project - Git Ignore
+# =============================================================================
+
+# =============================================================================
+# General
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.log
+*.tmp
+*.temp
+.env
+.env.local
+.env.*.local
+
+# =============================================================================
+# Backend (Python/FastAPI)
+# =============================================================================
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/**/*.py[cod]
+backend/*$py.class
+backend/**/*$py.class
+backend/.Python
+backend/build/
+backend/develop-eggs/
+backend/dist/
+backend/downloads/
+backend/eggs/
+backend/.eggs/
+backend/lib/
+backend/lib64/
+backend/parts/
+backend/sdist/
+backend/var/
+backend/wheels/
+backend/*.egg-info/
+backend/.installed.cfg
+backend/*.egg
+backend/.venv/
+backend/venv/
+backend/ENV/
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/data/
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# =============================================================================
+# Desktop (Tauri/Vite)
+# =============================================================================
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/.vite/
+desktop/*.local
+
+# Tauri build artifacts
+desktop/src-tauri/target/
+desktop/src-tauri/Cargo.lock
+desktop/src-tauri/WixTools/
+desktop/src-tauri/*.app
+desktop/src-tauri/*.dmg
+desktop/src-tauri/*.exe
+desktop/src-tauri/*.msi
+desktop/src-tauri/*.deb
+desktop/src-tauri/*.AppImage
+
+# =============================================================================
+# Mobile (Flutter)
+# =============================================================================
+mobile/.dart_tool/
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/ios/Flutter/.last_build_id
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/*.keystore
+mobile/android/*.jks
+
+# Generated files
+mobile/**/*.freezed.dart
+mobile/**/*.g.dart
+mobile/**/*.gr.dart
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# =============================================================================
+# IDE
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+
+# =============================================================================
+# Test & Coverage
+# =============================================================================
+coverage/
+*.lcov
+.nyc_output/
+
+# =============================================================================
+# Secrets & Credentials (NEVER commit these)
+# =============================================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.json
+credentials.json
+service-account.json
+google-services.json
+GoogleService-Info.plist
+
+# =============================================================================
+# Database files
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# =============================================================================
+# Temporary test files
+# =============================================================================
+test.mp3
+task_list.md

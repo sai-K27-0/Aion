@@ -1,0 +1,61 @@
+name: aion_mobile
+description: Aion Mobile Client - AI-Powered Personal Life Management
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+  
+  # Architecture & Data
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  
+  # Networking
+  dio: ^5.4.0
+  web_socket_channel: ^2.4.0
+  
+  # Local Database
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.2
+  
+  # UI/UX
+  go_router: ^13.0.1
+  google_fonts: ^6.1.0
+  flutter_animate: ^4.5.0
+  glassmorphism_ui: ^0.3.0
+  
+  # Utilities
+  uuid: ^4.3.3
+  intl: ^0.19.0
+  fpdart: ^1.1.0
+  
+  # Settings Storage
+  shared_preferences: ^2.2.2
+  
+  # Secure Storage (for tokens, credentials)
+  flutter_secure_storage: ^9.0.0
+  
+  # Device Info
+  device_info_plus: ^10.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.8
+  freezed: ^2.4.6
+  json_serializable: ^6.7.1
+  riverpod_generator: ^2.3.9
+  isar_generator: ^3.1.0+1
+
+flutter:
+  uses-material-design: true

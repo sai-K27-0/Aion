@@ -1,0 +1,88 @@
+# Aion Backend Docker Compose
+# ===========================
+# Local development environment with all required services
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: aion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aion
+      POSTGRES_PASSWORD: aion_local_secret
+      POSTGRES_DB: aion
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U aion -d aion" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: aion-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__LOG_LEVEL: INFO
+
+  # Redis (for Celery task queue)
+  redis:
+    image: redis:7-alpine
+    container_name: aion-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Aion Backend API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aion-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - QDRANT_HOST=qdrant
+      - REDIS_HOST=redis
+      - OLLAMA_HOST=host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+
+
+networks:
+  default:
+    name: aion-network

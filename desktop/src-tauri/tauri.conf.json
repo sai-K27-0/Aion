@@ -1,0 +1,130 @@
+{
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devPath": "http://localhost:1420",
+        "distDir": "../dist"
+    },
+    "package": {
+        "productName": "Aion",
+        "version": "0.1.0"
+    },
+    "tauri": {
+        "allowlist": {
+            "all": false,
+            "window": {
+                "all": true,
+                "setAlwaysOnTop": true,
+                "setDecorations": true,
+                "setPosition": true,
+                "setSize": true,
+                "setMinSize": true,
+                "setMaxSize": true,
+                "center": true,
+                "close": true,
+                "minimize": true,
+                "maximize": true,
+                "unmaximize": true,
+                "hide": true,
+                "show": true,
+                "startDragging": true
+            },
+            "globalShortcut": {
+                "all": true
+            },
+            "shell": {
+                "all": false,
+                "open": true
+            },
+            "fs": {
+                "all": false,
+                "readFile": true,
+                "writeFile": true,
+                "scope": [
+                    "$APPDATA/*",
+                    "$APPDATA/**"
+                ]
+            },
+            "path": {
+                "all": true
+            },
+            "http": {
+                "all": true,
+                "scope": [
+                    "http://localhost:8000/**",
+                    "http://127.0.0.1:8000/**",
+                    "http://192.168.*.*:8000/**",
+                    "http://10.*.*.*:8000/**",
+                    "http://*:8000/**"
+                ]
+            }
+        },
+        "bundle": {
+            "active": true,
+            "category": "Productivity",
+            "copyright": "© 2024 Aion Project",
+            "deb": {
+                "depends": []
+            },
+            "externalBin": [],
+            "icon": [
+                "icons/32x32.png",
+                "icons/128x128.png",
+                "icons/128x128@2x.png",
+                "icons/icon.icns",
+                "icons/icon.ico"
+            ],
+            "identifier": "com.aion.desktop",
+            "longDescription": "Aion - Your AI-powered life management system",
+            "macOS": {
+                "entitlements": null,
+                "exceptionDomain": "",
+                "frameworks": [],
+                "providerShortName": null,
+                "signingIdentity": null,
+                "minimumSystemVersion": "10.15"
+            },
+            "dmg": {
+                "appPosition": { "x": 180, "y": 170 },
+                "applicationFolderPosition": { "x": 480, "y": 170 },
+                "windowSize": { "height": 400, "width": 660 }
+            },
+            "resources": [],
+            "shortDescription": "AI Life Assistant",
+            "targets": "all",
+            "windows": {
+                "certificateThumbprint": null,
+                "digestAlgorithm": "sha256",
+                "timestampUrl": ""
+            }
+        },
+        "security": {
+            "csp": null
+        },
+        "windows": [
+            {
+                "title": "Aion",
+                "width": 320,
+                "height": 500,
+                "minWidth": 280,
+                "minHeight": 100,
+                "resizable": true,
+                "fullscreen": false,
+                "focus": false,
+                "transparent": true,
+                "decorations": false,
+                "alwaysOnTop": true,
+                "skipTaskbar": true,
+                "fileDropEnabled": false,
+                "center": false,
+                "x": 50,
+                "y": 100
+            }
+        ],
+        "systemTray": {
+            "iconPath": "icons/icon.png",
+            "iconAsTemplate": true,
+            "menuOnLeftClick": false
+        }
+    }
+}

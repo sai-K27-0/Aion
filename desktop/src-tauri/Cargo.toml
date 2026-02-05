@@ -1,0 +1,45 @@
+[package]
+name = "aion-desktop"
+version = "0.1.0"
+description = "Aion Desktop Client - AI-Powered Life Management"
+authors = ["Aion Project"]
+license = "MIT"
+repository = ""
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = [ "system-tray", "global-shortcut-all", "window-all", "shell-open", "fs-read-file", "fs-write-file", "path-all", "http-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# SQLite for offline storage
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# Screen capture
+screenshots = "0.8"
+image = "0.24"
+base64 = "0.21"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Secure storage (OS keychain)
+keyring = "2"
+
+# Platform-specific active window detection
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.25"
+objc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11 = "2.21"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

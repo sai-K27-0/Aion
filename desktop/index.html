@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aion</title>
+  <link rel="stylesheet" href="/src/styles/overlay.css" />
+</head>
+
+<body data-theme="sky">
+  <div id="drag-handle" data-tauri-drag-region></div>
+
+  <!-- Overlay for centered orb mode -->
+  <div id="orb-overlay" class="orb-overlay"></div>
+
+  <!-- ================================================
+       ORB (AI Assistant)
+       ================================================ -->
+  <div id="orb-container" class="orb-container">
+    <div id="orb" class="orb">
+      <div class="orb-glow"></div>
+      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <!-- Aion "A" stylized icon -->
+        <path d="M12 3L4 21h3l1.5-4h7l1.5 4h3L12 3z" fill="currentColor" opacity="0.2"/>
+        <path d="M12 3L4 21h3l1.5-4h7l1.5 4h3L12 3z"/>
+        <path d="M9 14l3-8 3 8" stroke-width="1.2"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- AI Input Bar (appears when orb clicked) -->
+  <div id="ai-input-bar" class="ai-input-bar hidden">
+    <div class="ai-input-glow"></div>
+    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"/>
+    </svg>
+    <input type="text" id="ai-input" placeholder="Ask Aion anything..." autocomplete="off">
+    <button id="ai-send-btn" class="ai-send-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+    <button id="ai-close-btn" class="ai-close-btn">×</button>
+  </div>
+
+  <!-- AI Output Box -->
+  <div id="ai-output-box" class="ai-output-box hidden">
+    <div class="ai-output-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"/>
+      </svg>
+      <span>Aion</span>
+      <button id="ai-output-close" class="btn-close">×</button>
+    </div>
+    <div id="ai-output-content" class="ai-output-content">
+      <div class="ai-thinking hidden" id="ai-thinking">
+        <span class="thinking-dot"></span>
+        <span class="thinking-dot"></span>
+        <span class="thinking-dot"></span>
+      </div>
+      <div id="ai-response"></div>
+    </div>
+  </div>
+
+  <!-- Profile Badge (hidden, moved to focus panel) -->
+  <div id="profile-badge" class="profile-badge hidden">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+    <span id="profile-name-badge">Study</span>
+  </div>
+
+  <!-- Radial Menu (hidden by default, accessed via long-press or right-click) -->
+  <div id="radial-menu" class="radial-menu hidden">
+      <button class="radial-btn" id="btn-mindmap" title="Mind Map (M)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/>
+          <circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/>
+          <path d="M9.5 10.5L6 8M14.5 10.5L18 8M9.5 13.5L6 16M14.5 13.5L18 16"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-tasks" title="All Tasks (T)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-pomodoro" title="Pomodoro (P)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-stats" title="Statistics (S)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-habits" title="Habits (H)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-calendar" title="Calendar (C)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-chat" title="AI Assistant (A)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z"/>
+          <circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/>
+        </svg>
+      </button>
+      <button class="radial-btn" id="btn-settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================
+       FLOATING TIMER PANEL (Draggable)
+       ================================================ -->
+  <div id="floating-timer" class="floating-panel hidden">
+    <div class="floating-header" data-drag="floating-timer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span>Timer</span>
+      <button class="floating-close" id="close-floating-timer">×</button>
+    </div>
+    <div class="floating-content">
+      <div class="float-timer-display">
+        <div id="float-timer-time" class="float-timer-time">25:00</div>
+        <div id="float-timer-mode" class="float-timer-mode">Work</div>
+      </div>
+      <div class="float-timer-progress">
+        <div id="float-timer-bar" class="float-timer-bar" style="width: 100%"></div>
+      </div>
+      <div class="float-timer-controls">
+        <button id="float-timer-start" class="float-btn">▶</button>
+        <button id="float-timer-pause" class="float-btn hidden">⏸</button>
+        <button id="float-timer-reset" class="float-btn">↺</button>
+      </div>
+      <div class="float-timer-stats">
+        <span><strong id="float-sessions">0</strong> sessions</span>
+        <span id="float-total-time">0h 0m</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search Bar -->
+  <div id="search-bar" class="search-bar hidden">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="Search blocks, tasks, notes..." autocomplete="off">
+    <span class="search-hint">ESC to close</span>
+  </div>
+
+  <!-- Search Results -->
+  <div id="search-results" class="search-results hidden"></div>
+
+  <!-- Profile Dropdown -->
+  <div id="profile-dropdown" class="dropdown hidden">
+    <div class="dropdown-title">Switch Profile</div>
+    <div id="profile-list"></div>
+    <button id="btn-new-profile" class="dropdown-add">+ New Profile</button>
+  </div>
+
+  <!-- ================================================
+       FOCUS PANEL (Right Side) - Collapsible
+       ================================================ -->
+  <div id="focus-panel" class="focus-panel">
+    <!-- Minimized State -->
+    <div id="focus-minimized" class="focus-minimized hidden">
+      <button id="focus-expand-btn" class="focus-toggle-btn" title="Expand Focus Panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Expanded State -->
+    <div id="focus-expanded" class="focus-expanded">
+      <!-- Profile Section -->
+      <div id="focus-profile" class="focus-profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span id="focus-profile-name">Study</span>
+        <button id="focus-profile-btn" class="focus-profile-btn">▾</button>
+      </div>
+
+      <!-- Header with minimize button -->
+      <div class="focus-header">
+        <svg class="focus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+        </svg>
+        <span>Focus</span>
+        <button id="focus-minimize-btn" class="focus-minimize-btn" title="Minimize">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Current Focus Text -->
+      <div id="focus-content" class="focus-content">
+        <div id="focus-text-display" class="focus-text">Click to set...</div>
+        <input type="text" id="focus-input" class="focus-input hidden" placeholder="What's your focus?">
+      </div>
+
+      <!-- Collapsible Sections -->
+      
+      <!-- Timer Section -->
+      <div class="focus-collapsible" data-section="timer">
+        <div class="collapsible-header" data-toggle="timer">
+          <div class="collapsible-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Timer</span>
+            <span id="timer-status-badge" class="status-badge hidden">Running</span>
+          </div>
+          <span class="collapsible-arrow">▾</span>
+        </div>
+        <div id="focus-timer-content" class="collapsible-content">
+          <div class="timer-display-compact">
+            <div id="focus-timer-time" class="focus-timer-time">25:00</div>
+            <div id="focus-timer-mode-label" class="focus-timer-mode-label">Work Session</div>
+          </div>
+          <div class="timer-progress-bar">
+            <div id="focus-timer-progress" class="timer-progress-fill"></div>
+          </div>
+          <div class="timer-controls-row">
+            <button id="focus-timer-start" class="timer-btn start">▶</button>
+            <button id="focus-timer-pause" class="timer-btn pause hidden">⏸</button>
+            <button id="focus-timer-reset" class="timer-btn">↺</button>
+          </div>
+          <div class="timer-mode-select">
+            <button class="mode-select-btn active" data-mode="work">Work</button>
+            <button class="mode-select-btn" data-mode="short">Short</button>
+            <button class="mode-select-btn" data-mode="long">Long</button>
+          </div>
+          <div class="timer-sessions-info">
+            <span id="focus-timer-sessions">0</span> sessions today
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar Section -->
+      <div class="focus-collapsible" data-section="calendar">
+        <div class="collapsible-header" data-toggle="calendar">
+          <div class="collapsible-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span>Calendar</span>
+          </div>
+          <span class="collapsible-arrow">▾</span>
+        </div>
+        <div id="focus-calendar-content" class="collapsible-content">
+          <div class="mini-calendar">
+            <div class="mini-cal-header">
+              <button id="mini-cal-prev" class="mini-cal-nav">‹</button>
+              <span id="mini-cal-month">Feb 2026</span>
+              <button id="mini-cal-next" class="mini-cal-nav">›</button>
+            </div>
+            <div class="mini-cal-weekdays">
+              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+            </div>
+            <div id="mini-cal-grid" class="mini-cal-grid"></div>
+            <div id="mini-cal-tasks" class="mini-cal-tasks">
+              <div class="mini-cal-tasks-title">Today's Tasks</div>
+              <div id="mini-cal-task-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- To-Do List Section -->
+      <div class="focus-collapsible" data-section="todos">
+        <div class="collapsible-header" data-toggle="todos">
+          <div class="collapsible-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            <span>To-Do List</span>
+            <button id="mini-add-todo" class="mini-add-btn-inline">+</button>
+          </div>
+          <span class="collapsible-arrow">▾</span>
+        </div>
+        <div id="focus-todos-content" class="collapsible-content">
+          <div id="mini-todo-list" class="mini-todo-list"></div>
+          <div class="today-progress">
+            <div class="progress-stats">
+              <span id="today-tasks-done">0</span>/<span id="today-tasks-total">0</span> tasks
+            </div>
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <button class="quick-action" id="btn-quick-task" title="Quick Add Task (Ctrl+N)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <button class="quick-action" id="btn-quick-search" title="Search (Ctrl+K)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+        <button class="quick-action" id="btn-quick-help" title="Shortcuts (?)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       POMODORO PANEL
+       ================================================ -->
+  <div id="pomodoro-panel" class="panel-view hidden">
+    <div class="panel-header" data-drag="pomodoro-panel">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <h2>Pomodoro Timer</h2>
+      </div>
+      <button id="btn-close-pomodoro" class="btn-close">×</button>
+    </div>
+    <div class="pomodoro-content">
+      <div class="pomo-mode-tabs">
+        <button class="pomo-tab active" data-mode="work">Work</button>
+        <button class="pomo-tab" data-mode="short">Short Break</button>
+        <button class="pomo-tab" data-mode="long">Long Break</button>
+      </div>
+      <div class="pomo-timer-display">
+        <svg class="pomo-circle" viewBox="0 0 100 100">
+          <circle class="pomo-bg" cx="50" cy="50" r="45"/>
+          <circle id="pomo-progress" class="pomo-ring" cx="50" cy="50" r="45"/>
+        </svg>
+        <div class="pomo-time" id="pomo-time">25:00</div>
+      </div>
+      <div class="pomo-controls">
+        <button id="pomo-start" class="pomo-btn primary">Start</button>
+        <button id="pomo-pause" class="pomo-btn hidden">Pause</button>
+        <button id="pomo-reset" class="pomo-btn">Reset</button>
+      </div>
+      <div class="pomo-stats">
+        <div class="pomo-stat">
+          <span class="stat-value" id="pomo-sessions">0</span>
+          <span class="stat-label">Sessions</span>
+        </div>
+        <div class="pomo-stat">
+          <span class="stat-value" id="pomo-total-time">0h 0m</span>
+          <span class="stat-label">Focus Time</span>
+        </div>
+      </div>
+      <div class="pomo-task">
+        <span class="pomo-task-label">Working on:</span>
+        <select id="pomo-task-select" class="pomo-task-select">
+          <option value="">Select a task...</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       STATISTICS PANEL
+       ================================================ -->
+  <div id="stats-panel" class="panel-view hidden">
+    <div class="panel-header" data-drag="stats-panel">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <h2>Statistics</h2>
+      </div>
+      <button id="btn-close-stats" class="btn-close">×</button>
+    </div>
+    <div class="stats-content">
+      <div class="stats-period">
+        <button class="period-btn active" data-period="today">Today</button>
+        <button class="period-btn" data-period="week">This Week</button>
+        <button class="period-btn" data-period="month">This Month</button>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-completed">0</span>
+            <span class="stat-label">Tasks Completed</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🍅</div>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-pomodoros">0</span>
+            <span class="stat-label">Pomodoros</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-focus-time">0h</span>
+            <span class="stat-label">Focus Time</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-info">
+            <span class="stat-number" id="stat-streak">0</span>
+            <span class="stat-label">Day Streak</span>
+          </div>
+        </div>
+      </div>
+      <div class="stats-chart">
+        <div class="chart-title">Activity (Last 7 Days)</div>
+        <div id="activity-chart" class="activity-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       HABITS PANEL
+       ================================================ -->
+  <div id="habits-panel" class="panel-view hidden">
+    <div class="panel-header" data-drag="habits-panel">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <h2>Daily Habits</h2>
+      </div>
+      <div class="header-actions">
+        <button id="btn-add-habit" class="header-btn">+ Add Habit</button>
+        <button id="btn-close-habits" class="btn-close">×</button>
+      </div>
+    </div>
+    <div class="habits-content">
+      <div class="habits-date">
+        <button id="habit-prev-day" class="btn-icon-sm">‹</button>
+        <span id="habits-date-label">Today</span>
+        <button id="habit-next-day" class="btn-icon-sm">›</button>
+      </div>
+      <div id="habits-list" class="habits-list"></div>
+      <div class="habits-summary">
+        <div class="habit-streak">
+          <span class="streak-icon">🔥</span>
+          <span id="habit-streak-count">0</span> day streak
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       CALENDAR PANEL
+       ================================================ -->
+  <div id="calendar-panel" class="panel-view calendar-panel hidden">
+    <div class="panel-header" data-drag="calendar-panel">
+      <div class="header-left">
+        <button id="btn-prev-month" class="btn-icon-sm">‹</button>
+        <span id="calendar-month">February 2026</span>
+        <button id="btn-next-month" class="btn-icon-sm">›</button>
+      </div>
+      <div class="header-actions">
+        <button id="btn-add-cal-task" class="header-btn">+ Add Task</button>
+        <button id="btn-close-calendar" class="btn-close">×</button>
+      </div>
+    </div>
+    <div class="calendar-body">
+      <div class="cal-weekdays">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div id="calendar-grid" class="cal-grid"></div>
+    </div>
+    <div class="calendar-day-view">
+      <div class="day-view-header">
+        <span id="selected-date-label">Select a day</span>
+      </div>
+      <div id="day-task-list" class="day-task-list"></div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       ALL TASKS PANEL
+       ================================================ -->
+  <div id="tasks-panel" class="panel-view hidden">
+    <div class="panel-header" data-drag="tasks-panel">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+        <h2>All Tasks</h2>
+      </div>
+      <div class="header-actions">
+        <button id="btn-add-global-task" class="header-btn">+ New Task</button>
+        <select id="task-sort-select" class="header-select">
+          <option value="block">Sort by Block</option>
+          <option value="priority">Sort by Priority</option>
+          <option value="status">Sort by Status</option>
+          <option value="date">Sort by Due Date</option>
+          <option value="created">Sort by Created</option>
+        </select>
+        <button id="btn-close-tasks" class="btn-close">×</button>
+      </div>
+    </div>
+    <div class="tasks-toolbar">
+      <div class="status-tabs">
+        <button class="status-tab active" data-status="all">All</button>
+        <button class="status-tab" data-status="not_started">Not Started</button>
+        <button class="status-tab" data-status="in_progress">In Progress</button>
+        <button class="status-tab" data-status="on_hold">On Hold</button>
+        <button class="status-tab" data-status="completed">Completed</button>
+      </div>
+      <div class="task-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="task-search-input" placeholder="Search tasks..." autocomplete="off">
+      </div>
+    </div>
+    <div id="bulk-actions-bar" class="bulk-actions-bar hidden">
+      <span id="selected-count">0 selected</span>
+      <button id="bulk-status-btn" class="bulk-btn">Change Status</button>
+      <button id="bulk-move-btn" class="bulk-btn">Move</button>
+      <button id="bulk-delete-btn" class="bulk-btn bulk-btn-danger">Delete</button>
+      <button id="bulk-cancel-btn" class="bulk-btn">Cancel</button>
+    </div>
+    <div id="all-tasks-list" class="all-tasks-list"></div>
+  </div>
+
+  <!-- ================================================
+       CHAT BOX
+       ================================================ -->
+  <div id="chat-box" class="chat-box hidden">
+    <div class="chat-header" data-drag="chat-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>Aion AI</span>
+      <button id="btn-close-chat" class="btn-close">×</button>
+    </div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-wrap">
+      <button id="btn-voice" class="btn-voice" title="Voice input (hold to speak)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </button>
+      <textarea id="chat-input" placeholder="Ask anything..." rows="1"></textarea>
+      <button id="btn-send" class="btn-send">↑</button>
+    </div>
+    <div id="voice-indicator" class="voice-indicator hidden">
+      <div class="voice-waves">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <span class="voice-text">Listening...</span>
+    </div>
+  </div>
+
+  <!-- ================================================
+       MIND MAP VIEW
+       ================================================ -->
+  <div id="mindmap-view" class="panel-view hidden">
+    <div class="panel-header" data-drag="mindmap-view">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="2"/><circle cx="20" cy="6" r="2"/>
+          <circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/>
+          <path d="M9.5 10.5L6 8M14.5 10.5L18 8M9.5 13.5L6 16M14.5 13.5L18 16"/>
+        </svg>
+        <h2>Mind Map</h2>
+      </div>
+      <div class="header-actions">
+        <button id="btn-add-block" class="header-btn">+ Add Block</button>
+        <button id="btn-close-mindmap" class="btn-close">×</button>
+      </div>
+    </div>
+    <div id="mindmap-canvas" class="mindmap-canvas">
+      <svg id="connections-svg" class="connections-svg"></svg>
+      <div id="blocks-layer" class="blocks-layer"></div>
+    </div>
+  </div>
+
+  <!-- Block Context Menu -->
+  <div id="block-context-menu" class="context-menu hidden">
+    <button class="ctx-item" id="ctx-open">Open</button>
+    <button class="ctx-item" id="ctx-rename">Rename</button>
+    <button class="ctx-item" id="ctx-icon">Change Icon</button>
+    <button class="ctx-item" id="ctx-subblock">Add Sub-block</button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item ctx-danger" id="ctx-delete">Delete</button>
+  </div>
+
+  <!-- Task Context Menu -->
+  <div id="task-context-menu" class="context-menu hidden">
+    <button class="ctx-item" id="ctx-task-edit">Edit Task</button>
+    <div class="ctx-submenu-wrapper">
+      <button class="ctx-item ctx-has-submenu" id="ctx-task-status">Change Status ›</button>
+      <div class="ctx-submenu hidden" id="status-submenu">
+        <button class="ctx-item" data-status="not_started">🟣 Not Started</button>
+        <button class="ctx-item" data-status="in_progress">🟡 In Progress</button>
+        <button class="ctx-item" data-status="on_hold">🟠 On Hold</button>
+        <button class="ctx-item" data-status="completed">🟢 Completed</button>
+      </div>
+    </div>
+    <div class="ctx-submenu-wrapper">
+      <button class="ctx-item ctx-has-submenu" id="ctx-task-priority">Change Priority ›</button>
+      <div class="ctx-submenu hidden" id="priority-submenu">
+        <button class="ctx-item" data-priority="none">⚪ None</button>
+        <button class="ctx-item" data-priority="low">🟢 Low</button>
+        <button class="ctx-item" data-priority="medium">🟡 Medium</button>
+        <button class="ctx-item" data-priority="high">🔴 High</button>
+      </div>
+    </div>
+    <button class="ctx-item" id="ctx-task-move">Move to Block</button>
+    <button class="ctx-item" id="ctx-task-duplicate">Duplicate</button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item" id="ctx-task-complete">Toggle Complete</button>
+    <button class="ctx-item ctx-danger" id="ctx-task-delete">Delete</button>
+  </div>
+
+  <!-- Move Task Popup -->
+  <div id="move-task-popup" class="popup hidden">
+    <div class="popup-title">Move Task to Block</div>
+    <select id="move-task-block" class="popup-field"></select>
+    <div class="popup-btns">
+      <button id="btn-cancel-move-task" class="btn-text">Cancel</button>
+      <button id="btn-confirm-move-task" class="btn-primary">Move</button>
+    </div>
+  </div>
+
+  <!-- ================================================
+       BLOCK EDITOR
+       ================================================ -->
+  <div id="block-editor" class="panel-view hidden">
+    <div class="panel-header">
+      <button id="btn-back" class="btn-back">← Back</button>
+      <div class="editor-title-wrap">
+        <button id="block-icon-btn" class="block-icon-btn"></button>
+        <input type="text" id="block-title" class="editor-title" placeholder="Untitled">
+      </div>
+      <button id="btn-close-editor" class="btn-close">×</button>
+    </div>
+    <div class="editor-props">
+      <div class="prop-row">
+        <span class="prop-label">📅 Date</span>
+        <input type="date" id="block-date" class="prop-input">
+        <span class="prop-to">→</span>
+        <input type="date" id="block-date-end" class="prop-input">
+      </div>
+      <div class="prop-row">
+        <span class="prop-label">⏱️ Timer</span>
+        <span id="timer-value" class="timer-value">00:00:00</span>
+        <button id="btn-timer-start" class="btn-sm">▶</button>
+        <button id="btn-timer-pause" class="btn-sm hidden">⏸</button>
+        <button id="btn-timer-reset" class="btn-sm">↺</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <div class="editor-section">
+        <div class="section-label">Notes</div>
+        <div id="block-notes" class="block-notes" contenteditable="true" data-placeholder="Write something..."></div>
+      </div>
+      <div class="editor-section">
+        <div class="section-header">
+          <span class="section-label">✅ To-Do List</span>
+          <button id="btn-add-todo" class="btn-add">+ Add</button>
+        </div>
+        <div id="todo-list" class="todo-list"></div>
+      </div>
+      <div class="editor-section">
+        <div class="section-header">
+          <span class="section-label">📦 Sub-Blocks</span>
+          <button id="btn-add-subblock" class="btn-add">+ Add</button>
+        </div>
+        <div id="subblocks-list" class="subblocks-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       SETTINGS PANEL
+       ================================================ -->
+  <div id="settings-panel" class="panel-view hidden">
+    <div class="panel-header" data-drag="settings-panel">
+      <div class="header-left">
+        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <h2>Settings</h2>
+      </div>
+      <button id="btn-close-settings" class="btn-close">×</button>
+    </div>
+    <div class="settings-content">
+      <div class="settings-group">
+        <h3>Theme</h3>
+        <p class="settings-hint">Changes the color of the orb and all UI elements</p>
+        <div class="theme-grid">
+          <button class="theme-option active" data-theme="sky">
+            <span class="theme-preview sky"></span>Sky Blue
+          </button>
+          <button class="theme-option" data-theme="forest">
+            <span class="theme-preview forest"></span>Forest
+          </button>
+          <button class="theme-option" data-theme="sunset">
+            <span class="theme-preview sunset"></span>Sunset
+          </button>
+          <button class="theme-option" data-theme="ocean">
+            <span class="theme-preview ocean"></span>Ocean
+          </button>
+          <button class="theme-option" data-theme="lavender">
+            <span class="theme-preview lavender"></span>Lavender
+          </button>
+          <button class="theme-option" data-theme="rose">
+            <span class="theme-preview rose"></span>Rose
+          </button>
+          <button class="theme-option" data-theme="mint">
+            <span class="theme-preview mint"></span>Mint
+          </button>
+          <button class="theme-option" data-theme="gold">
+            <span class="theme-preview gold"></span>Gold
+          </button>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>AI Model</h3>
+        <p class="settings-hint">Select which Ollama model to use for AI chat</p>
+        <div class="setting-row">
+          <span>Model</span>
+          <select id="ai-model-select" class="setting-select">
+            <option value="llama3.2">llama3.2 (default)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>AI Status</span>
+          <span id="ai-status-indicator" class="status-indicator">Checking...</span>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>Pomodoro</h3>
+        <div class="setting-row">
+          <span>Work Duration</span>
+          <select id="pomo-work-duration" class="setting-select">
+            <option value="15">15 min</option>
+            <option value="25" selected>25 min</option>
+            <option value="30">30 min</option>
+            <option value="45">45 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Short Break</span>
+          <select id="pomo-short-break" class="setting-select">
+            <option value="3">3 min</option>
+            <option value="5" selected>5 min</option>
+            <option value="10">10 min</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Long Break</span>
+          <select id="pomo-long-break" class="setting-select">
+            <option value="15" selected>15 min</option>
+            <option value="20">20 min</option>
+            <option value="30">30 min</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>Data</h3>
+        <div class="setting-row">
+          <button id="btn-export" class="setting-btn">Export Data</button>
+          <button id="btn-import" class="setting-btn">Import Data</button>
+        </div>
+        <div class="setting-row">
+          <button id="btn-clear-data" class="setting-btn danger">Clear All Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================
+       POPUPS
+       ================================================ -->
+  
+  <div id="profile-popup" class="popup hidden">
+    <div class="popup-title">Profile</div>
+    <input type="text" id="profile-name-input" class="popup-field" placeholder="Profile name">
+    <div class="popup-btns">
+      <button id="btn-delete-profile" class="btn-danger hidden">Delete</button>
+      <button id="btn-save-profile" class="btn-primary">Save</button>
+    </div>
+  </div>
+
+  <div id="block-popup" class="popup hidden">
+    <div class="popup-title">New Block</div>
+    <input type="text" id="new-block-name" class="popup-field" placeholder="Block name">
+    <div class="type-picker">
+      <button class="type-opt selected" data-type="note">📝 Note</button>
+      <button class="type-opt" data-type="task">✅ Tasks</button>
+      <button class="type-opt" data-type="project">📁 Project</button>
+      <button class="type-opt" data-type="idea">💡 Idea</button>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-cancel-block" class="btn-text">Cancel</button>
+      <button id="btn-create-block" class="btn-primary">Create</button>
+    </div>
+  </div>
+
+  <div id="rename-popup" class="popup hidden">
+    <div class="popup-title">Rename Block</div>
+    <input type="text" id="rename-input" class="popup-field" placeholder="Block name">
+    <div class="popup-btns">
+      <button id="btn-cancel-rename" class="btn-text">Cancel</button>
+      <button id="btn-save-rename" class="btn-primary">Save</button>
+    </div>
+  </div>
+
+  <div id="icon-popup" class="popup hidden">
+    <div class="popup-title">Choose Icon</div>
+    <div class="icon-grid" id="icon-grid"></div>
+    <div class="popup-btns">
+      <button id="btn-cancel-icon" class="btn-text">Cancel</button>
+    </div>
+  </div>
+
+  <div id="todo-popup" class="popup hidden">
+    <div class="popup-title">New To-Do</div>
+    <input type="text" id="todo-text" class="popup-field" placeholder="Task description">
+    <div class="todo-options">
+      <label class="option-row">
+        <span>Priority:</span>
+        <select id="todo-priority" class="option-select">
+          <option value="none">None</option>
+          <option value="low">🟢 Low</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Status:</span>
+        <select id="todo-status" class="option-select">
+          <option value="not_started">Not Started</option>
+          <option value="in_progress">In Progress</option>
+          <option value="on_hold">On Hold</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Due:</span>
+        <input type="date" id="todo-date" class="option-input">
+      </label>
+      <label class="option-row">
+        <span>Tags:</span>
+        <input type="text" id="todo-tags" class="option-input" placeholder="work, urgent">
+      </label>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-cancel-todo" class="btn-text">Cancel</button>
+      <button id="btn-save-todo" class="btn-primary">Add</button>
+    </div>
+  </div>
+
+  <div id="quick-add-popup" class="popup hidden">
+    <div class="popup-title">Quick Add Task</div>
+    <input type="text" id="quick-task-text" class="popup-field" placeholder="Task description">
+    <select id="quick-task-block" class="popup-field">
+      <option value="">Select block...</option>
+    </select>
+    <div class="popup-btns">
+      <button id="btn-cancel-quick" class="btn-text">Cancel</button>
+      <button id="btn-save-quick" class="btn-primary">Add</button>
+    </div>
+  </div>
+
+  <div id="global-task-popup" class="popup hidden">
+    <div class="popup-title">New Task</div>
+    <input type="text" id="global-task-text" class="popup-field" placeholder="Task description">
+    <select id="global-task-block" class="popup-field">
+      <option value="">Select block...</option>
+    </select>
+    <div class="task-options">
+      <label class="option-row">
+        <span>Priority:</span>
+        <select id="global-task-priority" class="option-select">
+          <option value="none">None</option>
+          <option value="low">🟢 Low</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Status:</span>
+        <select id="global-task-status" class="option-select">
+          <option value="not_started">Not Started</option>
+          <option value="in_progress">In Progress</option>
+          <option value="on_hold">On Hold</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Due:</span>
+        <input type="date" id="global-task-date" class="option-input">
+      </label>
+      <label class="option-row">
+        <span>Tags:</span>
+        <input type="text" id="global-task-tags" class="option-input" placeholder="work, urgent">
+      </label>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-cancel-global-task" class="btn-text">Cancel</button>
+      <button id="btn-save-global-task" class="btn-primary">Add Task</button>
+    </div>
+  </div>
+
+  <div id="edit-task-popup" class="popup hidden">
+    <div class="popup-title">Edit Task</div>
+    <input type="text" id="edit-task-text" class="popup-field" placeholder="Task description">
+    <div class="task-options">
+      <label class="option-row">
+        <span>Priority:</span>
+        <select id="edit-task-priority" class="option-select">
+          <option value="none">None</option>
+          <option value="low">🟢 Low</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="high">🔴 High</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Status:</span>
+        <select id="edit-task-status" class="option-select">
+          <option value="not_started">Not Started</option>
+          <option value="in_progress">In Progress</option>
+          <option value="on_hold">On Hold</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Due:</span>
+        <input type="date" id="edit-task-date" class="option-input">
+      </label>
+      <label class="option-row">
+        <span>Tags:</span>
+        <input type="text" id="edit-task-tags" class="option-input" placeholder="work, urgent">
+      </label>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-cancel-edit-task" class="btn-text">Cancel</button>
+      <button id="btn-save-edit-task" class="btn-primary">Save</button>
+    </div>
+  </div>
+
+  <div id="habit-popup" class="popup hidden">
+    <div class="popup-title">New Habit</div>
+    <input type="text" id="habit-name" class="popup-field" placeholder="Habit name">
+    <div class="habit-options">
+      <label class="option-row">
+        <span>Icon:</span>
+        <select id="habit-icon" class="option-select">
+          <option value="💪">💪 Exercise</option>
+          <option value="📚">📚 Reading</option>
+          <option value="🧘">🧘 Meditation</option>
+          <option value="💧">💧 Water</option>
+          <option value="🌱">🌱 Learning</option>
+          <option value="✍️">✍️ Writing</option>
+          <option value="🎯">🎯 Goal</option>
+          <option value="⭐">⭐ Custom</option>
+        </select>
+      </label>
+      <label class="option-row">
+        <span>Frequency:</span>
+        <select id="habit-freq" class="option-select">
+          <option value="daily">Daily</option>
+          <option value="weekdays">Weekdays</option>
+          <option value="weekends">Weekends</option>
+        </select>
+      </label>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-cancel-habit" class="btn-text">Cancel</button>
+      <button id="btn-save-habit" class="btn-primary">Add</button>
+    </div>
+  </div>
+
+  <div id="cal-task-popup" class="popup hidden">
+    <div class="popup-title">Add Calendar Task</div>
+    <input type="text" id="cal-task-title" class="popup-field" placeholder="Task title">
+    <div class="task-dates">
+      <label class="option-row"><span>From:</span><input type="date" id="cal-task-start" class="option-input"></label>
+      <label class="option-row"><span>To:</span><input type="date" id="cal-task-end" class="option-input"></label>
+    </div>
+    <select id="cal-task-status" class="popup-field">
+      <option value="not_started">Not Started</option>
+      <option value="in_progress">In Progress</option>
+      <option value="completed">Completed</option>
+    </select>
+    <div class="popup-btns">
+      <button id="btn-cancel-cal-task" class="btn-text">Cancel</button>
+      <button id="btn-save-cal-task" class="btn-primary">Add</button>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Help -->
+  <div id="shortcuts-popup" class="popup shortcuts-popup hidden">
+    <div class="popup-title">Keyboard Shortcuts</div>
+    <div class="shortcuts-grid">
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Navigation</div>
+        <div class="shortcut"><kbd>M</kbd><span>Mind Map</span></div>
+        <div class="shortcut"><kbd>T</kbd><span>All Tasks</span></div>
+        <div class="shortcut"><kbd>P</kbd><span>Timer</span></div>
+        <div class="shortcut"><kbd>S</kbd><span>Statistics</span></div>
+        <div class="shortcut"><kbd>H</kbd><span>Habits</span></div>
+        <div class="shortcut"><kbd>C</kbd><span>Calendar</span></div>
+        <div class="shortcut"><kbd>A</kbd><span>AI Assistant</span></div>
+      </div>
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Focus Panel</div>
+        <div class="shortcut"><kbd>1</kbd><span>Timer Section</span></div>
+        <div class="shortcut"><kbd>2</kbd><span>Calendar Section</span></div>
+        <div class="shortcut"><kbd>3</kbd><span>To-Do Section</span></div>
+        <div class="shortcut"><kbd>F</kbd><span>Edit Focus Text</span></div>
+      </div>
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Timer Controls</div>
+        <div class="shortcut"><kbd>Space</kbd><span>Start/Pause Timer</span></div>
+        <div class="shortcut"><kbd>Shift</kbd>+<kbd>R</kbd><span>Reset Timer</span></div>
+      </div>
+      <div class="shortcuts-section">
+        <div class="shortcuts-section-title">Global</div>
+        <div class="shortcut"><kbd>`</kbd> / <kbd>~</kbd><span>Hide/Show All</span></div>
+        <div class="shortcut"><kbd>Q</kbd><span>Close All Panels</span></div>
+        <div class="shortcut"><kbd>Esc</kbd><span>Close Current</span></div>
+        <div class="shortcut"><kbd>Alt</kbd>+<kbd>Space</kbd><span>Toggle Menu</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>K</kbd><span>Search</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>N</kbd><span>Quick Add Task</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>/</kbd><span>AI Input</span></div>
+        <div class="shortcut"><kbd>?</kbd><span>This Help</span></div>
+      </div>
+    </div>
+    <div class="popup-btns">
+      <button id="btn-close-shortcuts" class="btn-primary">Got it</button>
+    </div>
+  </div>
+
+  <!-- Sync Status Indicator -->
+  <div id="sync-status" class="sync-status hidden">
+    <div class="sync-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </div>
+    <span class="sync-text">Synced</span>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification hidden">
+    <div class="notif-icon">🍅</div>
+    <div class="notif-content">
+      <div class="notif-title">Pomodoro Complete!</div>
+      <div class="notif-message">Time for a break</div>
+    </div>
+    <button id="notif-close" class="notif-close">×</button>
+  </div>
+
+  <input type="file" id="import-file" accept=".json" style="display:none">
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

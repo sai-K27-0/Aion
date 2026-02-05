@@ -1,0 +1,84 @@
+/* Calendar View Styles */
+.calendar-panel {
+    position: absolute;
+    top: 60px;
+    left: 20px;
+    right: 20px;
+    bottom: 120px;
+    /* Above input area */
+    background: var(--glass-bg-light);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    display: flex;
+    flex-direction: column;
+    z-index: 10005;
+    animation: fadeIn var(--transition-normal);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--glass-border);
+    font-weight: 600;
+    color: var(--color-accent);
+}
+
+.calendar-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    grid-auto-rows: 60px;
+    gap: 1px;
+    overflow-y: auto;
+    margin-top: var(--spacing-sm);
+}
+
+.time-slot {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-align: right;
+    padding-right: var(--spacing-sm);
+    border-right: 1px solid var(--glass-border);
+}
+
+.calendar-item {
+    margin: 2px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: white;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.calendar-item:hover {
+    transform: scale(1.02);
+}
+
+/* Voice Active State */
+.voice-active {
+    color: var(--color-error) !important;
+    animation: pulse-red 1.5s infinite;
+}
+
+@keyframes pulse-red {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
