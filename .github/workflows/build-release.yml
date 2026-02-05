@@ -36,8 +36,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: desktop/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -53,17 +51,27 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             desktop/src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
       - name: Install dependencies
         working-directory: desktop
-        run: npm ci
+        run: npm install
 
-      - name: Build Tauri app (Universal macOS)
+      - name: Generate macOS icons
+        working-directory: desktop/src-tauri/icons
+        run: |
+          # Convert iconset to icns if iconset exists
+          if [ -d "icon.iconset" ]; then
+            iconutil -c icns icon.iconset
+            echo "Generated icon.icns from iconset"
+          fi
+          ls -la
+
+      - name: Build Tauri app (macOS ARM64)
         working-directory: desktop
-        run: npm run tauri:build:macos
+        run: npm run tauri build -- --target aarch64-apple-darwin
 
       - name: List build artifacts
         run: |
@@ -75,19 +83,15 @@ jobs:
       - name: Upload macOS DMG
         uses: actions/upload-artifact@v4
         with:
-          name: Aion-macOS-universal
-          path: |
-            desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            desktop/src-tauri/target/release/bundle/dmg/*.dmg
+          name: Aion-macOS
+          path: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: warn
 
       - name: Upload macOS App Bundle
         uses: actions/upload-artifact@v4
         with:
           name: Aion-macOS-app
-          path: |
-            desktop/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
-            desktop/src-tauri/target/release/bundle/macos/*.app
+          path: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
           if-no-files-found: warn
 
   # ============================================================================
