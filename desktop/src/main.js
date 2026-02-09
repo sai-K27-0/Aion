@@ -8,7 +8,7 @@ import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
 
 const CONFIG = {
-  API_BASE: 'http://localhost:8000/api/v1',
+    API_BASE: 'http://localhost:8000/api/v1',
   STORAGE_KEY: 'aion_complete_v1',
 };
 
@@ -1216,7 +1216,7 @@ function updateFloatingTimer() {
   if (state.pomodoro.running) {
     if (els.floatTimerStart) els.floatTimerStart.classList.add('hidden');
     if (els.floatTimerPause) els.floatTimerPause.classList.remove('hidden');
-  } else {
+            } else {
     if (els.floatTimerStart) els.floatTimerStart.classList.remove('hidden');
     if (els.floatTimerPause) els.floatTimerPause.classList.add('hidden');
   }
@@ -1533,7 +1533,7 @@ function startPomodoro() {
         updateTodayStats();
         showNotification('Pomodoro Complete!', 'Time for a break', '🍅');
         state.pomodoro.mode = state.pomodoro.sessions % 4 === 0 ? 'long' : 'short';
-      } else {
+        } else {
         showNotification('Break Over!', 'Ready to focus?', '💪');
         state.pomodoro.mode = 'work';
       }
@@ -1606,7 +1606,7 @@ function calculateStats(period) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       dates.push(dateStr(d));
     }
-  } else {
+    } else {
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       dates.push(dateStr(d));
@@ -1981,8 +1981,8 @@ function renderTaskItem(t, blockId) {
             </div>
             </div>
       <span class="status-badge ${t.status || 'not_started'}" data-block="${blockId}" data-todo="${t.id}">${STATUSES[t.status || 'not_started']?.label}</span>
-            </div>
-        `;
+        </div>
+    `;
 }
 
 // Event delegation for all tasks list - attach once during init
@@ -1994,7 +1994,7 @@ function initTaskListEventDelegation() {
     // Checkbox click for bulk selection
     const checkbox = e.target.closest('.task-checkbox');
     if (checkbox) {
-      e.stopPropagation();
+        e.stopPropagation();
       const blockId = checkbox.dataset.block;
       const taskId = checkbox.dataset.todo;
       toggleTaskSelection(taskId, blockId);
@@ -2004,7 +2004,7 @@ function initTaskListEventDelegation() {
     // Status badge click for quick toggle
     const badge = e.target.closest('.status-badge');
     if (badge) {
-      e.stopPropagation();
+        e.stopPropagation();
       const blockId = badge.dataset.block;
       const taskId = badge.dataset.todo;
       cycleTaskStatus(taskId, blockId);
@@ -2022,7 +2022,7 @@ function initTaskListEventDelegation() {
   els.allTasksList.addEventListener('contextmenu', e => {
     const item = e.target.closest('.global-task-item');
     if (item) {
-      e.preventDefault();
+        e.preventDefault();
       const blockId = item.dataset.block;
       const taskId = item.dataset.todo;
       showTaskContextMenu(e, taskId, blockId);
@@ -2676,9 +2676,9 @@ function renderTodos() {
           <span class="status-badge ${t.status || 'not_started'}">${STATUSES[t.status || 'not_started']?.label}</span>
           ${t.date ? `<span class="todo-date">${t.date}</span>` : ''}
           ${t.tags?.map(tag => `<span class="todo-tag">${escHtml(tag)}</span>`).join('') || ''}
-        </div>
-      </div>
-    </div>
+            </div>
+            </div>
+            </div>
   `).join('');
 }
 
@@ -2737,7 +2737,7 @@ function renderSubblocks() {
       <span class="subblock-icon">${c.icon}</span>
       <span class="subblock-name">${escHtml(c.name)}</span>
       <span class="subblock-arrow">→</span>
-    </div>
+            </div>
   `).join('');
 }
 
@@ -2822,8 +2822,8 @@ const aiActionHandlers = {
           tags: params.tags || [],
         });
         save();
-      }
-    } else {
+            }
+        } else {
       // Add to first block or create general task
       const firstBlock = state.blocks[0];
       if (firstBlock) {
@@ -3049,8 +3049,8 @@ async function sendChatMessage(text) {
     // Fallback to HTTP smart chat
     try {
       const res = await fetch(`${CONFIG.API_BASE}/ai/chat/smart`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
           user_id: 'default',
@@ -3127,7 +3127,7 @@ function openChat() {
     state.openPanels.add('chat-box');
     bringPanelToFront(els.chatBox);
     connectAiWebSocket();
-  } else {
+        } else {
     els.chatBox.classList.add('hidden');
     state.openPanels.delete('chat-box');
   }
@@ -3252,7 +3252,7 @@ async function processVoiceCommand(audioBlob) {
     
     // Send to voice command endpoint
     const res = await fetch(`${CONFIG.API_BASE}/voice/command`, {
-      method: 'POST',
+            method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         audio_base64: audioBase64,
@@ -3460,7 +3460,7 @@ function initEvents() {
   els.orb.addEventListener('click', e => {
     if (state.orbCentered) {
       // If already centered, clicking orb does nothing (use menu or overlay to close)
-      return;
+        return;
     }
     
     if (state.orbClickTimer) {
@@ -3829,7 +3829,7 @@ function initEvents() {
     if (e.ctrlKey && e.key === '/') { e.preventDefault(); toggleAiInput(); return; }
     
     // Escape - close things progressively
-    if (e.key === 'Escape') {
+        if (e.key === 'Escape') {
       if (state.aiInputOpen) { closeAiInput(); closeAiOutput(); return; }
       closeMenu(); closeSearch(); hideContextMenu();
       document.querySelectorAll('.popup').forEach(p => p.classList.add('hidden'));
