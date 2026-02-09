@@ -19,13 +19,9 @@ use tauri::{
 };
 
 #[cfg(target_os = "macos")]
-use cocoa::appkit::NSWorkspace;
-#[cfg(target_os = "macos")]
-use cocoa::base::nil;
-#[cfg(target_os = "macos")]
-use cocoa::foundation::NSString;
-#[cfg(target_os = "macos")]
 use objc::{msg_send, sel, sel_impl};
+#[cfg(target_os = "macos")]
+use objc::runtime::Class;
 
 use keyring::Entry;
 
@@ -66,7 +62,7 @@ fn secure_storage_delete(key: String) -> Result<(), String> {
     let entry = Entry::new(KEYRING_SERVICE, &key)
         .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
     
-    match entry.delete_credential() {
+    match entry.delete_password() {
         Ok(_) => Ok(()),
         Err(keyring::Error::NoEntry) => Ok(()), // Already deleted
         Err(e) => Err(format!("Failed to delete from keychain: {}", e)),
@@ -190,7 +186,8 @@ fn get_active_window_title_windows() -> Result<String, String> {
 #[cfg(target_os = "macos")]
 fn get_active_window_title_macos() -> Result<String, String> {
     unsafe {
-        let workspace: *mut objc::runtime::Object = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let workspace_class = Class::get("NSWorkspace").ok_or_else(|| "NSWorkspace class not found".to_string())?;
+        let workspace: *mut objc::runtime::Object = msg_send![workspace_class, sharedWorkspace];
         let frontmost_app: *mut objc::runtime::Object = msg_send![workspace, frontmostApplication];
         
         if frontmost_app.is_null() {

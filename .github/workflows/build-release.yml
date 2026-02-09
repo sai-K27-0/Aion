@@ -26,11 +26,20 @@ jobs:
   # ============================================================================
   build-macos:
     runs-on: macos-latest
-    if: ${{ github.event_name == 'push' || inputs.build_macos }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_macos == 'true' }}
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Generate macOS icon (.icns)
+        working-directory: desktop/src-tauri/icons
+        run: |
+          if [ -d "icon.iconset" ]; then
+            iconutil -c icns icon.iconset
+            echo "Generated icon.icns"
+          fi
+          ls -la *.icns 2>/dev/null || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,7 +49,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -59,15 +68,9 @@ jobs:
         working-directory: desktop
         run: npm install
 
-      - name: Generate macOS icons
-        working-directory: desktop/src-tauri/icons
-        run: |
-          # Convert iconset to icns if iconset exists
-          if [ -d "icon.iconset" ]; then
-            iconutil -c icns icon.iconset
-            echo "Generated icon.icns from iconset"
-          fi
-          ls -la
+      - name: Build frontend
+        working-directory: desktop
+        run: npm run build
 
       - name: Build Tauri app (macOS ARM64)
         working-directory: desktop
@@ -99,7 +102,7 @@ jobs:
   # ============================================================================
   build-android:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || inputs.build_android }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_android == 'true' }}
     
     steps:
       - name: Checkout repository
@@ -111,6 +114,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -118,22 +126,20 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses 2>/dev/null || true
+
       - name: Verify Flutter installation
         run: |
           flutter --version
           flutter doctor -v
 
-      - name: Create Flutter project files if missing
+      - name: Create local.properties
         working-directory: mobile
         run: |
-          # Ensure we have required Flutter files
-          if [ ! -f "pubspec.lock" ]; then
-            echo "Generating pubspec.lock..."
-          fi
-          
-          # Create local.properties for Android
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
-          echo "sdk.dir=$ANDROID_SDK_ROOT" >> android/local.properties
+          echo "sdk.dir=${ANDROID_HOME}" >> android/local.properties
+          cat android/local.properties
 
       - name: Get Flutter dependencies
         working-directory: mobile
@@ -143,13 +149,13 @@ jobs:
         working-directory: mobile
         run: dart run build_runner build --delete-conflicting-outputs || true
 
-      - name: Build APK (Release - All ABIs)
+      - name: Build APK (Release - production flavor)
         working-directory: mobile
-        run: flutter build apk --release --no-tree-shake-icons
+        run: flutter build apk --release --flavor production --no-tree-shake-icons
 
-      - name: Build APK (Release - Split by ABI)
+      - name: Build APK (Split by ABI - production flavor)
         working-directory: mobile
-        run: flutter build apk --release --split-per-abi --no-tree-shake-icons
+        run: flutter build apk --release --flavor production --split-per-abi --no-tree-shake-icons
 
       - name: List APK artifacts
         run: |
@@ -160,28 +166,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Aion-Android-universal
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile/build/app/outputs/flutter-apk/app-production-release.apk
           if-no-files-found: warn
 
       - name: Upload ARM64 APK (Samsung S10 FE, Tablets)
         uses: actions/upload-artifact@v4
         with:
           name: Aion-Android-arm64-v8a
-          path: mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          path: mobile/build/app/outputs/flutter-apk/app-production-arm64-v8a-release.apk
           if-no-files-found: warn
 
       - name: Upload ARMv7 APK (Older devices)
         uses: actions/upload-artifact@v4
         with:
           name: Aion-Android-armeabi-v7a
-          path: mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          path: mobile/build/app/outputs/flutter-apk/app-production-armeabi-v7a-release.apk
           if-no-files-found: warn
 
       - name: Upload x86_64 APK (Emulators)
         uses: actions/upload-artifact@v4
         with:
           name: Aion-Android-x86_64
-          path: mobile/build/app/outputs/flutter-apk/app-x86_64-release.apk
+          path: mobile/build/app/outputs/flutter-apk/app-production-x86_64-release.apk
           if-no-files-found: warn
 
   # ============================================================================
