@@ -23,8 +23,8 @@ dependencies:
   web_socket_channel: ^2.4.0
   
   # Local Database
-  isar: ^4.0.0-dev.10
-  isar_flutter_libs: ^4.0.0-dev.10
+  isar: ^4.0.0-dev.14
+  isar_flutter_libs: ^4.0.0-dev.14
   path_provider: ^2.1.2
   
   # UI/UX
@@ -55,7 +55,7 @@ dev_dependencies:
   freezed: ^2.4.6
   json_serializable: ^6.7.1
   riverpod_generator: ^2.3.9
-  isar_generator: ^4.0.0-dev.10
+  isar_generator: ^3.1.0+1
 
 flutter:
   uses-material-design: true
