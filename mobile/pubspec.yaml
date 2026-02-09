@@ -23,8 +23,16 @@ dependencies:
   web_socket_channel: ^2.4.0
   
   # Local Database
-  isar: ^3.1.0+1
-  isar_flutter_libs: ^3.1.0+1
+  isar:
+    hosted:
+      name: isar
+      url: https://pub.isar-community.dev/
+    version: ^3.0.0
+  isar_flutter_libs:
+    hosted:
+      name: isar_flutter_libs
+      url: https://pub.isar-community.dev/
+    version: ^3.0.0
   path_provider: ^2.1.2
   
   # UI/UX
