@@ -71,7 +71,12 @@ async def login(
     """
     service = AuthService(db)
     
-    tokens = await service.login(data.email, data.password)
+    tokens = await service.login(
+        email=data.email,
+        username=data.username,
+        password=data.password,
+        device_id=data.device_id,
+    )
     if not tokens:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,7 +103,7 @@ async def refresh_tokens(
     """
     service = AuthService(db)
     
-    tokens = await service.refresh_tokens(data.refresh_token)
+    tokens = await service.refresh_tokens(data.refresh_token, device_id=data.device_id)
     if not tokens:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

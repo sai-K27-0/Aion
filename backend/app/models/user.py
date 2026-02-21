@@ -24,7 +24,8 @@ class User(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "users"
     
     # Authentication
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    # Email is optional (plan: username/password accounts).
+    email: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     
     # Profile

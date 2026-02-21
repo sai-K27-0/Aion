@@ -48,7 +48,7 @@ class AuthService:
     # ========================================================================
     
     @staticmethod
-    def create_access_token(user_id: str) -> tuple[str, datetime]:
+    def create_access_token(user_id: str, device_id: Optional[str] = None) -> tuple[str, datetime]:
         """Create a JWT access token."""
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         payload = {
@@ -57,11 +57,13 @@ class AuthService:
             "type": "access",
             "jti": str(uuid4()),  # unique token ID
         }
+        if device_id:
+            payload["device_id"] = device_id
         token = jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
         return token, expires_at
     
     @staticmethod
-    def create_refresh_token(user_id: str) -> tuple[str, datetime]:
+    def create_refresh_token(user_id: str, device_id: Optional[str] = None) -> tuple[str, datetime]:
         """Create a JWT refresh token."""
         expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         payload = {
@@ -70,6 +72,8 @@ class AuthService:
             "type": "refresh",
             "jti": str(uuid4()),
         }
+        if device_id:
+            payload["device_id"] = device_id
         token = jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
         return token, expires_at
     
@@ -82,6 +86,7 @@ class AuthService:
                 sub=payload["sub"],
                 exp=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
                 type=payload.get("type", "access"),
+                device_id=payload.get("device_id"),
             )
         except jwt.ExpiredSignatureError:
             return None
@@ -98,6 +103,13 @@ class AuthService:
             select(User).where(User.email == email)
         )
         return result.scalar_one_or_none()
+
+    async def get_user_by_username(self, username: str) -> Optional[User]:
+        """Get a user by username."""
+        result = await self.db.execute(
+            select(User).where(User.username == username)
+        )
+        return result.scalar_one_or_none()
     
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Get a user by ID."""
@@ -108,10 +120,16 @@ class AuthService:
     
     async def create_user(self, data: UserCreate) -> User:
         """Create a new user account."""
-        # Check if email already exists
-        existing = await self.get_user_by_email(data.email)
-        if existing:
-            raise ValueError("Email already registered")
+        # Check if username already exists
+        existing_username = await self.get_user_by_username(data.username)
+        if existing_username:
+            raise ValueError("Username already taken")
+
+        # Email is optional; if provided, enforce uniqueness
+        if data.email:
+            existing_email = await self.get_user_by_email(data.email)
+            if existing_email:
+                raise ValueError("Email already registered")
         
         # Create user
         user = User(
@@ -127,9 +145,13 @@ class AuthService:
         
         return user
     
-    async def authenticate(self, email: str, password: str) -> Optional[User]:
-        """Authenticate a user by email and password."""
-        user = await self.get_user_by_email(email)
+    async def authenticate(self, *, email: Optional[str], username: Optional[str], password: str) -> Optional[User]:
+        """Authenticate a user by email or username and password."""
+        user: Optional[User] = None
+        if email:
+            user = await self.get_user_by_email(email)
+        elif username:
+            user = await self.get_user_by_username(username)
         if not user:
             return None
         if not self.verify_password(password, user.hashed_password):
@@ -143,14 +165,21 @@ class AuthService:
         
         return user
     
-    async def login(self, email: str, password: str) -> Optional[TokenResponse]:
+    async def login(
+        self,
+        *,
+        email: Optional[str],
+        username: Optional[str],
+        password: str,
+        device_id: Optional[str] = None,
+    ) -> Optional[TokenResponse]:
         """Authenticate and return tokens."""
-        user = await self.authenticate(email, password)
+        user = await self.authenticate(email=email, username=username, password=password)
         if not user:
             return None
         
-        access_token, access_exp = self.create_access_token(user.id)
-        refresh_token, _ = self.create_refresh_token(user.id)
+        access_token, access_exp = self.create_access_token(user.id, device_id=device_id)
+        refresh_token, _ = self.create_refresh_token(user.id, device_id=device_id)
         
         expires_in = int((access_exp - datetime.now(timezone.utc)).total_seconds())
         
@@ -161,7 +190,7 @@ class AuthService:
             expires_in=expires_in,
         )
     
-    async def refresh_tokens(self, refresh_token: str) -> Optional[TokenResponse]:
+    async def refresh_tokens(self, refresh_token: str, device_id: Optional[str] = None) -> Optional[TokenResponse]:
         """Refresh access token using refresh token."""
         payload = self.decode_token(refresh_token)
         if not payload or payload.type != "refresh":
@@ -171,8 +200,9 @@ class AuthService:
         if not user or not user.is_active:
             return None
         
-        access_token, access_exp = self.create_access_token(user.id)
-        new_refresh_token, _ = self.create_refresh_token(user.id)
+        effective_device_id = device_id or payload.device_id
+        access_token, access_exp = self.create_access_token(user.id, device_id=effective_device_id)
+        new_refresh_token, _ = self.create_refresh_token(user.id, device_id=effective_device_id)
         
         expires_in = int((access_exp - datetime.now(timezone.utc)).total_seconds())
         

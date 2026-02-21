@@ -2,30 +2,32 @@
 
 /* =========================================
    CSS Variables - Design Tokens
+   The base palette derives from the active theme
+   (see overlay.css [data-theme="*"] -> --accent-h/s/l).
    ========================================= */
 :root {
-  /* Colors */
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #4f46e5;
+  /* Colors (driven by theme accent) */
+  --color-primary: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+  --color-primary-light: hsl(var(--accent-h), var(--accent-s), 72%);
+  --color-primary-dark: hsl(var(--accent-h), var(--accent-s), 38%);
 
-  --color-accent: #06b6d4;
-  --color-accent-glow: rgba(6, 182, 212, 0.4);
+  --color-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
+  --color-accent-glow: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.4);
 
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
 
-  /* Glassmorphism */
-  --glass-bg: rgba(15, 15, 25, 0.85);
-  --glass-bg-light: rgba(30, 30, 45, 0.9);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  /* Glassmorphism (tinted by theme but still translucent) */
+  --glass-bg: hsla(var(--accent-h), 40%, 10%, 0.78);
+  --glass-bg-light: hsla(var(--accent-h), 40%, 18%, 0.72);
+  --glass-border: hsla(var(--accent-h), var(--accent-s), 80%, 0.24);
   --glass-blur: 20px;
 
   /* Text */
-  --text-primary: rgba(255, 255, 255, 0.95);
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-muted: rgba(255, 255, 255, 0.5);
+  --text-primary: rgba(255, 255, 255, 0.96);
+  --text-secondary: rgba(255, 255, 255, 0.78);
+  --text-muted: rgba(255, 255, 255, 0.56);
 
   /* Spacing */
   --spacing-xs: 4px;

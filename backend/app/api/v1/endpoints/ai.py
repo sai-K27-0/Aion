@@ -1223,8 +1223,8 @@ async def execute_action(
     description="Convert text to a human-like voice using ElevenLabs.",
 )
 async def text_to_speech(
-    text: str = Query(..., min_length=1),
     service: VoiceServiceDep,
+    text: str = Query(..., min_length=1),
 ):
     """
     Generate audio from text. 

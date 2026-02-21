@@ -85,9 +85,18 @@
                 "minimumSystemVersion": "10.15"
             },
             "dmg": {
-                "appPosition": { "x": 180, "y": 170 },
-                "applicationFolderPosition": { "x": 480, "y": 170 },
-                "windowSize": { "height": 400, "width": 660 }
+                "appPosition": {
+                    "x": 180,
+                    "y": 170
+                },
+                "applicationFolderPosition": {
+                    "x": 480,
+                    "y": 170
+                },
+                "windowSize": {
+                    "height": 400,
+                    "width": 660
+                }
             },
             "resources": [],
             "shortDescription": "AI Life Assistant",
@@ -104,17 +113,17 @@
         "windows": [
             {
                 "title": "Aion",
-                "width": 320,
-                "height": 500,
-                "minWidth": 280,
-                "minHeight": 100,
+                "width": 400,
+                "height": 600,
+                "minWidth": 350,
+                "minHeight": 400,
                 "resizable": true,
                 "fullscreen": false,
                 "focus": false,
                 "transparent": true,
-                "decorations": false,
+                "decorations": true,
                 "alwaysOnTop": true,
-                "skipTaskbar": true,
+                "skipTaskbar": false,
                 "fileDropEnabled": false,
                 "center": false,
                 "x": 50,

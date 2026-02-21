@@ -11,7 +11,6 @@ It sets up the FastAPI application with:
 - Health check endpoint
 - OpenAPI documentation
 """
-
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -101,7 +100,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         await discovery_service.start()
     except Exception as e:
         print(f"Warning: mDNS service discovery not available: {e}")
-    
     yield
     
     # Shutdown

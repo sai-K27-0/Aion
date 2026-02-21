@@ -714,8 +714,16 @@ class SyncService:
     
     async def get_sync_status(self, device_id: str) -> Dict[str, Any]:
         """Get the current sync status for a device."""
-        last_sync = self.device_sync_times.get(device_id)
-        device = self.registered_devices.get(device_id)
+        # Ensure cache is initialized
+        await self._ensure_cache_initialized()
+        
+        # Get device from cache (or from DB if not in cache)
+        device = self._device_cache.get(device_id)
+        if not device:
+            device = await self.get_device_async(device_id)
+        
+        # Extract last_sync from device
+        last_sync = device.last_sync if device else None
         
         # Count pending changes
         pending_counts: Dict[str, int] = {}

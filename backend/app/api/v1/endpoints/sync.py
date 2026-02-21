@@ -27,6 +27,7 @@ from app.services.sync_service import (
     SyncEntityType,
     ConflictStrategy,
 )
+from app.services.auth_service import AuthService
 
 
 # =============================================================================
@@ -626,11 +627,12 @@ async def verify_ws_token(token: str) -> Optional[str]:
     if not token:
         return None
     
+    # Use the same JWT decoding logic as HTTP auth (AuthService.decode_token)
     try:
-        from app.services.auth_service import get_auth_service
-        auth_service = get_auth_service()
-        payload = auth_service.verify_token(token)
-        return payload.get("sub")  # user_id
+        payload = AuthService.decode_token(token)
+        if payload and payload.type == "access":
+            return payload.sub  # user_id
+        return None
     except Exception:
         return None
 

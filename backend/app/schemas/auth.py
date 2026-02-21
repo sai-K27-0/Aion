@@ -5,7 +5,7 @@ Authentication Schemas - Request/response models for auth endpoints.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 # ============================================================================
@@ -14,21 +14,38 @@ from pydantic import BaseModel, EmailStr, Field
 
 class UserCreate(BaseModel):
     """Schema for user registration."""
-    email: EmailStr
+    # Plan: username/password accounts; email optional.
+    username: str = Field(..., min_length=3, max_length=100)
+    email: Optional[EmailStr] = None
     password: str = Field(..., min_length=8, max_length=100)
-    username: Optional[str] = Field(None, min_length=3, max_length=100)
     full_name: Optional[str] = Field(None, max_length=255)
 
 
 class UserLogin(BaseModel):
     """Schema for user login."""
-    email: EmailStr
+    # Backwards compatible: allow email or username; require one.
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
     password: str
+    device_id: Optional[str] = Field(
+        None,
+        description="Optional physical device id to embed in JWT claims",
+    )
+
+    @model_validator(mode="after")
+    def _require_identifier(self):
+        if not self.email and not self.username:
+            raise ValueError("Either 'email' or 'username' is required")
+        return self
 
 
 class TokenRefresh(BaseModel):
     """Schema for token refresh."""
     refresh_token: str
+    device_id: Optional[str] = Field(
+        None,
+        description="Optional device id to embed in rotated tokens",
+    )
 
 
 class PasswordChange(BaseModel):
@@ -67,3 +84,4 @@ class TokenPayload(BaseModel):
     sub: str  # user ID
     exp: datetime
     type: str = "access"  # access or refresh
+    device_id: Optional[str] = None

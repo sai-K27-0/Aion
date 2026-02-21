@@ -82,6 +82,15 @@ fn secure_storage_exists(key: String) -> Result<bool, String> {
     }
 }
 
+/// Close the application window
+#[tauri::command]
+fn close_window(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_window("main") {
+        window.close().map_err(|e| format!("Failed to close window: {}", e))?;
+    }
+    Ok(())
+}
+
 // =============================================================================
 // Screen Capture Commands
 // =============================================================================
@@ -341,6 +350,7 @@ fn main() {
             secure_storage_set,
             secure_storage_delete,
             secure_storage_exists,
+            close_window,
         ])
         .setup(|app| {
             // Get the main window

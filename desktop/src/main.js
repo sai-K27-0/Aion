@@ -3902,7 +3902,6 @@ async function init() {
   
   // Initialize offline-first sync system
   await initOfflineSync();
-  
   console.log('Aion Complete v2 with AI and Offline Sync ready');
 }
 
