@@ -2414,6 +2414,12 @@ function openMindmap() {
 }
 
 function renderMindmap() {
+  console.log('Rendering mindmap, blocks:', state.blocks.length);
+  if (!state.blocks || state.blocks.length === 0) {
+    els.blocksLayer.innerHTML = '<div style="padding:20px;color:var(--text-muted);">No blocks yet. Click "+ Add Block" to create one.</div>';
+    return;
+  }
+
   els.blocksLayer.innerHTML = state.blocks.map(b => `
     <div class="block-node" data-id="${b.id}" style="left:${b.x}px;top:${b.y}px">
       <div class="node-header">
@@ -2424,12 +2430,13 @@ function renderMindmap() {
       <div class="node-badges">
         ${b.children?.length ? `<span class="node-badge">📦 ${b.children.length}</span>` : ''}
         ${b.todos?.length ? `<span class="node-badge">✅ ${b.todos.filter(t => t.status !== 'completed').length}/${b.todos.length}</span>` : ''}
-            </div>
-        </div>
-    `).join('');
+      </div>
+    </div>
+  `).join('');
 
   renderConnections();
   initBlockEvents();
+  console.log('Mindmap rendered successfully');
 }
 
 function renderConnections() {
