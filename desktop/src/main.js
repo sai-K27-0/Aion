@@ -8,7 +8,7 @@ import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
 
 const CONFIG = {
-    API_BASE: 'http://localhost:8000/api/v1',
+  API_BASE: 'http://localhost:8000/api/v1',
   STORAGE_KEY: 'aion_complete_v1',
 };
 
@@ -272,22 +272,22 @@ function toast(msg) {
 function showNotification(title, message, icon = '🔔') {
   const notification = $('notification');
   if (!notification) return; // Guard against missing element
-  
+
   const titleEl = notification.querySelector('.notif-title');
   const messageEl = notification.querySelector('.notif-message');
   const iconEl = notification.querySelector('.notif-icon');
-  
+
   if (titleEl) titleEl.textContent = title;
   if (messageEl) messageEl.textContent = message;
   if (iconEl) iconEl.textContent = icon;
-  
+
   notification.classList.remove('hidden');
   setTimeout(() => notification.classList.add('hidden'), 5000);
 }
 
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function formatTime(sec) { const m = Math.floor(sec / 60); const s = sec % 60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-function formatTimeFull(sec) { const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function formatTime(sec) { const m = Math.floor(sec / 60); const s = sec % 60; return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
+function formatTimeFull(sec) { const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
 function formatDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
 function dateStr(d) { return d.toISOString().split('T')[0]; }
 function today() { return dateStr(new Date()); }
@@ -376,19 +376,19 @@ function dockAiOutput() {
 async function sendAiQuery() {
   const text = els.aiInput.value.trim();
   if (!text) return;
-  
+
   // Show output box with thinking animation
   els.aiOutputBox.classList.remove('hidden');
   els.aiThinking.classList.remove('hidden');
   els.aiResponse.innerHTML = '';
   els.aiInput.value = '';
-  
+
   // Process command locally first
   const result = await processAiCommand(text);
-  
+
   els.aiThinking.classList.add('hidden');
   els.aiResponse.innerHTML = result.html;
-  
+
   // Execute any actions
   if (result.actions) {
     for (const action of result.actions) {
@@ -399,59 +399,59 @@ async function sendAiQuery() {
 
 async function processAiCommand(input) {
   const lower = input.toLowerCase();
-  
+
   // Study/Exam related commands
   if (lower.includes('study') || lower.includes('exam') || lower.includes('learn') || lower.includes('prepare')) {
     return handleStudyRequest(input);
   }
-  
+
   // Create block commands
   if (lower.includes('create block') || lower.includes('new block') || lower.includes('make block') || lower.includes('add block')) {
     return handleCreateBlock(input);
   }
-  
+
   // Create task commands
   if (lower.includes('create task') || lower.includes('new task') || lower.includes('add task') || lower.includes('remind me')) {
     return handleCreateTask(input);
   }
-  
+
   // Timer commands
   if (lower.includes('start timer') || lower.includes('set timer') || lower.includes('pomodoro') || lower.includes('focus for')) {
     return handleTimerCommand(input);
   }
-  
+
   // Open panel commands
   if (lower.includes('open') || lower.includes('show') || lower.includes('go to')) {
     return handleOpenCommand(input);
   }
-  
+
   // Timetable/Schedule commands
   if (lower.includes('timetable') || lower.includes('schedule') || lower.includes('plan my')) {
     return handleTimetableRequest(input);
   }
-  
+
   // Help command
   if (lower.includes('help') || lower.includes('what can you do')) {
     return getHelpResponse();
   }
-  
+
   // Theme command
   if (lower.includes('theme') || lower.includes('color')) {
     return handleThemeCommand(input);
   }
-  
+
   // Default - try to be helpful
   return getSmartResponse(input);
 }
 
 function handleStudyRequest(input) {
   const lower = input.toLowerCase();
-  
+
   // Extract subject/topic
   let subject = 'General';
   const subjectMatch = input.match(/(?:study|learn|prepare for|exam in|test on)\s+(.+?)(?:\s+for|\s+in|\s+exam|$)/i);
   if (subjectMatch) subject = subjectMatch[1].trim();
-  
+
   // Create study block
   const blockId = 'block-' + Date.now();
   const studyBlock = {
@@ -465,12 +465,12 @@ function handleStudyRequest(input) {
     todos: generateStudyTasks(subject),
     createdAt: new Date().toISOString(),
   };
-  
+
   state.blocks.push(studyBlock);
   save();
-  
+
   const studyGuide = generateStudyGuide(subject);
-  
+
   return {
     html: `
       <div class="ai-success">
@@ -528,7 +528,7 @@ function generateStudyTasks(subject) {
     { text: `🎯 Mock test/self-assessment`, priority: 'high', status: 'not_started' },
     { text: `📚 Final revision`, priority: 'high', status: 'not_started' },
   ];
-  
+
   return tasks.map((t, i) => ({
     id: 'task-' + Date.now() + '-' + i,
     ...t,
@@ -565,10 +565,10 @@ function generateStudyGuide(subject) {
 }
 
 function handleCreateBlock(input) {
-  const nameMatch = input.match(/(?:called?|named?|for)\s+["']?([^"']+)["']?/i) || 
-                    input.match(/block\s+["']?([^"']+)["']?/i);
+  const nameMatch = input.match(/(?:called?|named?|for)\s+["']?([^"']+)["']?/i) ||
+    input.match(/block\s+["']?([^"']+)["']?/i);
   const name = nameMatch ? nameMatch[1].trim() : 'New Block';
-  
+
   const blockId = 'block-' + Date.now();
   const block = {
     id: blockId,
@@ -581,10 +581,10 @@ function handleCreateBlock(input) {
     todos: [],
     createdAt: new Date().toISOString(),
   };
-  
+
   state.blocks.push(block);
   save();
-  
+
   return {
     html: `
       <div class="ai-success">
@@ -603,15 +603,15 @@ function handleCreateBlock(input) {
 function handleCreateTask(input) {
   const taskMatch = input.match(/(?:task|remind me to|add)\s+["']?(.+?)["']?(?:\s+(?:to|in|for)|$)/i);
   let taskText = taskMatch ? taskMatch[1].trim() : input.replace(/create task|new task|add task|remind me/gi, '').trim();
-  
+
   if (!taskText) taskText = 'New task';
-  
+
   // Find or create a block for the task
   let targetBlock = state.blocks.find(b => b.name.toLowerCase().includes('task') || b.type === 'general');
   if (!targetBlock && state.blocks.length > 0) {
     targetBlock = state.blocks[0];
   }
-  
+
   if (!targetBlock) {
     targetBlock = {
       id: 'block-' + Date.now(),
@@ -626,7 +626,7 @@ function handleCreateTask(input) {
     };
     state.blocks.push(targetBlock);
   }
-  
+
   const task = {
     id: 'task-' + Date.now(),
     text: taskText,
@@ -635,11 +635,11 @@ function handleCreateTask(input) {
     date: today(),
     tags: [],
   };
-  
+
   if (!targetBlock.todos) targetBlock.todos = [];
   targetBlock.todos.push(task);
   save();
-  
+
   return {
     html: `
       <div class="ai-success">
@@ -658,7 +658,7 @@ function handleCreateTask(input) {
 function handleTimerCommand(input) {
   const durationMatch = input.match(/(\d+)\s*(?:min|minutes?|m)/i);
   const duration = durationMatch ? parseInt(durationMatch[1]) : 25;
-  
+
   return {
     html: `
       <div class="ai-success">
@@ -679,7 +679,7 @@ function handleOpenCommand(input) {
   const lower = input.toLowerCase();
   let panel = null;
   let panelName = '';
-  
+
   if (lower.includes('mind') || lower.includes('map') || lower.includes('block')) {
     panel = 'mindmap'; panelName = 'Mind Map';
   } else if (lower.includes('task')) {
@@ -695,14 +695,14 @@ function handleOpenCommand(input) {
   } else if (lower.includes('setting')) {
     panel = 'settings'; panelName = 'Settings';
   }
-  
+
   if (panel) {
     return {
       html: `<div class="ai-success"><h3>📂 Opening ${panelName}</h3></div>`,
       actions: [{ type: 'openPanel', panel }]
     };
   }
-  
+
   return {
     html: `<p>I'm not sure which panel you want to open. Try: mind map, tasks, timer, stats, habits, calendar, or settings.</p>`
   };
@@ -725,7 +725,7 @@ function handleTimetableRequest(input) {
     { time: '21:00 - 22:00', activity: '🎮 Relaxation' },
     { time: '22:00', activity: '😴 Sleep' },
   ];
-  
+
   // Create timetable block
   const blockId = 'block-' + Date.now();
   const timetableBlock = {
@@ -746,10 +746,10 @@ function handleTimetableRequest(input) {
     })),
     createdAt: new Date().toISOString(),
   };
-  
+
   state.blocks.push(timetableBlock);
   save();
-  
+
   return {
     html: `
       <div class="ai-success">
@@ -774,21 +774,21 @@ function handleTimetableRequest(input) {
 function handleThemeCommand(input) {
   const lower = input.toLowerCase();
   let theme = null;
-  
+
   if (lower.includes('sky') || lower.includes('blue')) theme = 'sky';
   else if (lower.includes('forest') || lower.includes('green')) theme = 'forest';
   else if (lower.includes('sunset') || lower.includes('orange')) theme = 'sunset';
   else if (lower.includes('ocean') || lower.includes('deep blue')) theme = 'ocean';
   else if (lower.includes('lavender') || lower.includes('purple')) theme = 'lavender';
   else if (lower.includes('rose') || lower.includes('pink')) theme = 'rose';
-  
+
   if (theme) {
     return {
       html: `<div class="ai-success"><h3>🎨 Theme Changed!</h3><p>Switched to <strong>${theme}</strong> theme.</p></div>`,
       actions: [{ type: 'setTheme', theme }]
     };
   }
-  
+
   return {
     html: `
       <div class="ai-info">
@@ -876,15 +876,15 @@ async function executeAiAction(action) {
       else if (action.panel === 'habits') openHabits();
       else if (action.panel === 'calendar') openCalendar();
       else if (action.panel === 'settings') openSettings();
-            break;
+      break;
     case 'openBlock':
       openBlockEditor(action.blockId);
-            break;
+      break;
     case 'setTimer':
       state.pomodoro.workDuration = action.duration;
       state.pomodoro.seconds = action.duration * 60;
       updatePomodoroUI();
-            break;
+      break;
     case 'startTimer':
       setTimeout(() => startPomodoro(), 500);
       break;
@@ -893,9 +893,9 @@ async function executeAiAction(action) {
       break;
     case 'toast':
       toast(action.message);
-            break;
-    }
-  
+      break;
+  }
+
   // Small delay between actions
   await new Promise(r => setTimeout(r, 300));
 }
@@ -931,7 +931,7 @@ function updateFocusPanelState() {
   if (state.focusMinimized) {
     els.focusMinimized.classList.remove('hidden');
     els.focusExpanded.classList.add('hidden');
-    } else {
+  } else {
     els.focusMinimized.classList.add('hidden');
     els.focusExpanded.classList.remove('hidden');
   }
@@ -939,17 +939,17 @@ function updateFocusPanelState() {
 
 function switchFocusSection(section) {
   state.focusSection = section;
-  
+
   // Update tabs
   document.querySelectorAll('.focus-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.section === section);
   });
-  
+
   // Update sections
   document.querySelectorAll('.focus-section').forEach(s => {
     s.classList.toggle('active', s.dataset.section === section);
   });
-  
+
   // Render content
   if (section === 'calendar') renderMiniCalendar();
   if (section === 'todos') renderMiniTodos();
@@ -963,28 +963,28 @@ function renderMiniCalendar() {
   const d = state.miniCalDate;
   const year = d.getFullYear();
   const month = d.getMonth();
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
   if (els.miniCalMonth) els.miniCalMonth.textContent = `${months[month]} ${year}`;
-  
+
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDays = new Date(year, month, 0).getDate();
   const todayStr = today();
-  
+
   // Get tasks for this month
   const allTasks = [...state.calendarTasks];
   state.blocks.forEach(b => (b.todos || []).filter(t => t.date).forEach(t => allTasks.push({ ...t, start: t.date, end: t.date })));
-  
+
   let html = '';
   // Previous month days
   for (let i = firstDay - 1; i >= 0; i--) {
     html += `<div class="mini-cal-day other-month">${prevDays - i}</div>`;
   }
-  
+
   // Current month days
   for (let day = 1; day <= daysInMonth; day++) {
-    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = ds === todayStr;
     const hasTask = allTasks.some(t => dateInRange(ds, t.start || t.date, t.end || t.date));
     let cls = 'mini-cal-day';
@@ -992,9 +992,9 @@ function renderMiniCalendar() {
     if (hasTask) cls += ' has-task';
     html += `<div class="${cls}" data-date="${ds}">${day}</div>`;
   }
-  
+
   if (els.miniCalGrid) els.miniCalGrid.innerHTML = html;
-  
+
   // Render today's tasks
   renderMiniCalTasks();
 }
@@ -1002,16 +1002,16 @@ function renderMiniCalendar() {
 function renderMiniCalTasks() {
   const todayStr = today();
   const allTasks = [];
-  state.blocks.forEach(b => (b.todos || []).filter(t => t.date === todayStr).forEach(t => 
+  state.blocks.forEach(b => (b.todos || []).filter(t => t.date === todayStr).forEach(t =>
     allTasks.push({ ...t, blockName: b.name })
   ));
   state.calendarTasks.filter(t => dateInRange(todayStr, t.start, t.end)).forEach(t => allTasks.push(t));
-  
+
   if (els.miniCalTaskList) {
     if (allTasks.length === 0) {
       els.miniCalTaskList.innerHTML = '<div class="mini-cal-task" style="opacity: 0.5;">No tasks today</div>';
     } else {
-      els.miniCalTaskList.innerHTML = allTasks.slice(0, 3).map(t => 
+      els.miniCalTaskList.innerHTML = allTasks.slice(0, 3).map(t =>
         `<div class="mini-cal-task">${escHtml(t.text || t.title)}</div>`
       ).join('');
     }
@@ -1030,7 +1030,7 @@ function renderMiniTodos() {
     .slice(0, 3)
     .forEach(t => todos.push({ ...t, blockId: b.id, blockName: b.name }))
   );
-  
+
   if (els.miniTodoList) {
     if (todos.length === 0) {
       els.miniTodoList.innerHTML = '<div class="mini-todos-empty">No pending tasks</div>';
@@ -1050,7 +1050,7 @@ function renderMiniTodos() {
 // Event delegation handler for mini todo list (attached once during init)
 function initMiniTodoEvents() {
   if (!els.miniTodoList) return;
-  
+
   els.miniTodoList.addEventListener('click', e => {
     const check = e.target.closest('.mini-todo-check');
     if (check) {
@@ -1060,7 +1060,7 @@ function initMiniTodoEvents() {
       toggleMiniTodo(todoId, blockId);
       return;
     }
-    
+
     const item = e.target.closest('.mini-todo-item');
     if (item) {
       openBlockEditor(item.dataset.block);
@@ -1073,10 +1073,10 @@ function toggleMiniTodo(todoId, blockId) {
   if (!block) return;
   const todo = (block.todos || []).find(t => t.id === todoId);
   if (!todo) return;
-  
+
   const wasCompleted = todo.status === 'completed';
   todo.status = wasCompleted ? 'not_started' : 'completed';
-  
+
   if (!wasCompleted) {
     updateTodayStats();
     const t = today();
@@ -1084,7 +1084,7 @@ function toggleMiniTodo(todoId, blockId) {
     state.stats.daily[t].completed++;
     state.stats.completed++;
   }
-  
+
   save();
   renderMiniTodos();
   updateTodayProgress();
@@ -1097,17 +1097,17 @@ function toggleMiniTodo(todoId, blockId) {
 function openFloatingPanel(panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  
+
   panel.classList.remove('hidden');
   state.openPanels.add(panelId);
-  
+
   // Restore position if saved
   if (state.panelPositions[panelId]) {
     panel.style.left = state.panelPositions[panelId].x + 'px';
     panel.style.top = state.panelPositions[panelId].y + 'px';
     panel.style.right = 'auto';
   }
-  
+
   // Bring to front
   bringPanelToFront(panel);
 }
@@ -1115,7 +1115,7 @@ function openFloatingPanel(panelId) {
 function closeFloatingPanel(panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  
+
   panel.classList.add('hidden');
   state.openPanels.delete(panelId);
 }
@@ -1123,10 +1123,10 @@ function closeFloatingPanel(panelId) {
 function toggleFloatingPanel(panelId) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  
+
   if (panel.classList.contains('hidden')) {
     openFloatingPanel(panelId);
-            } else {
+  } else {
     closeFloatingPanel(panelId);
   }
 }
@@ -1142,30 +1142,30 @@ function bringPanelToFront(panel) {
 function initPanelDrag(e) {
   const header = e.target.closest('[data-drag]');
   if (!header) return;
-  
+
   const panelId = header.dataset.drag;
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  
+
   e.preventDefault();
   state.draggingPanel = panel;
-  
+
   const rect = panel.getBoundingClientRect();
   state.dragPanelOffset = {
     x: e.clientX - rect.left,
     y: e.clientY - rect.top
   };
-  
+
   bringPanelToFront(panel);
   panel.style.transition = 'none';
 }
 
 function handlePanelDrag(e) {
   if (!state.draggingPanel) return;
-  
+
   const x = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - state.dragPanelOffset.x));
   const y = Math.max(0, Math.min(window.innerHeight - 50, e.clientY - state.dragPanelOffset.y));
-  
+
   state.draggingPanel.style.left = x + 'px';
   state.draggingPanel.style.top = y + 'px';
   state.draggingPanel.style.right = 'auto';
@@ -1173,11 +1173,11 @@ function handlePanelDrag(e) {
 
 function endPanelDrag() {
   if (!state.draggingPanel) return;
-  
+
   // Save position
   const rect = state.draggingPanel.getBoundingClientRect();
   state.panelPositions[state.draggingPanel.id] = { x: rect.left, y: rect.top };
-  
+
   state.draggingPanel.style.transition = '';
   state.draggingPanel = null;
 }
@@ -1197,26 +1197,26 @@ function closeFloatingTimerPanel() {
 
 function updateFloatingTimer() {
   if (els.floatTimerTime) els.floatTimerTime.textContent = formatTime(state.pomodoro.seconds);
-  
+
   const modeLabels = { work: 'Work', short: 'Short Break', long: 'Long Break' };
   if (els.floatTimerMode) els.floatTimerMode.textContent = modeLabels[state.pomodoro.mode] || 'Work';
-  
+
   // Update progress bar
-  const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60 
+  const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60
     : state.pomodoro.mode === 'short' ? state.pomodoro.shortBreak * 60 : state.pomodoro.longBreak * 60;
   const percent = (state.pomodoro.seconds / total) * 100;
   if (els.floatTimerBar) els.floatTimerBar.style.width = percent + '%';
-  
+
   if (els.floatSessions) els.floatSessions.textContent = state.pomodoro.sessions;
   const h = Math.floor(state.pomodoro.totalMinutes / 60);
   const m = state.pomodoro.totalMinutes % 60;
   if (els.floatTotalTime) els.floatTotalTime.textContent = `${h}h ${m}m`;
-  
+
   // Update button visibility
   if (state.pomodoro.running) {
     if (els.floatTimerStart) els.floatTimerStart.classList.add('hidden');
     if (els.floatTimerPause) els.floatTimerPause.classList.remove('hidden');
-            } else {
+  } else {
     if (els.floatTimerStart) els.floatTimerStart.classList.remove('hidden');
     if (els.floatTimerPause) els.floatTimerPause.classList.add('hidden');
   }
@@ -1228,13 +1228,13 @@ function updateFloatingTimer() {
 
 function toggleAllPanelsVisibility() {
   state.allPanelsHidden = !state.allPanelsHidden;
-  
+
   const allPanels = [
     'mindmap-view', 'block-editor', 'tasks-panel', 'calendar-panel',
     'pomodoro-panel', 'stats-panel', 'habits-panel', 'settings-panel',
     'floating-timer', 'chat-box', 'focus-panel'
   ];
-  
+
   allPanels.forEach(id => {
     const panel = document.getElementById(id);
     if (panel) {
@@ -1248,7 +1248,7 @@ function toggleAllPanelsVisibility() {
       }
     }
   });
-  
+
   // Also hide/show AI input
   if (state.allPanelsHidden) {
     if (els.aiInputBar) {
@@ -1263,7 +1263,7 @@ function toggleAllPanelsVisibility() {
     if (els.aiInputBar?.dataset.wasVisible === 'true') els.aiInputBar.classList.remove('hidden');
     if (els.aiOutputBox?.dataset.wasVisible === 'true') els.aiOutputBox.classList.remove('hidden');
   }
-  
+
   toast(state.allPanelsHidden ? 'All panels hidden (Press ~ to show)' : 'Panels restored');
 }
 
@@ -1273,12 +1273,12 @@ function closeAllOpenPanels() {
     'pomodoro-panel', 'stats-panel', 'habits-panel', 'settings-panel',
     'floating-timer', 'chat-box'
   ];
-  
+
   allPanels.forEach(id => {
     const panel = document.getElementById(id);
     if (panel) panel.classList.add('hidden');
   });
-  
+
   state.openPanels.clear();
   closeAiInput();
   closeAiOutput();
@@ -1305,10 +1305,10 @@ function closeSearch() {
 
 function performSearch(query) {
   if (!query.trim()) { els.searchResults.classList.add('hidden'); return; }
-  
+
   const q = query.toLowerCase();
   const results = [];
-  
+
   state.blocks.forEach(b => {
     if (b.name.toLowerCase().includes(q) || b.notes?.toLowerCase().includes(q)) {
       results.push({ type: 'block', id: b.id, title: b.name, icon: b.icon, subtitle: b.type });
@@ -1319,16 +1319,16 @@ function performSearch(query) {
       }
     });
   });
-  
+
   state.habits.forEach(h => {
     if (h.name.toLowerCase().includes(q)) {
       results.push({ type: 'habit', id: h.id, title: h.name, icon: h.icon, subtitle: 'Habit' });
     }
   });
-  
+
   if (results.length === 0) {
     els.searchResults.innerHTML = '<div class="search-empty">No results found</div>';
-        } else {
+  } else {
     els.searchResults.innerHTML = results.slice(0, 10).map(r => `
       <div class="search-result" data-type="${r.type}" data-id="${r.id}" data-block="${r.blockId || ''}">
         <span class="search-result-icon">${r.icon}</span>
@@ -1337,7 +1337,7 @@ function performSearch(query) {
       </div>
     `).join('');
   }
-  
+
   els.searchResults.classList.remove('hidden');
 }
 
@@ -1431,38 +1431,38 @@ function updateMiniTimer() {
   }
   // Update sessions count
   if (els.miniSessions) els.miniSessions.textContent = state.pomodoro.sessions;
-  
+
   // Update focus timer bar (minimized)
   updateFocusTimerBar();
 }
 
 function updateFocusTimerBar() {
   const modeLabelsFull = { work: 'Work Session', short: 'Short Break', long: 'Long Break' };
-  
+
   // Update collapsible timer section
   if (els.focusTimerTime) els.focusTimerTime.textContent = formatTime(state.pomodoro.seconds);
   if (els.focusTimerModeLabel) els.focusTimerModeLabel.textContent = modeLabelsFull[state.pomodoro.mode] || 'Work Session';
   if (els.focusTimerSessions) els.focusTimerSessions.textContent = state.pomodoro.sessions;
-  
+
   // Update progress bar
   if (els.focusTimerProgress) {
-    const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60 
+    const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60
       : state.pomodoro.mode === 'short' ? state.pomodoro.shortBreak * 60 : state.pomodoro.longBreak * 60;
     const progress = ((total - state.pomodoro.seconds) / total) * 100;
     els.focusTimerProgress.style.width = progress + '%';
   }
-  
+
   // Update start/pause button visibility
   if (els.focusTimerStart && els.focusTimerPause) {
     els.focusTimerStart.classList.toggle('hidden', state.pomodoro.running);
     els.focusTimerPause.classList.toggle('hidden', !state.pomodoro.running);
   }
-  
+
   // Update running status badge
   if (els.timerStatusBadge) {
     els.timerStatusBadge.classList.toggle('hidden', !state.pomodoro.running);
   }
-  
+
   // Update mode buttons
   document.querySelectorAll('.mode-select-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === state.pomodoro.mode);
@@ -1501,7 +1501,7 @@ function uncenterOrb() {
 
 function updatePomodoroUI() {
   if (els.pomoTime) els.pomoTime.textContent = formatTime(state.pomodoro.seconds);
-  const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60 
+  const total = state.pomodoro.mode === 'work' ? state.pomodoro.workDuration * 60
     : state.pomodoro.mode === 'short' ? state.pomodoro.shortBreak * 60 : state.pomodoro.longBreak * 60;
   const progress = ((total - state.pomodoro.seconds) / total) * 283;
   if (els.pomoProgress) els.pomoProgress.style.strokeDashoffset = 283 - progress;
@@ -1518,13 +1518,13 @@ function startPomodoro() {
   state.pomodoro.running = true;
   els.pomoStart.classList.add('hidden'); els.pomoPause.classList.remove('hidden');
   els.miniStart.classList.add('hidden'); els.miniPause.classList.remove('hidden');
-  
+
   state.pomodoro.interval = setInterval(() => {
     state.pomodoro.seconds--;
     if (state.pomodoro.seconds <= 0) {
       clearInterval(state.pomodoro.interval);
       state.pomodoro.running = false;
-      
+
       if (state.pomodoro.mode === 'work') {
         state.pomodoro.sessions++;
         state.pomodoro.totalMinutes += state.pomodoro.workDuration;
@@ -1533,11 +1533,11 @@ function startPomodoro() {
         updateTodayStats();
         showNotification('Pomodoro Complete!', 'Time for a break', '🍅');
         state.pomodoro.mode = state.pomodoro.sessions % 4 === 0 ? 'long' : 'short';
-        } else {
+      } else {
         showNotification('Break Over!', 'Ready to focus?', '💪');
         state.pomodoro.mode = 'work';
       }
-      
+
       resetPomodoroTimer();
       save();
     }
@@ -1573,7 +1573,7 @@ function populatePomoTasks() {
       tasks.push({ id: t.id, text: t.text, block: b.name });
     });
   });
-  els.pomoTaskSelect.innerHTML = '<option value="">Select a task...</option>' + 
+  els.pomoTaskSelect.innerHTML = '<option value="">Select a task...</option>' +
     tasks.map(t => `<option value="${t.id}">${escHtml(t.text)} (${escHtml(t.block)})</option>`).join('');
 }
 
@@ -1598,7 +1598,7 @@ function calculateStats(period) {
   let completed = 0, pomodoros = 0, focusMinutes = 0;
   const now = new Date();
   const dates = [];
-  
+
   if (period === 'today') {
     dates.push(today());
   } else if (period === 'week') {
@@ -1606,13 +1606,13 @@ function calculateStats(period) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       dates.push(dateStr(d));
     }
-    } else {
+  } else {
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now); d.setDate(d.getDate() - i);
       dates.push(dateStr(d));
     }
   }
-  
+
   dates.forEach(d => {
     const daily = state.stats.daily[d];
     if (daily) {
@@ -1621,7 +1621,7 @@ function calculateStats(period) {
       focusMinutes += daily.focusMinutes || 0;
     }
   });
-  
+
   return { completed, pomodoros, focusMinutes };
 }
 
@@ -1631,7 +1631,7 @@ function renderStats(period = 'today') {
   els.statPomodoros.textContent = s.pomodoros;
   els.statFocusTime.textContent = `${Math.floor(s.focusMinutes / 60)}h`;
   els.statStreak.textContent = calculateStreak();
-  
+
   // Activity chart (last 7 days)
   const now = new Date();
   let maxVal = 1;
@@ -1643,7 +1643,7 @@ function renderStats(period = 'today') {
     days.push(val);
     if (val > maxVal) maxVal = val;
   }
-  
+
   els.activityChart.innerHTML = days.map(v => `<div class="chart-bar" style="height: ${(v / maxVal) * 100}%"></div>`).join('');
 }
 
@@ -1675,12 +1675,12 @@ function renderHabits() {
   const d = dateStr(state.habitDate);
   const isToday = d === today();
   els.habitsDateLabel.textContent = isToday ? 'Today' : formatDate(state.habitDate);
-  
+
   if (state.habits.length === 0) {
     els.habitsList.innerHTML = '<div class="habits-empty">No habits yet. Click + Add Habit to start.</div>';
     return;
   }
-  
+
   const checks = state.habitChecks[d] || {};
   els.habitsList.innerHTML = state.habits.map(h => `
     <div class="habit-item" data-id="${h.id}">
@@ -1690,7 +1690,7 @@ function renderHabits() {
       <span class="habit-streak">${getHabitStreak(h.id)} 🔥</span>
     </div>
   `).join('');
-  
+
   els.habitStreakCount.textContent = calculateHabitStreak();
 }
 
@@ -1747,7 +1747,7 @@ function openHabitPopup() {
 
 function saveHabit() {
   const name = els.habitName.value.trim();
-    if (!name) return;
+  if (!name) return;
   state.habits.push({ id: 'h_' + Date.now(), name, icon: els.habitIcon.value, freq: els.habitFreq.value });
   save();
   renderHabits();
@@ -1772,22 +1772,22 @@ function renderCalendar() {
   const d = state.calendarDate;
   const year = d.getFullYear();
   const month = d.getMonth();
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   els.calendarMonth.textContent = `${months[month]} ${year}`;
-  
+
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const prevDays = new Date(year, month, 0).getDate();
   const todayStr = today();
-  
+
   const allTasks = [...state.calendarTasks];
   state.blocks.forEach(b => (b.todos || []).filter(t => t.date).forEach(t => allTasks.push({ ...t, start: t.date, end: t.date })));
-  
+
   let html = '';
   for (let i = firstDay - 1; i >= 0; i--) html += `<div class="cal-day other-month">${prevDays - i}</div>`;
-  
+
   for (let day = 1; day <= daysInMonth; day++) {
-    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const ds = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const isToday = ds === todayStr;
     const isSelected = ds === state.selectedDate;
     const hasTask = allTasks.some(t => dateInRange(ds, t.start || t.date, t.end || t.date));
@@ -1797,26 +1797,26 @@ function renderCalendar() {
     if (hasTask) cls += ' has-task';
     html += `<div class="${cls}" data-date="${ds}">${day}</div>`;
   }
-  
+
   els.calendarGrid.innerHTML = html;
   renderDayTasks();
 }
 
 function renderDayTasks() {
   if (!state.selectedDate) { els.dayTaskList.innerHTML = '<div class="day-empty">Select a day</div>'; return; }
-  
+
   els.selectedDateLabel.textContent = formatDate(new Date(state.selectedDate + 'T12:00:00'));
-  
+
   const allTasks = [...state.calendarTasks];
   state.blocks.forEach(b => (b.todos || []).filter(t => t.date).forEach(t => allTasks.push({ ...t, start: t.date, end: t.date, blockName: b.name })));
-  
+
   const dayTasks = allTasks.filter(t => dateInRange(state.selectedDate, t.start || t.date, t.end || t.date));
-  
+
   if (dayTasks.length === 0) {
     els.dayTaskList.innerHTML = '<div class="day-empty">No tasks</div>';
     return;
   }
-  
+
   els.dayTaskList.innerHTML = dayTasks.map(t => `
     <div class="day-task-item status-${t.status || 'not_started'}">
       <div>${escHtml(t.title || t.text)}</div>
@@ -1869,7 +1869,7 @@ function openTasks() {
 
 function getDueDateStatus(dateStr) {
   if (!dateStr) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const dueDate = new Date(dateStr + 'T00:00:00');
   const diffDays = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
   if (diffDays < 0) return 'overdue';
@@ -1881,7 +1881,7 @@ function getDueDateStatus(dateStr) {
 function sortTasks(todos) {
   const priorityOrder = { high: 0, medium: 1, low: 2, none: 3 };
   const statusOrder = { in_progress: 0, not_started: 1, on_hold: 2, completed: 3 };
-  
+
   return [...todos].sort((a, b) => {
     switch (state.taskSort) {
       case 'priority':
@@ -1904,28 +1904,28 @@ function sortTasks(todos) {
 function renderAllTasks() {
   let todos = [];
   state.blocks.forEach(b => (b.todos || []).forEach(t => todos.push({ ...t, blockId: b.id, blockName: b.name, blockIcon: b.icon })));
-  
+
   // Apply status filter
   let filtered = state.taskFilter === 'all' ? todos : todos.filter(t => (t.status || 'not_started') === state.taskFilter);
-  
+
   // Apply search filter
   if (state.taskSearchQuery) {
     const q = state.taskSearchQuery.toLowerCase();
-    filtered = filtered.filter(t => 
-      t.text.toLowerCase().includes(q) || 
+    filtered = filtered.filter(t =>
+      t.text.toLowerCase().includes(q) ||
       (t.tags || []).some(tag => tag.toLowerCase().includes(q)) ||
       t.blockName.toLowerCase().includes(q)
     );
   }
-  
+
   // Apply sorting
   filtered = sortTasks(filtered);
-  
+
   if (filtered.length === 0) {
     els.allTasksList.innerHTML = '<div class="tasks-empty">No tasks found</div>';
     return;
   }
-  
+
   // Group by block if sorting by block
   if (state.taskSort === 'block') {
     const groups = {};
@@ -1933,7 +1933,7 @@ function renderAllTasks() {
       if (!groups[t.blockId]) groups[t.blockId] = { name: t.blockName, icon: t.blockIcon, todos: [] };
       groups[t.blockId].todos.push(t);
     });
-    
+
     let html = '';
     Object.entries(groups).forEach(([blockId, group]) => {
       html += `<div class="task-group">
@@ -1950,7 +1950,7 @@ function renderAllTasks() {
     // Flat list for other sort modes
     els.allTasksList.innerHTML = filtered.map(t => renderTaskItem(t, t.blockId)).join('');
   }
-  
+
   // Add event listeners for task items
   initTaskItemEvents();
 }
@@ -1958,12 +1958,12 @@ function renderAllTasks() {
 function renderTaskItem(t, blockId) {
   const dueStatus = getDueDateStatus(t.date);
   const isSelected = state.selectedTasks.some(s => s.taskId === t.id && s.blockId === blockId);
-  
+
   let dueBadge = '';
   if (dueStatus === 'overdue') dueBadge = '<span class="due-badge overdue">Overdue</span>';
   else if (dueStatus === 'due-today') dueBadge = '<span class="due-badge due-today">Due Today</span>';
   else if (dueStatus === 'due-week') dueBadge = '<span class="due-badge due-week">This Week</span>';
-  
+
   return `
     <div class="global-task-item ${dueStatus || ''}" data-block="${blockId}" data-todo="${t.id}">
       <div class="task-checkbox ${isSelected ? 'checked' : ''}" data-block="${blockId}" data-todo="${t.id}"></div>
@@ -1988,41 +1988,41 @@ function renderTaskItem(t, blockId) {
 // Event delegation for all tasks list - attach once during init
 function initTaskListEventDelegation() {
   if (!els.allTasksList) return;
-  
+
   // Handle all clicks via event delegation
   els.allTasksList.addEventListener('click', e => {
     // Checkbox click for bulk selection
     const checkbox = e.target.closest('.task-checkbox');
     if (checkbox) {
-        e.stopPropagation();
+      e.stopPropagation();
       const blockId = checkbox.dataset.block;
       const taskId = checkbox.dataset.todo;
       toggleTaskSelection(taskId, blockId);
       return;
     }
-    
+
     // Status badge click for quick toggle
     const badge = e.target.closest('.status-badge');
     if (badge) {
-        e.stopPropagation();
+      e.stopPropagation();
       const blockId = badge.dataset.block;
       const taskId = badge.dataset.todo;
       cycleTaskStatus(taskId, blockId);
       return;
     }
-    
+
     // Click on task item to open block editor
     const item = e.target.closest('.global-task-item');
     if (item) {
       openBlockEditor(item.dataset.block);
     }
   });
-  
+
   // Context menu via event delegation
   els.allTasksList.addEventListener('contextmenu', e => {
     const item = e.target.closest('.global-task-item');
     if (item) {
-        e.preventDefault();
+      e.preventDefault();
       const blockId = item.dataset.block;
       const taskId = item.dataset.todo;
       showTaskContextMenu(e, taskId, blockId);
@@ -2066,11 +2066,11 @@ function cycleTaskStatus(taskId, blockId) {
   if (!block) return;
   const task = (block.todos || []).find(t => t.id === taskId);
   if (!task) return;
-  
+
   const statusCycle = ['not_started', 'in_progress', 'completed'];
   const currentIndex = statusCycle.indexOf(task.status || 'not_started');
   task.status = statusCycle[(currentIndex + 1) % statusCycle.length];
-  
+
   if (task.status === 'completed') {
     updateTodayStats();
     const t = today();
@@ -2078,7 +2078,7 @@ function cycleTaskStatus(taskId, blockId) {
     state.stats.daily[t].completed++;
     state.stats.completed++;
   }
-  
+
   save();
   renderAllTasks();
   updateTodayProgress();
@@ -2094,9 +2094,9 @@ function showTaskContextMenu(e, taskId, blockId) {
   if (!block) return;
   const task = (block.todos || []).find(t => t.id === taskId);
   if (!task) return;
-  
+
   state.contextTask = { task, blockId, taskId };
-  
+
   els.taskContextMenu.style.left = `${e.clientX}px`;
   els.taskContextMenu.style.top = `${e.clientY}px`;
   els.taskContextMenu.classList.remove('hidden');
@@ -2110,13 +2110,13 @@ function hideTaskContextMenu() {
 function editTaskFromContext() {
   if (!state.contextTask) return;
   const { task } = state.contextTask;
-  
+
   els.editTaskText.value = task.text;
   els.editTaskPriority.value = task.priority || 'none';
   els.editTaskStatus.value = task.status || 'not_started';
   els.editTaskDate.value = task.date || '';
   els.editTaskTags.value = (task.tags || []).join(', ');
-  
+
   els.editTaskPopup.classList.remove('hidden');
   els.editTaskText.focus();
   hideTaskContextMenu();
@@ -2127,10 +2127,10 @@ function saveEditedTask() {
   const { task, blockId } = state.contextTask;
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   const todoIndex = block.todos.findIndex(t => t.id === task.id);
   if (todoIndex === -1) return;
-  
+
   block.todos[todoIndex] = {
     ...task,
     text: els.editTaskText.value.trim() || task.text,
@@ -2139,7 +2139,7 @@ function saveEditedTask() {
     date: els.editTaskDate.value,
     tags: els.editTaskTags.value.split(',').map(t => t.trim()).filter(t => t),
   };
-  
+
   save();
   renderAllTasks();
   updateTodayProgress();
@@ -2153,13 +2153,13 @@ function changeTaskStatusFromContext(status) {
   const { blockId, taskId } = state.contextTask;
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   const task = block.todos.find(t => t.id === taskId);
   if (!task) return;
-  
+
   const wasCompleted = task.status === 'completed';
   task.status = status;
-  
+
   if (status === 'completed' && !wasCompleted) {
     updateTodayStats();
     const t = today();
@@ -2167,7 +2167,7 @@ function changeTaskStatusFromContext(status) {
     state.stats.daily[t].completed++;
     state.stats.completed++;
   }
-  
+
   save();
   renderAllTasks();
   updateTodayProgress();
@@ -2180,7 +2180,7 @@ function changeTaskPriorityFromContext(priority) {
   const { blockId, taskId } = state.contextTask;
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   const task = block.todos.find(t => t.id === taskId);
   if (task) {
     task.priority = priority;
@@ -2193,12 +2193,12 @@ function changeTaskPriorityFromContext(priority) {
 
 function openMoveTaskPopup() {
   if (!state.contextTask) return;
-  
+
   els.moveTaskBlock.innerHTML = state.blocks
     .filter(b => b.id !== state.contextTask.blockId)
     .map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`)
     .join('');
-  
+
   els.moveTaskPopup.classList.remove('hidden');
   hideTaskContextMenu();
 }
@@ -2207,21 +2207,21 @@ function moveTaskToBlock() {
   if (!state.contextTask) return;
   const { blockId: sourceBlockId, taskId } = state.contextTask;
   const targetBlockId = els.moveTaskBlock.value;
-  
+
   if (!targetBlockId) return;
-  
+
   const sourceBlock = state.blocks.find(b => b.id === sourceBlockId);
   const targetBlock = state.blocks.find(b => b.id === targetBlockId);
-  
+
   if (!sourceBlock || !targetBlock) return;
-  
+
   const taskIndex = sourceBlock.todos.findIndex(t => t.id === taskId);
   if (taskIndex === -1) return;
-  
+
   const [task] = sourceBlock.todos.splice(taskIndex, 1);
   targetBlock.todos = targetBlock.todos || [];
   targetBlock.todos.push(task);
-  
+
   save();
   renderAllTasks();
   els.moveTaskPopup.classList.add('hidden');
@@ -2234,14 +2234,14 @@ function duplicateTaskFromContext() {
   const { task, blockId } = state.contextTask;
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   const newTask = {
     ...task,
     id: 'todo_' + Date.now(),
     text: task.text + ' (copy)',
     status: 'not_started',
   };
-  
+
   block.todos.push(newTask);
   save();
   renderAllTasks();
@@ -2262,7 +2262,7 @@ function deleteTaskFromContext() {
   const { blockId, taskId } = state.contextTask;
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   block.todos = block.todos.filter(t => t.id !== taskId);
   save();
   renderAllTasks();
@@ -2277,7 +2277,7 @@ function deleteTaskFromContext() {
 
 function openGlobalTaskPopup() {
   els.globalTaskText.value = '';
-  els.globalTaskBlock.innerHTML = '<option value="">Select block...</option>' + 
+  els.globalTaskBlock.innerHTML = '<option value="">Select block...</option>' +
     state.blocks.map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`).join('');
   els.globalTaskPriority.value = 'none';
   els.globalTaskStatus.value = 'not_started';
@@ -2290,15 +2290,15 @@ function openGlobalTaskPopup() {
 function saveGlobalTask() {
   const text = els.globalTaskText.value.trim();
   const blockId = els.globalTaskBlock.value;
-  
+
   if (!text) { toast('Please enter task description'); return; }
   if (!blockId) { toast('Please select a block'); return; }
-  
+
   const block = state.blocks.find(b => b.id === blockId);
   if (!block) return;
-  
+
   const tags = els.globalTaskTags.value.split(',').map(t => t.trim()).filter(t => t);
-  
+
   block.todos = block.todos || [];
   block.todos.push({
     id: 'todo_' + Date.now(),
@@ -2308,7 +2308,7 @@ function saveGlobalTask() {
     date: els.globalTaskDate.value,
     tags,
   });
-  
+
   save();
   renderAllTasks();
   updateTodayProgress();
@@ -2327,7 +2327,7 @@ function bulkChangeStatus(status) {
     const task = block.todos.find(t => t.id === taskId);
     if (task) task.status = status;
   });
-  
+
   save();
   clearTaskSelection();
   updateTodayProgress();
@@ -2336,11 +2336,11 @@ function bulkChangeStatus(status) {
 
 function bulkMoveTasks() {
   if (state.selectedTasks.length === 0) return;
-  
+
   els.moveTaskBlock.innerHTML = state.blocks
     .map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`)
     .join('');
-  
+
   // Store that this is a bulk move
   state.contextTask = { bulk: true };
   els.moveTaskPopup.classList.remove('hidden');
@@ -2348,25 +2348,25 @@ function bulkMoveTasks() {
 
 function bulkMoveTasksConfirm() {
   if (!state.contextTask?.bulk) return;
-  
+
   const targetBlockId = els.moveTaskBlock.value;
   const targetBlock = state.blocks.find(b => b.id === targetBlockId);
   if (!targetBlock) return;
-  
+
   targetBlock.todos = targetBlock.todos || [];
-  
+
   state.selectedTasks.forEach(({ taskId, blockId }) => {
     if (blockId === targetBlockId) return; // Skip if same block
     const sourceBlock = state.blocks.find(b => b.id === blockId);
     if (!sourceBlock) return;
-    
+
     const taskIndex = sourceBlock.todos.findIndex(t => t.id === taskId);
     if (taskIndex === -1) return;
-    
+
     const [task] = sourceBlock.todos.splice(taskIndex, 1);
     targetBlock.todos.push(task);
   });
-  
+
   save();
   els.moveTaskPopup.classList.add('hidden');
   clearTaskSelection();
@@ -2375,14 +2375,14 @@ function bulkMoveTasksConfirm() {
 
 function bulkDeleteTasks() {
   if (!confirm(`Delete ${state.selectedTasks.length} tasks?`)) return;
-  
+
   state.selectedTasks.forEach(({ taskId, blockId }) => {
     const block = state.blocks.find(b => b.id === blockId);
     if (block) {
       block.todos = block.todos.filter(t => t.id !== taskId);
     }
   });
-  
+
   save();
   clearTaskSelection();
   updateTodayProgress();
@@ -2423,7 +2423,7 @@ function renderMindmap() {
       <div class="node-meta">${b.type}</div>
       <div class="node-badges">
         ${b.children?.length ? `<span class="node-badge">📦 ${b.children.length}</span>` : ''}
-        ${b.todos?.length ? `<span class="node-badge">✅ ${b.todos.filter(t=>t.status!=='completed').length}/${b.todos.length}</span>` : ''}
+        ${b.todos?.length ? `<span class="node-badge">✅ ${b.todos.filter(t => t.status !== 'completed').length}/${b.todos.length}</span>` : ''}
             </div>
         </div>
     `).join('');
@@ -2450,24 +2450,24 @@ function renderConnections() {
 // Event delegation for blocks layer - attach once during init
 function initBlockEventDelegation() {
   if (!els.blocksLayer) return;
-  
+
   els.blocksLayer.addEventListener('mousedown', e => {
     const node = e.target.closest('.block-node');
     if (!node || e.button !== 0) return;
-    
+
     const block = state.blocks.find(b => b.id === node.dataset.id);
     if (!block) return;
-    
+
     state.dragging = block;
     state.dragOffset = { x: e.clientX - block.x, y: e.clientY - block.y };
     node.classList.add('dragging');
     e.preventDefault();
   });
-  
+
   els.blocksLayer.addEventListener('contextmenu', e => {
     const node = e.target.closest('.block-node');
     if (!node) return;
-    
+
     e.preventDefault();
     state.contextBlock = state.blocks.find(b => b.id === node.dataset.id);
     if (els.contextMenu) {
@@ -2476,7 +2476,7 @@ function initBlockEventDelegation() {
       els.contextMenu.classList.remove('hidden');
     }
   });
-  
+
   els.blocksLayer.addEventListener('dblclick', e => {
     const node = e.target.closest('.block-node');
     if (node) {
@@ -2527,25 +2527,27 @@ function createBlock() {
   if (!name) return;
   const type = document.querySelector('.type-opt.selected')?.dataset.type || 'note';
   const icons = { note: '📝', task: '✅', project: '📁', idea: '💡' };
-  
-  let x = 100, y = 100;
+
+  // Position new blocks in a spread pattern across the screen
+  let x = 100 + (state.blocks.length * 50) % 600;
+  let y = 100 + Math.floor(state.blocks.length / 3) * 120;
+
+  // If creating as child of another block
   if (state.newBlockParent) {
     const parent = state.blocks.find(b => b.id === state.newBlockParent);
     if (parent) {
       const siblings = state.blocks.filter(b => b.parentId === state.newBlockParent);
       x = parent.x + 200; y = parent.y + (siblings.length * 80);
     }
-        } else {
-    x = Math.max(...state.blocks.map(b => b.x), 0) + 200; y = 60;
   }
-  
+
   const newBlock = { id: Date.now().toString(), name, type, icon: icons[type], notes: '', todos: [], dateStart: '', dateEnd: '', x, y, parentId: state.newBlockParent || null, children: [] };
-  
+
   if (state.newBlockParent) {
     const parent = state.blocks.find(b => b.id === state.newBlockParent);
     if (parent) { parent.children = parent.children || []; parent.children.push(newBlock.id); }
   }
-  
+
   state.blocks.push(newBlock);
   save();
   els.blockPopup.classList.add('hidden');
@@ -2591,7 +2593,7 @@ function deleteBlock() {
   const id = state.contextBlock.id;
   const parent = state.blocks.find(b => b.children?.includes(id));
   if (parent) parent.children = parent.children.filter(c => c !== id);
-  
+
   function removeWithChildren(blockId) {
     const block = state.blocks.find(b => b.id === blockId);
     if (block?.children) block.children.forEach(removeWithChildren);
@@ -2611,7 +2613,7 @@ function openBlockEditor(blockId) {
   if (!block) return;
   state.currentBlock = block;
   stopTimer();
-  
+
   els.blockIconBtn.textContent = block.icon;
   els.blockTitle.value = block.name;
   els.blockDate.value = block.dateStart || '';
@@ -2619,10 +2621,10 @@ function openBlockEditor(blockId) {
   els.blockNotes.innerHTML = block.notes || '';
   state.timer.seconds = 0;
   updateTimerDisplay();
-  
+
   renderTodos();
   renderSubblocks();
-  
+
   closeAllPanels();
   els.blockEditor.classList.remove('hidden');
 }
@@ -2664,8 +2666,8 @@ function renderTodos() {
   const todos = state.currentBlock?.todos || [];
   if (todos.length === 0) {
     els.todoList.innerHTML = '<div class="todo-empty">No to-dos yet</div>';
-        return;
-    }
+    return;
+  }
 
   els.todoList.innerHTML = todos.map(t => `
     <div class="todo-item" data-id="${t.id}">
@@ -2747,7 +2749,7 @@ function renderSubblocks() {
 
 function openQuickAdd() {
   els.quickTaskText.value = '';
-  els.quickTaskBlock.innerHTML = '<option value="">Select block...</option>' + 
+  els.quickTaskBlock.innerHTML = '<option value="">Select block...</option>' +
     state.blocks.map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`).join('');
   els.quickAddPopup.classList.remove('hidden');
   els.quickTaskText.focus();
@@ -2757,7 +2759,7 @@ function saveQuickTask() {
   const text = els.quickTaskText.value.trim();
   const blockId = els.quickTaskBlock.value;
   if (!text || !blockId) return;
-  
+
   const block = state.blocks.find(b => b.id === blockId);
   if (block) {
     block.todos = block.todos || [];
@@ -2804,11 +2806,11 @@ const aiActionHandlers = {
     if (!els.mindmapView.classList.contains('hidden')) renderMindmap();
     toast(`Created: ${name}`);
   },
-  
+
   create_task: (params) => {
     const text = params.text || 'New Task';
     const blockId = params.block_id;
-    
+
     if (blockId) {
       const block = state.blocks.find(b => b.id === blockId);
       if (block) {
@@ -2822,8 +2824,8 @@ const aiActionHandlers = {
           tags: params.tags || [],
         });
         save();
-            }
-        } else {
+      }
+    } else {
       // Add to first block or create general task
       const firstBlock = state.blocks[0];
       if (firstBlock) {
@@ -2842,7 +2844,7 @@ const aiActionHandlers = {
     updateTodayProgress();
     toast(`Task added: ${text}`);
   },
-  
+
   start_timer: (params) => {
     const minutes = parseInt(params.minutes) || 25;
     state.pomodoro.seconds = minutes * 60;
@@ -2850,19 +2852,19 @@ const aiActionHandlers = {
     startPomodoro();
     toast(`Timer started: ${minutes} min`);
   },
-  
+
   start_pomodoro: (params) => {
     const mode = params.mode || 'work';
     setPomoMode(mode);
     startPomodoro();
     toast(`Pomodoro started: ${mode}`);
   },
-  
+
   stop_timer: () => {
     pausePomodoro();
     toast('Timer stopped');
   },
-  
+
   open_panel: (params) => {
     const panel = params.panel?.toLowerCase();
     const panelMap = {
@@ -2880,7 +2882,7 @@ const aiActionHandlers = {
       toast(`Opened: ${panel}`);
     }
   },
-  
+
   change_theme: (params) => {
     const theme = params.theme?.toLowerCase();
     if (theme) {
@@ -2888,18 +2890,18 @@ const aiActionHandlers = {
       toast(`Theme: ${theme}`);
     }
   },
-  
+
   set_focus: (params) => {
     state.currentFocus = params.text || null;
     save();
     updateFocusDisplay();
     toast(`Focus: ${params.text}`);
   },
-  
+
   show_notification: (params) => {
     showNotification(params.title, params.message, params.icon || '🔔');
   },
-  
+
   open_browser: (params) => {
     const url = params.url;
     if (url) {
@@ -2911,7 +2913,7 @@ const aiActionHandlers = {
       }
     }
   },
-  
+
   add_calendar_event: (params) => {
     state.calendarTasks.push({
       id: 'ct_' + Date.now(),
@@ -2924,7 +2926,7 @@ const aiActionHandlers = {
     if (!els.calendarPanel.classList.contains('hidden')) renderCalendar();
     toast(`Calendar: ${params.title}`);
   },
-  
+
   create_habit: (params) => {
     state.habits.push({
       id: 'h_' + Date.now(),
@@ -2936,21 +2938,21 @@ const aiActionHandlers = {
     if (!els.habitsPanel.classList.contains('hidden')) renderHabits();
     toast(`Habit: ${params.name}`);
   },
-  
+
   start_study_session: (params) => {
     const topic = params.topic || 'Study';
     const duration = parseInt(params.duration) || 25;
-    
+
     // Set focus
     state.currentFocus = `Studying: ${topic}`;
     save();
     updateFocusDisplay();
-    
+
     // Start timer
     state.pomodoro.seconds = duration * 60;
     state.pomodoro.mode = 'work';
     startPomodoro();
-    
+
     toast(`Study session: ${topic} (${duration} min)`);
     showNotification('Study Session Started', `Focus on: ${topic} for ${duration} minutes`, '📚');
   },
@@ -2959,7 +2961,7 @@ const aiActionHandlers = {
 // Execute actions from AI
 function executeAiActions(actions) {
   if (!actions || !Array.isArray(actions)) return;
-  
+
   actions.forEach(action => {
     const handler = aiActionHandlers[action.type];
     if (handler) {
@@ -2975,19 +2977,19 @@ function executeAiActions(actions) {
 // WebSocket Connection
 function connectAiWebSocket() {
   if (aiWebSocket && aiWebSocket.readyState === WebSocket.OPEN) return;
-  
+
   try {
     const wsUrl = CONFIG.API_BASE.replace('http', 'ws') + '/ai/ws';
     aiWebSocket = new WebSocket(wsUrl);
-    
+
     aiWebSocket.onopen = () => {
       console.log('AI WebSocket connected');
     };
-    
+
     aiWebSocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === 'chunk') {
           // Streaming response
           const lastMsg = chatHistory[chatHistory.length - 1];
@@ -3003,7 +3005,7 @@ function connectAiWebSocket() {
             lastMsg.streaming = false;
           }
           renderChat();
-          
+
           // Execute any actions
           if (data.actions) {
             executeAiActions(data.actions);
@@ -3017,13 +3019,13 @@ function connectAiWebSocket() {
         console.error('WS message error:', e);
       }
     };
-    
+
     aiWebSocket.onclose = () => {
       console.log('AI WebSocket closed');
       // Reconnect after delay
       setTimeout(connectAiWebSocket, 5000);
     };
-    
+
     aiWebSocket.onerror = (e) => {
       console.error('AI WebSocket error:', e);
     };
@@ -3038,7 +3040,7 @@ async function sendChatMessage(text) {
     // Add streaming placeholder
     chatHistory.push({ role: 'assistant', content: '', streaming: true });
     renderChat();
-    
+
     aiWebSocket.send(JSON.stringify({
       type: 'chat',
       message: text,
@@ -3049,19 +3051,19 @@ async function sendChatMessage(text) {
     // Fallback to HTTP smart chat
     try {
       const res = await fetch(`${CONFIG.API_BASE}/ai/chat/smart`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
           user_id: 'default',
           execute_actions: true,
         }),
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         chatHistory.push({ role: 'assistant', content: data.response || 'No response' });
-        
+
         // Execute frontend actions
         if (data.frontend_actions) {
           executeAiActions(data.frontend_actions);
@@ -3095,7 +3097,7 @@ async function loadAiModels() {
 function updateModelSelector() {
   const selector = document.getElementById('ai-model-select');
   if (selector && aiModels.length > 0) {
-    selector.innerHTML = aiModels.map(m => 
+    selector.innerHTML = aiModels.map(m =>
       `<option value="${m.name}" ${m.name === currentAiModel ? 'selected' : ''}>${m.name} (${m.size || '?'})</option>`
     ).join('');
   }
@@ -3109,7 +3111,7 @@ async function switchAiModel(modelName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model_name: modelName }),
     });
-    
+
     if (res.ok) {
       const data = await res.json();
       currentAiModel = data.current_model;
@@ -3127,7 +3129,7 @@ function openChat() {
     state.openPanels.add('chat-box');
     bringPanelToFront(els.chatBox);
     connectAiWebSocket();
-        } else {
+  } else {
     els.chatBox.classList.add('hidden');
     state.openPanels.delete('chat-box');
   }
@@ -3149,7 +3151,7 @@ async function sendChat() {
   chatHistory.push({ role: 'user', content: text });
   els.chatInput.value = '';
   renderChat();
-  
+
   await sendChatMessage(text);
 }
 
@@ -3173,46 +3175,46 @@ async function startVoiceRecording() {
     toast('Voice not supported in this browser');
     return;
   }
-  
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         sampleRate: 16000,
       }
     });
-    
+
     mediaRecorder = new MediaRecorder(stream, {
       mimeType: 'audio/webm;codecs=opus'
     });
-    
+
     audioChunks = [];
-    
+
     mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
         audioChunks.push(e.data);
       }
     };
-    
+
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(track => track.stop());
-      
+
       if (audioChunks.length > 0) {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         await processVoiceCommand(audioBlob);
       }
     };
-    
+
     mediaRecorder.start(100); // Collect data every 100ms
     isRecording = true;
-    
+
     // Update UI
     const voiceBtn = document.getElementById('btn-voice');
     const voiceIndicator = document.getElementById('voice-indicator');
     if (voiceBtn) voiceBtn.classList.add('recording');
     if (voiceIndicator) voiceIndicator.classList.remove('hidden');
-    
+
   } catch (e) {
     console.error('Voice recording error:', e);
     toast('Could not access microphone');
@@ -3224,7 +3226,7 @@ function stopVoiceRecording() {
   if (mediaRecorder && isRecording) {
     mediaRecorder.stop();
     isRecording = false;
-    
+
     // Update UI
     const voiceBtn = document.getElementById('btn-voice');
     const voiceIndicator = document.getElementById('voice-indicator');
@@ -3237,10 +3239,10 @@ function stopVoiceRecording() {
 async function processVoiceCommand(audioBlob) {
   const voiceIndicator = document.getElementById('voice-indicator');
   const voiceText = voiceIndicator?.querySelector('.voice-text');
-  
+
   if (voiceText) voiceText.textContent = 'Processing...';
   if (voiceIndicator) voiceIndicator.classList.remove('hidden');
-  
+
   try {
     // Convert blob to base64
     const reader = new FileReader();
@@ -3249,10 +3251,10 @@ async function processVoiceCommand(audioBlob) {
       reader.onerror = reject;
       reader.readAsDataURL(audioBlob);
     });
-    
+
     // Send to voice command endpoint
     const res = await fetch(`${CONFIG.API_BASE}/voice/command`, {
-            method: 'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         audio_base64: audioBase64,
@@ -3260,10 +3262,10 @@ async function processVoiceCommand(audioBlob) {
         execute_actions: true,
       }),
     });
-    
+
     if (res.ok) {
       const data = await res.json();
-      
+
       if (data.success) {
         // Add to chat history
         if (data.user_text) {
@@ -3273,12 +3275,12 @@ async function processVoiceCommand(audioBlob) {
           chatHistory.push({ role: 'assistant', content: data.ai_response });
         }
         renderChat();
-        
+
         // Play audio response
         if (data.audio_base64 && voiceEnabled) {
           playAudioResponse(data.audio_base64);
         }
-        
+
         // Show actions executed
         if (data.actions_executed > 0) {
           toast(`Executed ${data.actions_executed} action(s)`);
@@ -3311,7 +3313,7 @@ function playAudioResponse(base64Audio) {
 async function speakText(text) {
   try {
     const res = await fetch(`${CONFIG.API_BASE}/voice/tts/speak?text=${encodeURIComponent(text)}&voice=guy`);
-    
+
     if (res.ok) {
       const audioBlob = await res.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
@@ -3342,10 +3344,10 @@ async function createStudyPlan(subject, topics, examDate) {
         daily_hours: 2,
       }),
     });
-    
+
     if (res.ok) {
       const data = await res.json();
-      
+
       // Add blocks
       if (data.blocks) {
         data.blocks.forEach(block => {
@@ -3359,7 +3361,7 @@ async function createStudyPlan(subject, topics, examDate) {
           }
         });
       }
-      
+
       // Add calendar tasks
       if (data.calendar_tasks) {
         data.calendar_tasks.forEach(task => {
@@ -3369,11 +3371,11 @@ async function createStudyPlan(subject, topics, examDate) {
           });
         });
       }
-      
+
       save();
       toast(`Study plan created: ${subject}`);
       showNotification('Study Plan Ready', `Created plan for ${subject} with ${data.plan?.topics?.length || 0} topics`, '📚');
-      
+
       return data;
     }
   } catch (e) {
@@ -3387,7 +3389,7 @@ async function getTopicExplanation(topic) {
     const res = await fetch(`${CONFIG.API_BASE}/ai/study/explain?topic=${encodeURIComponent(topic)}&depth=medium`, {
       method: 'POST',
     });
-    
+
     if (res.ok) {
       const data = await res.json();
       return data.explanation;
@@ -3460,9 +3462,9 @@ function initEvents() {
   els.orb.addEventListener('click', e => {
     if (state.orbCentered) {
       // If already centered, clicking orb does nothing (use menu or overlay to close)
-        return;
+      return;
     }
-    
+
     if (state.orbClickTimer) {
       // Double click detected
       clearTimeout(state.orbClickTimer);
@@ -3476,16 +3478,16 @@ function initEvents() {
       }, 250);
     }
   });
-  
+
   // Click on overlay to close centered orb
   if (els.orbOverlay) els.orbOverlay.addEventListener('click', uncenterOrb);
-  
+
   // AI Input/Output
   if (els.aiSendBtn) els.aiSendBtn.addEventListener('click', sendAiQuery);
   if (els.aiCloseBtn) els.aiCloseBtn.addEventListener('click', closeAiInput);
   if (els.aiInput) els.aiInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendAiQuery(); });
   if (els.aiOutputClose) els.aiOutputClose.addEventListener('click', closeAiOutput);
-  
+
   // Voice button - hold to record
   const voiceBtn = document.getElementById('btn-voice');
   if (voiceBtn) {
@@ -3496,7 +3498,7 @@ function initEvents() {
     voiceBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startVoiceRecording(); });
     voiceBtn.addEventListener('touchend', stopVoiceRecording);
   }
-  
+
   // Radial Menu buttons - close centered mode when selecting
   if (els.btnMindmap) els.btnMindmap.addEventListener('click', () => { uncenterOrb(); closeMenu(); openMindmap(); });
   if (els.btnTasks) els.btnTasks.addEventListener('click', () => { uncenterOrb(); closeMenu(); openTasks(); });
@@ -3506,11 +3508,11 @@ function initEvents() {
   if (els.btnCalendar) els.btnCalendar.addEventListener('click', () => { uncenterOrb(); closeMenu(); openCalendar(); });
   if (els.btnChat) els.btnChat.addEventListener('click', () => { uncenterOrb(); closeMenu(); toggleAiInput(); });
   if (els.btnSettings) els.btnSettings.addEventListener('click', () => { uncenterOrb(); closeMenu(); openSettings(); });
-  
+
   // Focus Panel
   if (els.focusExpandBtn) els.focusExpandBtn.addEventListener('click', expandFocusPanel);
   if (els.focusMinimizeBtn) els.focusMinimizeBtn.addEventListener('click', minimizeFocusPanel);
-  
+
   // Collapsible Sections (Timer, Calendar, To-Do)
   document.querySelectorAll('.collapsible-header').forEach(header => {
     header.addEventListener('click', e => {
@@ -3520,7 +3522,7 @@ function initEvents() {
       if (section) toggleCollapsibleSection(section);
     });
   });
-  
+
   // Mini Calendar Navigation
   if (els.miniCalPrev) els.miniCalPrev.addEventListener('click', e => {
     e.stopPropagation();
@@ -3532,25 +3534,25 @@ function initEvents() {
     state.miniCalDate.setMonth(state.miniCalDate.getMonth() + 1);
     renderMiniCalendar();
   });
-  
+
   // Mini Add Todo
   if (els.miniAddTodo) els.miniAddTodo.addEventListener('click', e => { e.stopPropagation(); openQuickAdd(); });
-  
+
   // Profile (legacy badge - hidden, kept for compatibility)
   if (els.profileBadge) els.profileBadge.addEventListener('click', () => { renderProfiles(); els.profileDropdown.classList.toggle('hidden'); });
   els.profileList.addEventListener('click', e => { const item = e.target.closest('.dropdown-item'); if (item) switchProfile(item.dataset.id); });
   els.btnNewProfile.addEventListener('click', () => { els.profileDropdown.classList.add('hidden'); openProfilePopup(); });
   els.btnSaveProfile.addEventListener('click', saveProfile);
   els.btnDeleteProfile.addEventListener('click', deleteProfile);
-  
+
   // Focus Profile (new location)
   if (els.focusProfile) els.focusProfile.addEventListener('click', () => { renderProfiles(); els.profileDropdown.classList.toggle('hidden'); });
-  
+
   // Focus Timer Controls
   if (els.focusTimerStart) els.focusTimerStart.addEventListener('click', e => { e.stopPropagation(); startPomodoro(); });
   if (els.focusTimerPause) els.focusTimerPause.addEventListener('click', e => { e.stopPropagation(); pausePomodoro(); });
   if (els.focusTimerReset) els.focusTimerReset.addEventListener('click', e => { e.stopPropagation(); resetPomodoroTimer(); });
-  
+
   // Timer Mode Buttons
   document.querySelectorAll('.mode-select-btn').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -3558,13 +3560,13 @@ function initEvents() {
       const mode = btn.dataset.mode;
       if (mode && !state.pomodoro.running) {
         state.pomodoro.mode = mode;
-        state.pomodoro.seconds = mode === 'work' ? state.pomodoro.workDuration * 60 
+        state.pomodoro.seconds = mode === 'work' ? state.pomodoro.workDuration * 60
           : mode === 'short' ? state.pomodoro.shortBreak * 60 : state.pomodoro.longBreak * 60;
         updatePomodoroUI();
       }
     });
   });
-  
+
   // Search
   els.btnQuickSearch.addEventListener('click', openSearch);
   els.searchInput.addEventListener('input', e => performSearch(e.target.value));
@@ -3577,28 +3579,28 @@ function initEvents() {
       else if (item.dataset.type === 'habit') openHabits();
     }
   });
-  
+
   // Focus
   els.focusTextDisplay.addEventListener('click', startFocusEdit);
   els.focusInput.addEventListener('blur', saveFocus);
   els.focusInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveFocus(); });
-  
+
   // Mini Pomodoro
   els.miniStart.addEventListener('click', startPomodoro);
   els.miniPause.addEventListener('click', pausePomodoro);
   els.miniReset.addEventListener('click', resetPomodoroTimer);
-  
+
   // Quick Actions
   els.btnQuickTask.addEventListener('click', openQuickAdd);
   els.btnQuickHelp.addEventListener('click', () => els.shortcutsPopup.classList.remove('hidden'));
-  
+
   // Pomodoro Panel
   els.btnClosePomodoro.addEventListener('click', () => els.pomodoroPanel.classList.add('hidden'));
   els.pomoStart.addEventListener('click', startPomodoro);
   els.pomoPause.addEventListener('click', pausePomodoro);
   els.pomoReset.addEventListener('click', resetPomodoroTimer);
   document.querySelectorAll('.pomo-tab').forEach(t => t.addEventListener('click', () => setPomoMode(t.dataset.mode)));
-  
+
   // Stats
   els.btnCloseStats.addEventListener('click', () => els.statsPanel.classList.add('hidden'));
   document.querySelectorAll('.period-btn').forEach(b => {
@@ -3608,7 +3610,7 @@ function initEvents() {
       renderStats(b.dataset.period);
     });
   });
-  
+
   // Habits
   els.btnCloseHabits.addEventListener('click', () => els.habitsPanel.classList.add('hidden'));
   els.btnAddHabit.addEventListener('click', openHabitPopup);
@@ -3620,7 +3622,7 @@ function initEvents() {
   });
   els.btnSaveHabit.addEventListener('click', saveHabit);
   els.btnCancelHabit.addEventListener('click', () => els.habitPopup.classList.add('hidden'));
-  
+
   // Calendar
   els.btnCloseCalendar.addEventListener('click', () => els.calendarPanel.classList.add('hidden'));
   els.btnPrevMonth.addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() - 1); renderCalendar(); });
@@ -3632,7 +3634,7 @@ function initEvents() {
   els.btnAddCalTask.addEventListener('click', openCalTaskPopup);
   els.btnSaveCalTask.addEventListener('click', saveCalTask);
   els.btnCancelCalTask.addEventListener('click', () => els.calTaskPopup.classList.add('hidden'));
-  
+
   // Tasks Panel
   els.btnCloseTasks.addEventListener('click', () => { clearTaskSelection(); els.tasksPanel.classList.add('hidden'); });
   document.querySelectorAll('.status-tab').forEach(t => {
@@ -3642,12 +3644,12 @@ function initEvents() {
       renderAllTasks();
     });
   });
-  
+
   // Task Panel New Features
   if (els.btnAddGlobalTask) els.btnAddGlobalTask.addEventListener('click', openGlobalTaskPopup);
   if (els.taskSortSelect) els.taskSortSelect.addEventListener('change', e => { state.taskSort = e.target.value; renderAllTasks(); });
   if (els.taskSearchInput) els.taskSearchInput.addEventListener('input', e => { state.taskSearchQuery = e.target.value; renderAllTasks(); });
-  
+
   // Bulk Actions
   if (els.bulkStatusBtn) els.bulkStatusBtn.addEventListener('click', () => {
     const status = prompt('Enter status (not_started, in_progress, on_hold, completed):');
@@ -3656,49 +3658,49 @@ function initEvents() {
   if (els.bulkMoveBtn) els.bulkMoveBtn.addEventListener('click', bulkMoveTasks);
   if (els.bulkDeleteBtn) els.bulkDeleteBtn.addEventListener('click', bulkDeleteTasks);
   if (els.bulkCancelBtn) els.bulkCancelBtn.addEventListener('click', clearTaskSelection);
-  
+
   // Task Context Menu
   if (els.ctxTaskEdit) els.ctxTaskEdit.addEventListener('click', editTaskFromContext);
   if (els.ctxTaskMove) els.ctxTaskMove.addEventListener('click', openMoveTaskPopup);
   if (els.ctxTaskDuplicate) els.ctxTaskDuplicate.addEventListener('click', duplicateTaskFromContext);
   if (els.ctxTaskComplete) els.ctxTaskComplete.addEventListener('click', toggleCompleteFromContext);
   if (els.ctxTaskDelete) els.ctxTaskDelete.addEventListener('click', deleteTaskFromContext);
-  
+
   // Status submenu
   if (els.statusSubmenu) {
     els.statusSubmenu.querySelectorAll('.ctx-item').forEach(item => {
       item.addEventListener('click', () => changeTaskStatusFromContext(item.dataset.status));
     });
   }
-  
+
   // Priority submenu
   if (els.prioritySubmenu) {
     els.prioritySubmenu.querySelectorAll('.ctx-item').forEach(item => {
       item.addEventListener('click', () => changeTaskPriorityFromContext(item.dataset.priority));
     });
   }
-  
+
   // Global Task Popup
   if (els.btnSaveGlobalTask) els.btnSaveGlobalTask.addEventListener('click', saveGlobalTask);
   if (els.btnCancelGlobalTask) els.btnCancelGlobalTask.addEventListener('click', () => els.globalTaskPopup.classList.add('hidden'));
   if (els.globalTaskText) els.globalTaskText.addEventListener('keydown', e => { if (e.key === 'Enter') saveGlobalTask(); });
-  
+
   // Edit Task Popup
   if (els.btnSaveEditTask) els.btnSaveEditTask.addEventListener('click', saveEditedTask);
   if (els.btnCancelEditTask) els.btnCancelEditTask.addEventListener('click', () => { els.editTaskPopup.classList.add('hidden'); state.contextTask = null; });
-  
+
   // Move Task Popup
   if (els.btnConfirmMoveTask) els.btnConfirmMoveTask.addEventListener('click', () => {
     if (state.contextTask?.bulk) bulkMoveTasksConfirm();
     else moveTaskToBlock();
   });
   if (els.btnCancelMoveTask) els.btnCancelMoveTask.addEventListener('click', () => { els.moveTaskPopup.classList.add('hidden'); state.contextTask = null; });
-  
+
   // Chat
   els.btnCloseChat.addEventListener('click', () => els.chatBox.classList.add('hidden'));
   els.btnSend.addEventListener('click', sendChat);
   els.chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
-  
+
   // Mind Map
   els.btnCloseMindmap.addEventListener('click', () => els.mindmapView.classList.add('hidden'));
   els.btnAddBlock.addEventListener('click', () => openBlockPopup(null));
@@ -3707,7 +3709,7 @@ function initEvents() {
   els.ctxIcon.addEventListener('click', openIconPopup);
   els.ctxSubblock.addEventListener('click', () => { if (state.contextBlock) openBlockPopup(state.contextBlock.id); hideContextMenu(); });
   els.ctxDelete.addEventListener('click', deleteBlock);
-  
+
   // Block popup
   document.querySelectorAll('.type-opt').forEach(b => {
     b.addEventListener('click', () => { document.querySelectorAll('.type-opt').forEach(x => x.classList.remove('selected')); b.classList.add('selected'); });
@@ -3715,16 +3717,16 @@ function initEvents() {
   els.btnCreateBlock.addEventListener('click', createBlock);
   els.btnCancelBlock.addEventListener('click', () => els.blockPopup.classList.add('hidden'));
   els.newBlockName.addEventListener('keydown', e => { if (e.key === 'Enter') createBlock(); });
-  
+
   // Rename
   els.btnSaveRename.addEventListener('click', saveRename);
   els.btnCancelRename.addEventListener('click', () => els.renamePopup.classList.add('hidden'));
   els.renameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveRename(); });
-  
+
   // Icon
   els.iconGrid.addEventListener('click', e => { const opt = e.target.closest('.icon-option'); if (opt) selectIcon(opt.dataset.icon); });
   els.btnCancelIcon.addEventListener('click', () => els.iconPopup.classList.add('hidden'));
-  
+
   // Block Editor
   els.btnBack.addEventListener('click', closeEditor);
   els.btnCloseEditor.addEventListener('click', () => { saveCurrentBlock(); stopTimer(); closeAllPanels(); });
@@ -3743,12 +3745,12 @@ function initEvents() {
   els.todoText.addEventListener('keydown', e => { if (e.key === 'Enter') saveTodo(); });
   els.btnAddSubblock.addEventListener('click', () => { if (state.currentBlock) openBlockPopup(state.currentBlock.id); });
   els.subblocksList.addEventListener('click', e => { const item = e.target.closest('.subblock-item'); if (item) { saveCurrentBlock(); openBlockEditor(item.dataset.id); } });
-  
+
   // Quick Add
   els.btnSaveQuick.addEventListener('click', saveQuickTask);
   els.btnCancelQuick.addEventListener('click', () => els.quickAddPopup.classList.add('hidden'));
   els.quickTaskText.addEventListener('keydown', e => { if (e.key === 'Enter') saveQuickTask(); });
-  
+
   // Settings
   els.btnCloseSettings.addEventListener('click', () => els.settingsPanel.classList.add('hidden'));
   document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => applyTheme(o.dataset.theme)));
@@ -3759,25 +3761,25 @@ function initEvents() {
   els.btnImport.addEventListener('click', () => els.importFile.click());
   els.importFile.addEventListener('change', e => { if (e.target.files[0]) importData(e.target.files[0]); });
   els.btnClearData.addEventListener('click', clearData);
-  
+
   // Shortcuts
   els.btnCloseShortcuts.addEventListener('click', () => els.shortcutsPopup.classList.add('hidden'));
-  
+
   // Notification
   els.notifClose.addEventListener('click', () => $('notification').classList.add('hidden'));
-  
+
   // Floating Timer
   if (els.closeFloatingTimer) els.closeFloatingTimer.addEventListener('click', closeFloatingTimerPanel);
   if (els.floatTimerStart) els.floatTimerStart.addEventListener('click', startPomodoro);
   if (els.floatTimerPause) els.floatTimerPause.addEventListener('click', pausePomodoro);
   if (els.floatTimerReset) els.floatTimerReset.addEventListener('click', resetPomodoroTimer);
-  
+
   // Panel Dragging
   document.addEventListener('mousedown', e => {
     const header = e.target.closest('[data-drag]');
     if (header) initPanelDrag(e);
   });
-  
+
   // Mouse
   document.addEventListener('mousemove', e => {
     handleMouseMove(e);
@@ -3787,7 +3789,7 @@ function initEvents() {
     handleMouseUp(e);
     endPanelDrag();
   });
-  
+
   // Click outside
   document.addEventListener('click', e => {
     if (!els.orb.contains(e.target) && !els.radialMenu.contains(e.target)) closeMenu();
@@ -3795,47 +3797,47 @@ function initEvents() {
     if (!els.contextMenu.contains(e.target)) hideContextMenu();
     if (els.taskContextMenu && !els.taskContextMenu.contains(e.target)) hideTaskContextMenu();
     if (!els.searchBar.contains(e.target) && !els.searchResults.contains(e.target) && !els.btnQuickSearch.contains(e.target)) closeSearch();
-    
+
     // Dock AI output when clicking outside it (but not when clicking AI input)
-    if (els.aiOutputBox && !els.aiOutputBox.classList.contains('hidden') && 
-        !els.aiOutputBox.contains(e.target) && 
-        !els.aiInputBar?.contains(e.target) && 
-        !els.orb.contains(e.target)) {
+    if (els.aiOutputBox && !els.aiOutputBox.classList.contains('hidden') &&
+      !els.aiOutputBox.contains(e.target) &&
+      !els.aiInputBar?.contains(e.target) &&
+      !els.orb.contains(e.target)) {
       dockAiOutput();
     }
-    
+
     // Close AI input when clicking outside
     if (state.aiInputOpen && !els.aiInputBar?.contains(e.target) && !els.orb.contains(e.target)) {
       closeAiInput();
     }
   });
-  
+
   // Bring panel to front when clicked
   document.addEventListener('mousedown', e => {
     const panel = e.target.closest('.floating-panel, .panel-view');
     if (panel) bringPanelToFront(panel);
   });
-  
+
   // Keyboard Shortcuts
   document.addEventListener('keydown', e => {
     const target = e.target;
     const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
-    
+
     // Global shortcuts (work even in inputs)
     if (e.key === '`' || e.key === '~') { e.preventDefault(); toggleAllPanelsVisibility(); return; }
     if (e.altKey && e.code === 'Space') { e.preventDefault(); toggleMenu(); return; }
     if (e.ctrlKey && e.key === 'k') { e.preventDefault(); openSearch(); return; }
     if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openQuickAdd(); return; }
     if (e.ctrlKey && e.key === '/') { e.preventDefault(); toggleAiInput(); return; }
-    
+
     // Escape - close things progressively
-        if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       if (state.aiInputOpen) { closeAiInput(); closeAiOutput(); return; }
       closeMenu(); closeSearch(); hideContextMenu();
       document.querySelectorAll('.popup').forEach(p => p.classList.add('hidden'));
       return;
     }
-    
+
     // Letter shortcuts (only when not in input)
     if (!isInput) {
       switch (e.key.toLowerCase()) {
@@ -3880,7 +3882,7 @@ async function init() {
   updatePomodoroUI();
   updateTodayProgress();
   updateTodayStats();
-  
+
   // Initialize focus panel
   updateFocusPanelState();
   updateCollapsibleSections();
@@ -3889,17 +3891,17 @@ async function init() {
   initTaskListEventDelegation(); // Event delegation for all tasks list (attach once)
   initBlockEventDelegation(); // Event delegation for mindmap blocks (attach once)
   renderMiniTodos();
-  
+
   // Initialize AI system
   loadAiModels();
   connectAiWebSocket();
-  
+
   // Model selector event
   const modelSelect = document.getElementById('ai-model-select');
   if (modelSelect) {
     modelSelect.addEventListener('change', (e) => switchAiModel(e.target.value));
   }
-  
+
   // Initialize offline-first sync system
   await initOfflineSync();
   console.log('Aion Complete v2 with AI and Offline Sync ready');
@@ -3914,24 +3916,24 @@ async function initOfflineSync() {
     // Initialize local database
     localDb = await initLocalDb();
     console.log('[Sync] Local database initialized');
-    
+
     // Initialize sync service
     syncService = await initSyncService(CONFIG.API_BASE.replace('/api/v1', ''));
-    
+
     // Listen to sync events (with null check)
     if (syncService && typeof syncService.addListener === 'function') {
       syncService.addListener(handleSyncEvent);
     } else {
       console.warn('[Sync] Sync service not available or invalid');
     }
-    
+
     // Update UI
     updateSyncStatusUI();
-    
+
     // Listen for online/offline
     window.addEventListener('online', handleOnlineStatusChange);
     window.addEventListener('offline', handleOnlineStatusChange);
-    
+
     console.log('[Sync] Offline sync system initialized');
   } catch (error) {
     console.error('[Sync] Failed to initialize:', error);
@@ -3940,7 +3942,7 @@ async function initOfflineSync() {
 
 function handleSyncEvent(event, data) {
   console.log('[Sync Event]', event, data);
-  
+
   switch (event) {
     case 'sync_start':
       updateSyncStatusUI('syncing', 'Syncing...');
@@ -3975,13 +3977,13 @@ function handleOnlineStatusChange() {
 function updateSyncStatusUI(status = 'synced', text = 'Synced') {
   const statusEl = document.getElementById('sync-status');
   if (!statusEl) return;
-  
+
   statusEl.classList.remove('hidden', 'syncing', 'synced', 'error', 'offline');
   statusEl.classList.add(status);
-  
+
   const textEl = statusEl.querySelector('.sync-text');
   if (textEl) textEl.textContent = text;
-  
+
   // Show pending count if any
   if (localDb) {
     localDb.getPendingChanges().then(pending => {
@@ -4002,7 +4004,7 @@ function updateSyncStatusUI(status = 'synced', text = 'Synced') {
 
 async function loadFromLocalDb() {
   if (!localDb) return;
-  
+
   try {
     const blocks = await localDb.getBlocks();
     if (blocks.length > 0) {
@@ -4024,7 +4026,7 @@ async function loadFromLocalDb() {
 
 async function saveToLocalDb(block) {
   if (!localDb) return;
-  
+
   try {
     await localDb.saveBlock({
       ...block,
