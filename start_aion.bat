@@ -33,13 +33,13 @@ if %ERRORLEVEL% neq 0 (
 REM Start Backend
 echo [3/4] Starting Aion Backend API...
 cd /d "c:\projects\aion\backend"
-start "Aion Backend" cmd /c "py -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
+start "Aion Backend" cmd /k "py -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 timeout /t 3 /nobreak >nul
 
 REM Start Frontend
 echo [4/4] Starting Aion Desktop UI...
 cd /d "c:\projects\aion\desktop"
-start "Aion Frontend" cmd /c "npm run dev"
+start "Aion Desktop" cmd /k "npm run tauri:dev"
 timeout /t 3 /nobreak >nul
 
 echo.
@@ -48,10 +48,11 @@ echo    AION IS NOW ONLINE!
 echo ========================================
 echo.
 echo Access Points:
-echo   Frontend UI:  http://localhost:1420
+echo   Desktop app:  running as an overlay window
 echo   Backend API:  http://localhost:8000
 echo   API Docs:     http://localhost:8000/docs
 echo.
-echo Press any key to open Aion in your browser...
-pause >nul
-start http://localhost:1420
+echo Network Access:
+echo   Other devices on your network can connect to:
+echo   http://YOUR_IP_ADDRESS:8000
+echo.
