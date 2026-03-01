@@ -459,8 +459,8 @@ async function processAiCommand(input) {
     return handleThemeCommand(input);
   }
 
-  // Default - try to be helpful
-  return getSmartResponse(input);
+  // Default - try Ollama first for real AI; fallback to help message
+  return await getOllamaResponse(input);
 }
 
 function handleStudyRequest(input) {
@@ -865,12 +865,29 @@ function getHelpResponse() {
   };
 }
 
+async function getOllamaResponse(input) {
+  const model = (typeof currentAiModel !== 'undefined' ? currentAiModel : null) ||
+    document.getElementById('ai-model-select')?.value || 'llama3.2';
+  try {
+    const { invoke } = window.__TAURI__.core;
+    const text = await invoke('ollama_generate', {
+      prompt: input,
+      model: model || 'llama3.2',
+    });
+    if (!text || !text.trim()) return getSmartResponse(input);
+    return { html: `<div class="ai-info">${formatAiResponse(text)}</div>` };
+  } catch (e) {
+    console.warn('Ollama not available:', e);
+    return getSmartResponse(input);
+  }
+}
+
 function getSmartResponse(input) {
   return {
     html: `
       <div class="ai-info">
         <p>I understand you said: "<em>${escHtml(input)}</em>"</p>
-        <p>I can help you with:</p>
+        <p>Ollama isn't running or didn't respond. I can also help with:</p>
         <ul>
           <li>📚 <strong>Study plans</strong> - "I need to study for [subject]"</li>
           <li>📦 <strong>Create blocks</strong> - "Create block called [name]"</li>
@@ -879,7 +896,7 @@ function getSmartResponse(input) {
           <li>📅 <strong>Make schedules</strong> - "Create a timetable"</li>
           <li>🎨 <strong>Change theme</strong> - "Theme [color]"</li>
         </ul>
-        <p>Try saying <strong>"help"</strong> for more options!</p>
+        <p>Start <strong>Ollama</strong> (e.g. <code>ollama serve</code>) and try again for AI replies.</p>
       </div>
     `
   };
@@ -1216,26 +1233,29 @@ async function toggleClickThroughMode() {
     if (toggle) toggle.classList.add('active');
     toast('Ghost mode enabled - click through to windows below');
 
-    // Tell Tauri to enable click-through at window level
+    // Tell Tauri to enable click-through and set window to ignore cursor (clicks pass through)
     try {
       const { invoke } = window.__TAURI__.core;
       await invoke('set_click_through', { enabled: true });
+      const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
+      await w.setIgnoreCursorEvents(true);
+      toast('Ghost mode on — press Alt+G to turn off');
     } catch (e) {
       console.log('Tauri invoke not available:', e);
     }
   } else {
-    // Disable click-through mode
-    document.body.classList.remove('click-through-mode');
-    if (toggle) toggle.classList.remove('active');
-    toast('Ghost mode disabled');
-
-    // Tell Tauri to disable click-through
+    // Disable click-through mode and re-enable cursor events on window
     try {
+      const w = window.__TAURI__.webviewWindow?.getCurrentWebviewWindow?.();
+      if (w) await w.setIgnoreCursorEvents(false);
       const { invoke } = window.__TAURI__.core;
       await invoke('set_click_through', { enabled: false });
     } catch (e) {
       console.log('Tauri invoke not available:', e);
     }
+    document.body.classList.remove('click-through-mode');
+    if (toggle) toggle.classList.remove('active');
+    toast('Ghost mode disabled');
   }
 }
 
@@ -3945,6 +3965,35 @@ function initEvents() {
   const clickThroughToggle = document.getElementById('click-through-toggle');
   if (clickThroughToggle) {
     clickThroughToggle.addEventListener('click', toggleClickThroughMode);
+  }
+  // Alt+G global shortcut: sync with backend and toggle ghost mode (so user can turn off when window is click-through)
+  if (window.__TAURI__?.event?.listen) {
+    window.__TAURI__.event.listen('toggle-ghost', async () => {
+      try {
+        const { invoke } = window.__TAURI__.core;
+        const enabled = await invoke('get_click_through_state');
+        const toggle = document.getElementById('click-through-toggle');
+        if (enabled) {
+          clickThroughEnabled = false;
+          const w = window.__TAURI__.webviewWindow?.getCurrentWebviewWindow?.();
+          if (w) await w.setIgnoreCursorEvents(false);
+          await invoke('set_click_through', { enabled: false });
+          document.body.classList.remove('click-through-mode');
+          if (toggle) toggle.classList.remove('active');
+          toast('Ghost mode disabled');
+        } else {
+          clickThroughEnabled = true;
+          document.body.classList.add('click-through-mode');
+          if (toggle) toggle.classList.add('active');
+          await invoke('set_click_through', { enabled: true });
+          const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
+          await w.setIgnoreCursorEvents(true);
+          toast('Ghost mode on — press Alt+G to turn off');
+        }
+      } catch (e) {
+        console.warn('Toggle ghost:', e);
+      }
+    });
   }
 
   // Panel Dragging

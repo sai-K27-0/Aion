@@ -1,6 +1,6 @@
 [package]
 name = "aion-desktop"
-version = "0.1.0"
+version = "0.2.0"
 description = "Aion Desktop Client - AI-Powered Life Management"
 authors = ["Aion Project"]
 license = "MIT"
@@ -27,6 +27,9 @@ base64 = "0.21"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
+
+# HTTP client for Ollama proxy (avoids CORS in webview)
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
 
 # Secure storage (OS keychain)
 keyring = "2"

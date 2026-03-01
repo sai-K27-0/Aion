@@ -189,6 +189,47 @@ fn is_window_visible(app_handle: tauri::AppHandle) -> Result<bool, String> {
 }
 
 // =============================================================================
+// Ollama Proxy (avoids CORS when frontend calls localhost:11434)
+// =============================================================================
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct OllamaGenerateRequest {
+    model: String,
+    prompt: String,
+    stream: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct OllamaGenerateResponse {
+    response: Option<String>,
+}
+
+/// Call Ollama /api/generate from Rust so the webview doesn't hit CORS.
+#[tauri::command]
+async fn ollama_generate(prompt: String, model: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let body = OllamaGenerateRequest {
+        model: if model.is_empty() { "llama3.2".to_string() } else { model },
+        prompt,
+        stream: false,
+    };
+    let res = client
+        .post("http://127.0.0.1:11434/api/generate")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Ollama connection failed: {}", e))?;
+    if !res.status().is_success() {
+        return Err(format!("Ollama error: {}", res.status()));
+    }
+    let data: OllamaGenerateResponse = res
+        .json()
+        .await
+        .map_err(|e| format!("Ollama response error: {}", e))?;
+    Ok(data.response.unwrap_or_default().trim().to_string())
+}
+
+// =============================================================================
 // Screen Capture Commands
 // =============================================================================
 
@@ -406,7 +447,22 @@ fn main() {
                 })
                 .build(),
         )
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcuts(["Alt+G"])
+                .expect("register Alt+G shortcut")
+                .with_handler(|app, _shortcut, event| {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.emit("toggle-ghost", ());
+                        }
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
+            ollama_generate,
             capture_screen,
             capture_region,
             get_active_window_title,
