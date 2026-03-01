@@ -97,13 +97,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-class _SyncStatusBar extends StatelessWidget {
+class _SyncStatusBar extends ConsumerWidget {
   final SyncState state;
 
   const _SyncStatusBar({required this.state});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (state == SyncState.synced || state == SyncState.connected) {
       return const SizedBox.shrink();
     }
@@ -120,32 +120,42 @@ class _SyncStatusBar extends StatelessWidget {
         break;
       case SyncState.offline:
         color = Colors.orange;
-        text = 'Offline - changes will sync later';
+        text = 'Offline - tap to retry';
         icon = Icons.cloud_off;
         break;
       case SyncState.error:
         color = Colors.red;
-        text = 'Sync error';
+        text = 'Sync error - tap to retry';
         icon = Icons.error_outline;
         break;
       default:
         return const SizedBox.shrink();
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: color.withOpacity(0.1),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(color: color, fontSize: 12),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () async {
+        if (state == SyncState.syncing) return;
+        try {
+          await ref.read(restSyncServiceProvider).fullSync();
+        } catch (e) {
+          debugPrint('Manual sync failed: $e');
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: color.withOpacity(0.1),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: TextStyle(color: color, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,14 +1,16 @@
 /**
  * Sync Service - Handles synchronization with the server.
- * 
+ *
  * Features:
  * - Automatic sync when online
  * - Offline change queuing
  * - Conflict resolution
  * - Retry logic with exponential backoff
+ * - Auth: sends Bearer token; on 401 tries refresh once and retries
  */
 
 import { getLocalDb } from './local_db.js';
+import SecureStorage from './secure_storage.js';
 
 const SYNC_INTERVAL = 30000; // 30 seconds
 const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000]; // Exponential backoff
@@ -68,15 +70,50 @@ class SyncService {
     }
 
     /**
-     * Register device with the server.
+     * Get auth headers (Bearer token) for sync API calls.
+     */
+    async _getAuthHeaders() {
+        const token = await SecureStorage.getAccessToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    /**
+     * Refresh access token using refresh token; returns true if successful.
+     */
+    async _refreshTokens() {
+        const refreshToken = await SecureStorage.getRefreshToken();
+        if (!refreshToken) return false;
+        try {
+            const response = await fetch(`${this.serverUrl}/api/v1/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh_token: refreshToken }),
+            });
+            if (!response.ok) return false;
+            const data = await response.json();
+            if (data.access_token) await SecureStorage.setAccessToken(data.access_token);
+            if (data.refresh_token) await SecureStorage.setRefreshToken(data.refresh_token);
+            if (data.user_id) await SecureStorage.setUserId(data.user_id);
+            return true;
+        } catch (e) {
+            console.warn('[Sync] Token refresh failed:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Register device with the server (requires auth).
      */
     async _registerDevice() {
         if (!this.isOnline) return;
 
         try {
+            const headers = await this._getAuthHeaders();
             const response = await fetch(`${this.serverUrl}/api/v1/sync/register`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     device_id: this.deviceId,
                     device_name: this._getDeviceName(),
@@ -85,6 +122,10 @@ class SyncService {
                 }),
             });
 
+            if (response.status === 401) {
+                const refreshed = await this._refreshTokens();
+                if (refreshed) return this._registerDevice();
+            }
             if (response.ok) {
                 const data = await response.json();
                 console.log('[Sync] Device registered:', data);
@@ -201,17 +242,32 @@ class SyncService {
                 sync_version: change.sync_version,
             }));
 
-            // Call full sync API
-            const response = await fetch(`${this.serverUrl}/api/v1/sync/full`, {
+            // Call full sync API (with auth)
+            let headers = await this._getAuthHeaders();
+            let response = await fetch(`${this.serverUrl}/api/v1/sync/full`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     device_id: this.deviceId,
                     changes: changes,
                     last_sync: lastSync,
                 }),
             });
-
+            if (response.status === 401) {
+                const refreshed = await this._refreshTokens();
+                if (refreshed) {
+                    headers = await this._getAuthHeaders();
+                    response = await fetch(`${this.serverUrl}/api/v1/sync/full`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            device_id: this.deviceId,
+                            changes: changes,
+                            last_sync: lastSync,
+                        }),
+                    });
+                }
+            }
             if (!response.ok) {
                 throw new Error(`Sync failed: ${response.status}`);
             }
@@ -287,9 +343,10 @@ class SyncService {
             throw new Error('Cannot resolve conflict while offline');
         }
 
-        const response = await fetch(`${this.serverUrl}/api/v1/sync/resolve`, {
+        const headers = await this._getAuthHeaders();
+        let response = await fetch(`${this.serverUrl}/api/v1/sync/resolve`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
                 device_id: this.deviceId,
                 sync_id: conflict.sync_id,
@@ -297,6 +354,22 @@ class SyncService {
                 resolution: resolution,
             }),
         });
+        if (response.status === 401) {
+            const refreshed = await this._refreshTokens();
+            if (refreshed) {
+                const newHeaders = await this._getAuthHeaders();
+                response = await fetch(`${this.serverUrl}/api/v1/sync/resolve`, {
+                    method: 'POST',
+                    headers: newHeaders,
+                    body: JSON.stringify({
+                        device_id: this.deviceId,
+                        sync_id: conflict.sync_id,
+                        entity_type: conflict.entity_type,
+                        resolution: resolution,
+                    }),
+                });
+            }
+        }
 
         if (!response.ok) {
             throw new Error('Failed to resolve conflict');
@@ -317,8 +390,10 @@ class SyncService {
         let serverStatus = null;
         if (this.isOnline) {
             try {
+                const headers = await this._getAuthHeaders();
                 const response = await fetch(
-                    `${this.serverUrl}/api/v1/sync/status?device_id=${this.deviceId}`
+                    `${this.serverUrl}/api/v1/sync/status?device_id=${this.deviceId}`,
+                    { headers }
                 );
                 if (response.ok) {
                     serverStatus = await response.json();

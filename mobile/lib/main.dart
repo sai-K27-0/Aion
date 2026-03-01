@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/services/isar_service.dart';
+import 'core/widgets/sync_on_background_observer.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Isar database
   try {
     await IsarService.init();
@@ -17,7 +18,9 @@ void main() async {
 
   runApp(
     const ProviderScope(
-      child: AionApp(),
+      child: SyncOnBackgroundObserver(
+        child: AionApp(),
+      ),
     ),
   );
 }

@@ -80,7 +80,10 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-in-production-to-a-secure-random-key"
     access_token_expire_minutes: int = 30  # 30 minutes for access tokens
     refresh_token_expire_days: int = 7  # 7 days for refresh tokens
-    
+    # Optional: set DATA_ENCRYPTION_KEY (e.g. from Fernet.generate_key()) to encrypt
+    # sensitive fields at rest (e.g. block content, entry data)
+    data_encryption_key: Optional[str] = None
+
     # Production mode
     production: bool = False
     require_https: bool = False

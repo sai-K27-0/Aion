@@ -52,11 +52,17 @@
     ],
     "shortDescription": "AI Life Assistant",
     "longDescription": "Aion - Your AI-powered life management system",
-    "targets": "all"
+    "targets": "all",
+    "createUpdaterArtifacts": false
   },
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/aion-app/aion/releases/latest/download/latest.json"
+      ]
     }
   }
 }

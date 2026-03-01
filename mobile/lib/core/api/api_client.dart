@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../config.dart';
+import '../services/secure_storage_service.dart';
 
 part 'api_client.g.dart';
 
@@ -17,6 +18,48 @@ Dio dio(DioRef ref) {
       },
     ),
   );
+
+  // Auth: add Bearer token to requests; on 401 try refresh and retry once
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      final token = await SecureStorageService.instance.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
+      handler.next(options);
+    },
+    onError: (error, handler) async {
+      if (error.response?.statusCode != 401) {
+        return handler.next(error);
+      }
+      final refreshToken = await SecureStorageService.instance.getRefreshToken();
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return handler.next(error);
+      }
+      try {
+        final res = await dio.post(
+          '/auth/refresh',
+          data: {'refresh_token': refreshToken},
+        );
+        final data = res.data as Map<String, dynamic>;
+        if (data['access_token'] != null) {
+          await SecureStorageService.instance.setAccessToken(data['access_token'] as String);
+        }
+        if (data['refresh_token'] != null) {
+          await SecureStorageService.instance.setRefreshToken(data['refresh_token'] as String);
+        }
+        if (data['user_id'] != null) {
+          await SecureStorageService.instance.setUserId(data['user_id'] as String);
+        }
+        final opts = error.requestOptions;
+        opts.headers['Authorization'] = 'Bearer ${data['access_token']}';
+        final retry = await dio.fetch(opts);
+        return handler.resolve(retry);
+      } catch (_) {
+        return handler.next(error);
+      }
+    },
+  ));
 
   dio.interceptors.add(LogInterceptor(
     requestBody: true,

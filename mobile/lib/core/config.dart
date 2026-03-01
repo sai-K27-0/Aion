@@ -8,6 +8,11 @@ class AppConfig {
   // Storage keys
   static const String _serverUrlKey = 'aion_server_url';
   static const String _serverWsUrlKey = 'aion_server_ws_url';
+
+  /// Preset: use this as server URL when connecting via Cloudflare Tunnel (off-LAN).
+  /// User should replace with their actual tunnel hostname, e.g. from `cloudflared tunnel --url http://localhost:8000`
+  /// or a custom domain. Example: 'https://aion.yourdomain.com/api/v1' or 'https://xxxx.trycloudflare.com/api/v1'
+  static const String cloudflareTunnelUrlPreset = 'https://your-tunnel-hostname/api/v1';
   
   // Default URLs based on platform
   static String get defaultBaseUrl {

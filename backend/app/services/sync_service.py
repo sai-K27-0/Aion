@@ -23,6 +23,10 @@ from sqlalchemy.orm import selectinload
 from app.db.session import async_session_maker
 from app.models.block import Block, BlockField, BlockEntry, BlockContent
 from app.models.trigger import Trigger
+from app.services.field_encryption import (
+    decrypt_sensitive_fields,
+    encrypt_sensitive_fields,
+)
 
 
 class ConflictStrategy(str, Enum):
@@ -440,7 +444,7 @@ class SyncService:
         return changes
     
     def _serialize_record(self, record: Any, entity_type: SyncEntityType) -> Dict[str, Any]:
-        """Serialize a database record for sync."""
+        """Serialize a database record for sync (decrypting sensitive fields when encryption is enabled)."""
         # Get all columns
         data = {}
         for column in record.__table__.columns:
@@ -449,7 +453,8 @@ class SyncService:
             if isinstance(value, datetime):
                 value = value.isoformat()
             data[column.name] = value
-        
+
+        data = decrypt_sensitive_fields(entity_type.value, data)
         data["_entity_type"] = entity_type.value
         return data
     
@@ -582,7 +587,10 @@ class SyncService:
                     data[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 except ValueError:
                     pass
-        
+
+        # Encrypt sensitive fields at rest when DATA_ENCRYPTION_KEY is set
+        data = encrypt_sensitive_fields(change.entity_type.value, data)
+
         record = model_class(**data)
         session.add(record)
     
@@ -612,7 +620,10 @@ class SyncService:
                     data[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
                 except ValueError:
                     pass
-        
+
+        # Encrypt sensitive fields at rest when DATA_ENCRYPTION_KEY is set
+        data = encrypt_sensitive_fields(change.entity_type.value, data)
+
         # Apply updates
         for key, value in data.items():
             if hasattr(existing, key):

@@ -3949,6 +3949,34 @@ function initEvents() {
   els.importFile.addEventListener('change', e => { if (e.target.files[0]) importData(e.target.files[0]); });
   els.btnClearData.addEventListener('click', clearData);
 
+  // Check for updates (Tauri updater plugin)
+  const btnCheckUpdates = document.getElementById('btn-check-updates');
+  const updateStatusEl = document.getElementById('update-status');
+  if (btnCheckUpdates) {
+    btnCheckUpdates.addEventListener('click', async () => {
+      if (!window.__TAURI__) return;
+      try {
+        if (updateStatusEl) updateStatusEl.textContent = 'Checking...';
+        const { check } = await import('@tauri-apps/plugin-updater');
+        const update = await check();
+        if (updateStatusEl) updateStatusEl.textContent = '';
+        if (update) {
+          showToast(`Update ${update.version} available. Downloading...`);
+          await update.downloadAndInstall();
+          showToast('Update installed. Restarting...');
+          const { relaunch } = await import('@tauri-apps/plugin-process');
+          await relaunch();
+        } else {
+          showToast('You are on the latest version.');
+        }
+      } catch (e) {
+        console.warn('Update check failed:', e);
+        if (updateStatusEl) updateStatusEl.textContent = '';
+        showToast(e?.message || 'Update check failed');
+      }
+    });
+  }
+
   // Shortcuts
   els.btnCloseShortcuts.addEventListener('click', () => els.shortcutsPopup.classList.add('hidden'));
 
@@ -4173,6 +4201,28 @@ async function initOfflineSync() {
     // Listen for online/offline
     window.addEventListener('online', handleOnlineStatusChange);
     window.addEventListener('offline', handleOnlineStatusChange);
+
+    // Sync on close: when user closes the window, run one sync then close
+    if (window.__TAURI__?.event?.listen && syncService) {
+      window.__TAURI__.event.listen('sync-before-close', async () => {
+        const SYNC_CLOSE_TIMEOUT_MS = 5000;
+        try {
+          const syncPromise = syncService.sync();
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), SYNC_CLOSE_TIMEOUT_MS)
+          );
+          await Promise.race([syncPromise, timeoutPromise]);
+        } catch (e) {
+          console.warn('[Sync] Sync before close:', e?.message || e);
+        }
+        try {
+          const { invoke } = window.__TAURI__.core;
+          await invoke('close_window');
+        } catch (err) {
+          console.warn('[Sync] close_window:', err);
+        }
+      });
+    }
 
     console.log('[Sync] Offline sync system initialized');
   } catch (error) {

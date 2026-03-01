@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dio/dio.dart';
 import '../config.dart';
 import '../api/api_client.dart';
+import 'secure_storage_service.dart';
 import 'isar_service.dart';
 
 /// Sync state for the UI
@@ -92,14 +93,22 @@ class SyncService {
     _updateState(SyncState.connecting);
     
     try {
+      final token = await SecureStorageService.instance.getAccessToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('WebSocket sync: no access token, skipping connect');
+        _updateState(SyncState.error);
+        return;
+      }
       final wsUrl = await AppConfig.getWsUrl();
-      final uri = Uri.parse('$wsUrl/sync/ws/$_deviceId')
-          .replace(queryParameters: {
+      final queryParams = <String, String>{
         'device_name': _deviceName,
         'device_type': AppConfig.platformName,
-      });
-      
-      debugPrint('Connecting to WebSocket: $uri');
+        'token': token,
+      };
+      final uri = Uri.parse('$wsUrl/sync/ws/$_deviceId')
+          .replace(queryParameters: queryParams);
+
+      debugPrint('Connecting to WebSocket: $wsUrl/sync/ws/$_deviceId');
       
       // Use local variable to avoid null assertion on class field
       final channel = WebSocketChannel.connect(uri);

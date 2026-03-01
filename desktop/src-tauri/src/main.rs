@@ -432,6 +432,8 @@ fn open_system_app(app_name: String) -> Result<String, String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_shortcuts(["Alt+Space"])
@@ -461,6 +463,16 @@ fn main() {
                 })
                 .build(),
         )
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    if let Some(w) = window.app_handle().get_webview_window("main") {
+                        let _ = w.emit("sync-before-close", ());
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             ollama_generate,
             capture_screen,

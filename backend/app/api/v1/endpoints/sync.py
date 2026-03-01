@@ -28,6 +28,7 @@ from app.services.sync_service import (
     ConflictStrategy,
 )
 from app.services.auth_service import AuthService
+from app.api.deps import CurrentUser
 
 
 # =============================================================================
@@ -231,13 +232,14 @@ class FullSyncResponse(BaseModel):
 @router.post(
     "/register",
     summary="Register Device",
-    description="Register a new device for syncing.",
+    description="Register a new device for syncing. Requires authentication.",
 )
-async def register_device(request: DeviceRegistration):
+async def register_device(request: DeviceRegistration, current_user: CurrentUser):
     """
     Register a new device for synchronization.
     
     Each device needs a unique device_id (UUID recommended).
+    Device is associated with the authenticated user.
     """
     sync_service = get_sync_service()
     
@@ -246,6 +248,7 @@ async def register_device(request: DeviceRegistration):
         device_name=request.device_name,
         device_type=request.device_type,
         platform=request.platform,
+        user_id=str(current_user.id),
     )
     
     return {
@@ -264,9 +267,9 @@ async def register_device(request: DeviceRegistration):
     "/push",
     response_model=PushResponse,
     summary="Push Changes",
-    description="Push local changes from client to server.",
+    description="Push local changes from client to server. Requires authentication.",
 )
-async def push_changes(request: PushRequest):
+async def push_changes(request: PushRequest, current_user: CurrentUser):
     """
     Push local changes to the server.
     
@@ -334,9 +337,9 @@ async def push_changes(request: PushRequest):
     "/pull",
     response_model=PullResponse,
     summary="Pull Changes",
-    description="Pull server changes since last sync.",
+    description="Pull server changes since last sync. Requires authentication.",
 )
-async def pull_changes(request: PullRequest):
+async def pull_changes(request: PullRequest, current_user: CurrentUser):
     """
     Pull changes from the server since the last sync.
     
@@ -391,9 +394,9 @@ async def pull_changes(request: PullRequest):
     "/full",
     response_model=FullSyncResponse,
     summary="Full Sync",
-    description="Perform full bidirectional sync.",
+    description="Perform full bidirectional sync. Requires authentication.",
 )
-async def full_sync(request: FullSyncRequest):
+async def full_sync(request: FullSyncRequest, current_user: CurrentUser):
     """
     Perform a full bidirectional sync.
     
@@ -473,9 +476,9 @@ async def full_sync(request: FullSyncRequest):
 @router.get(
     "/status",
     summary="Sync Status",
-    description="Get sync status for a device.",
+    description="Get sync status for a device. Requires authentication.",
 )
-async def get_sync_status(device_id: str = Query(..., description="Device ID")):
+async def get_sync_status(device_id: str = Query(..., description="Device ID"), current_user: CurrentUser):
     """
     Get the current sync status for a device.
     
@@ -489,9 +492,9 @@ async def get_sync_status(device_id: str = Query(..., description="Device ID")):
 @router.post(
     "/resolve",
     summary="Resolve Conflict",
-    description="Manually resolve a sync conflict.",
+    description="Manually resolve a sync conflict. Requires authentication.",
 )
-async def resolve_conflict(request: ConflictResolution):
+async def resolve_conflict(request: ConflictResolution, current_user: CurrentUser):
     """
     Manually resolve a sync conflict.
     
@@ -539,13 +542,13 @@ async def resolve_conflict(request: ConflictResolution):
 @router.get(
     "/devices",
     summary="List Devices",
-    description="List all registered devices.",
+    description="List all registered devices for the current user. Requires authentication.",
 )
-async def list_devices(user_id: Optional[str] = Query(None, description="Filter by user ID")):
-    """List all registered devices from database."""
+async def list_devices(current_user: CurrentUser):
+    """List all registered devices for the authenticated user."""
     sync_service = get_sync_service()
     
-    devices = await sync_service.get_all_devices(user_id=user_id)
+    devices = await sync_service.get_all_devices(user_id=str(current_user.id))
     
     return {
         "devices": [
@@ -566,9 +569,9 @@ async def list_devices(user_id: Optional[str] = Query(None, description="Filter 
 @router.delete(
     "/devices/{device_id}",
     summary="Deactivate Device",
-    description="Deactivate a registered device.",
+    description="Deactivate a registered device. Requires authentication.",
 )
-async def deactivate_device(device_id: str):
+async def deactivate_device(device_id: str, current_user: CurrentUser):
     """Deactivate a device (soft delete)."""
     sync_service = get_sync_service()
     
@@ -586,9 +589,9 @@ async def deactivate_device(device_id: str):
 @router.get(
     "/entity-types",
     summary="List Entity Types",
-    description="List all syncable entity types.",
+    description="List all syncable entity types. Requires authentication.",
 )
-async def list_entity_types():
+async def list_entity_types(current_user: CurrentUser):
     """List all entity types that can be synced."""
     from app.services.sync_service import ENTITY_CONFLICT_STRATEGY
     
@@ -608,9 +611,9 @@ async def list_entity_types():
 @router.get(
     "/connected",
     summary="Get Connected Devices",
-    description="Get list of currently connected devices via WebSocket.",
+    description="Get list of currently connected devices via WebSocket. Requires authentication.",
 )
-async def get_connected_devices():
+async def get_connected_devices(current_user: CurrentUser):
     """Get list of currently connected devices."""
     return {
         "connected_devices": sync_manager.get_connected_devices(),
@@ -643,18 +646,19 @@ async def websocket_sync(
     device_id: str,
     device_name: str = Query(default="Unknown Device"),
     device_type: str = Query(default="unknown"),
-    token: Optional[str] = Query(default=None),
+    token: str = Query(..., description="JWT access token (required)"),
 ):
     """
     WebSocket endpoint for real-time sync.
     
     Connect to receive real-time updates when other devices make changes.
+    Authentication is required: pass a valid JWT access token in the token query parameter.
     
     Query Parameters:
     - device_id: Unique device identifier (required, in path)
     - device_name: Human-readable device name
     - device_type: desktop, tablet, phone
-    - token: JWT access token for authentication
+    - token: JWT access token (required)
     
     Message Types (Received):
     - ping: Keep-alive ping
@@ -669,30 +673,33 @@ async def websocket_sync(
     - device_disconnected: Another device disconnected
     - error: An error occurred
     """
-    # Verify authentication token
-    user_id = await verify_ws_token(token) if token else None
+    # Require valid authentication token
+    user_id = await verify_ws_token(token)
+    if not user_id:
+        await websocket.close(code=4001, reason="Unauthorized: valid JWT token required")
+        return
     
-    # Accept connection (even without auth for now, but mark as unauthenticated)
     try:
         await sync_manager.connect(device_id, websocket, user_id)
     except Exception as e:
         await websocket.close(code=4001, reason=f"Connection failed: {str(e)}")
         return
     
-    # Register device with sync service
+    # Register device with sync service (associated with user)
     sync_service = get_sync_service()
     sync_service.register_device(
         device_id=device_id,
         device_name=device_name,
         device_type=device_type,
         platform="websocket",
+        user_id=user_id,
     )
     
     # Send connection confirmation
     await websocket.send_json({
         "type": "connected",
         "device_id": device_id,
-        "authenticated": user_id is not None,
+        "authenticated": True,
         "connected_devices": sync_manager.get_connected_devices(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
