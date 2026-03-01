@@ -287,10 +287,38 @@ body {
 
 .message-content p {
   margin-bottom: var(--spacing-sm);
+  user-select: text;
+  cursor: text;
 }
 
 .message-content p:last-child {
   margin-bottom: 0;
+}
+
+/* Enable text selection in content areas */
+.message-content,
+.block-notes,
+.todo-text,
+.ai-response,
+.chat-msg,
+.search-result-text,
+.global-task-text,
+.mini-todo-text,
+.mini-cal-task,
+.notes-content,
+.inspect-field textarea,
+.inspect-field input {
+  user-select: text;
+  cursor: text;
+}
+
+/* Allow selecting text in specific elements while keeping UI non-selectable */
+.node-name,
+.block-title,
+.task-group-name,
+.dropdown-item,
+.suggestion-chip {
+  user-select: text;
 }
 
 .message-content ul {

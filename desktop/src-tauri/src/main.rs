@@ -5,6 +5,8 @@
 //! - System tray management
 //! - Global shortcut handling
 //! - Native OS integrations
+//! - Click-through overlay mode
+//! - Start minimized to tray
 
 #![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
@@ -14,9 +16,13 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use screenshots::Screen;
 use std::io::Cursor;
-use tauri::{
-    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
-};
+use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::{Emitter, Manager};
+use tauri::menu::MenuBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+// Global state for click-through mode
+static CLICK_THROUGH_ENABLED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "macos")]
 use objc::{msg_send, sel, sel_impl};
@@ -85,10 +91,101 @@ fn secure_storage_exists(key: String) -> Result<bool, String> {
 /// Close the application window
 #[tauri::command]
 fn close_window(app_handle: tauri::AppHandle) -> Result<(), String> {
-    if let Some(window) = app_handle.get_window("main") {
+    if let Some(window) = app_handle.get_webview_window("main") {
         window.close().map_err(|e| format!("Failed to close window: {}", e))?;
     }
     Ok(())
+}
+
+// =============================================================================
+// Click-Through Mode Commands
+// =============================================================================
+
+/// Toggle click-through mode for overlay
+#[tauri::command]
+fn toggle_click_through(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    let window = app_handle.get_webview_window("main")
+        .ok_or_else(|| "Window not found".to_string())?;
+    
+    let current = CLICK_THROUGH_ENABLED.load(Ordering::SeqCst);
+    let new_state = !current;
+    
+    // On Windows, we use web-based click-through via CSS pointer-events
+    // The actual window click-through is handled by the frontend
+    // This avoids Windows API version conflicts
+    #[cfg(target_os = "windows")]
+    {
+        // Just store the state - frontend handles CSS pointer-events
+        println!("Click-through mode set to: {}", new_state);
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        // Tauri 2: native click-through would use raw window handle; frontend can use pointer-events
+        println!("Click-through mode set to: {} (macOS)", new_state);
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        // Linux X11 would need different handling through x11 crate
+        // For now, just store the state
+    }
+    
+    CLICK_THROUGH_ENABLED.store(new_state, Ordering::SeqCst);
+    
+    // Emit event to frontend so it knows the state
+    let _ = window.emit("Click-through-changed", new_state);
+    
+    Ok(new_state)
+}
+
+/// Set click-through state (called by frontend with enabled: bool)
+#[tauri::command]
+fn set_click_through(app_handle: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    CLICK_THROUGH_ENABLED.store(enabled, Ordering::SeqCst);
+    if let Some(w) = app_handle.get_webview_window("main") {
+        let _ = w.emit("Click-through-changed", enabled);
+    }
+    Ok(())
+}
+
+/// Get current click-through state
+#[tauri::command]
+fn get_click_through_state() -> bool {
+    CLICK_THROUGH_ENABLED.load(Ordering::SeqCst)
+}
+
+// =============================================================================
+// Window State Commands
+// =============================================================================
+
+/// Minimize window to system tray
+#[tauri::command]
+fn minimize_to_tray(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        window.hide().map_err(|e| format!("Failed to hide window: {}", e))?;
+    }
+    Ok(())
+}
+
+/// Show window from tray
+#[tauri::command]
+fn show_from_tray(app_handle: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        window.show().map_err(|e| format!("Failed to show window: {}", e))?;
+        window.set_focus().map_err(|e| format!("Failed to focus window: {}", e))?;
+    }
+    Ok(())
+}
+
+/// Check if window is visible
+#[tauri::command]
+fn is_window_visible(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        Ok(window.is_visible().unwrap_or(false))
+    } else {
+        Ok(false)
+    }
 }
 
 // =============================================================================
@@ -291,56 +388,24 @@ fn open_system_app(app_name: String) -> Result<String, String> {
     }
 }
 
-/// Create the system tray menu
-fn create_system_tray() -> SystemTray {
-    let show = CustomMenuItem::new("show".to_string(), "Show Aion");
-    let capture = CustomMenuItem::new("capture".to_string(), "Capture Screen");
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(show)
-        .add_item(capture)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(quit);
-
-    SystemTray::new().with_menu(tray_menu)
-}
-
 fn main() {
     tauri::Builder::default()
-        .system_tray(create_system_tray())
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick { .. } => {
-                // Toggle window visibility on left click
-                if let Some(window) = app.get_window("main") {
-                    if window.is_visible().unwrap_or(false) {
-                        let _ = window.hide();
-                    } else {
-                        let _ = window.show();
-                        let _ = window.set_focus();
+        .plugin(tauri_plugin_shell::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcuts(["Alt+Space"])
+                .expect("register Alt+Space shortcut")
+                .with_handler(|app, _shortcut, event| {
+                    use tauri_plugin_global_shortcut::ShortcutState;
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
                     }
-                }
-            }
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "show" => {
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
-                "capture" => {
-                    // Emit event to frontend to trigger capture
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.emit("trigger-capture", ());
-                    }
-                }
-                "quit" => {
-                    std::process::exit(0);
-                }
-                _ => {}
-            },
-            _ => {}
-        })
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             capture_screen,
             capture_region,
@@ -351,21 +416,69 @@ fn main() {
             secure_storage_delete,
             secure_storage_exists,
             close_window,
+            toggle_click_through,
+            set_click_through,
+            get_click_through_state,
+            minimize_to_tray,
+            show_from_tray,
+            is_window_visible,
         ])
         .setup(|app| {
-            // Get the main window
-            let window = app.get_window("main").unwrap();
+            // Tray menu (Tauri 2 API)
+            let menu = MenuBuilder::new(app)
+                .text("show", "Show Aion")
+                .text("capture", "Capture Screen")
+                .separator()
+                .text("quit", "Quit")
+                .build()?;
 
-            // Set window to be transparent (if not already set in config)
-            #[cfg(target_os = "windows")]
-            {
-                use tauri::Manager;
-                // Windows-specific transparency setup could go here
-            }
+            let _tray = TrayIconBuilder::new()
+                .menu(&menu)
+                .on_menu_event(move |app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "capture" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("trigger-capture", ());
+                        }
+                    }
+                    "quit" => std::process::exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })
+                .build(app)?;
 
-            // Log startup
+            let window = app.get_webview_window("main").unwrap();
+            let _ = window.maximize();
+
             println!("Aion Desktop Client started");
-            println!("Window transparent: {:?}", window.is_decorated());
+
+            let args: Vec<String> = std::env::args().collect();
+            if args.contains(&"--minimized".to_string()) || args.contains(&"--tray".to_string()) {
+                window.hide().expect("Failed to hide window on startup");
+                println!("Started minimized to system tray");
+            }
 
             Ok(())
         })

@@ -8,7 +8,26 @@ import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
 
 const CONFIG = {
-  API_BASE: 'http://localhost:8000/api/v1',
+  // Default API URL - can be overridden by user settings
+  get API_BASE() {
+    // Check localStorage for custom server URL first
+    const customUrl = localStorage.getItem('aion_server_url');
+    if (customUrl) {
+      return customUrl;
+    }
+    return 'http://localhost:8000/api/v1';
+  },
+  get API_BASE_SETTABLE() {
+    // For setting the URL programmatically
+    return localStorage.getItem('aion_server_url') || 'http://localhost:8000/api/v1';
+  },
+  set API_BASE_SETTABLE(value) {
+    if (value) {
+      localStorage.setItem('aion_server_url', value);
+    } else {
+      localStorage.removeItem('aion_server_url');
+    }
+  },
   STORAGE_KEY: 'aion_complete_v1',
 };
 
@@ -151,7 +170,7 @@ function initEls() {
     profileDropdown: $('profile-dropdown'), profileList: $('profile-list'), btnNewProfile: $('btn-new-profile'),
     searchBar: $('search-bar'), searchInput: $('search-input'), searchResults: $('search-results'),
     focusPanel: $('focus-panel'), focusTextDisplay: $('focus-text-display'), focusInput: $('focus-input'),
-    miniTimer: $('mini-timer'), miniStart: $('mini-start'), miniPause: $('mini-pause'), miniReset: $('mini-reset'),
+    miniTimer: $('mini-timer'), miniStart: $('focus-timer-start'), miniPause: $('focus-timer-pause'), miniReset: $('focus-timer-reset'),
     todayTasksDone: $('today-tasks-done'), todayTasksTotal: $('today-tasks-total'), progressFill: $('progress-fill'),
     btnQuickTask: $('btn-quick-task'), btnQuickSearch: $('btn-quick-search'), btnQuickHelp: $('btn-quick-help'),
     pomodoroPanel: $('pomodoro-panel'), btnClosePomodoro: $('btn-close-pomodoro'),
@@ -940,17 +959,15 @@ function updateFocusPanelState() {
 function switchFocusSection(section) {
   state.focusSection = section;
 
-  // Update tabs
-  document.querySelectorAll('.focus-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.section === section);
-  });
-
-  // Update sections
-  document.querySelectorAll('.focus-section').forEach(s => {
-    s.classList.toggle('active', s.dataset.section === section);
-  });
+  // Open the corresponding collapsible section and close others
+  const sectionMap = { timer: 'timer', calendar: 'calendar', todos: 'todos' };
+  if (sectionMap[section]) {
+    state.openSections[section] = true;
+    updateCollapsibleSections();
+  }
 
   // Render content
+  if (section === 'timer') updateFocusTimerBar();
   if (section === 'calendar') renderMiniCalendar();
   if (section === 'todos') renderMiniTodos();
 }
@@ -1180,6 +1197,46 @@ function endPanelDrag() {
 
   state.draggingPanel.style.transition = '';
   state.draggingPanel = null;
+}
+
+// ============================================================================
+// Click-Through Mode (Ghost Mode)
+// ============================================================================
+
+let clickThroughEnabled = false;
+
+async function toggleClickThroughMode() {
+  clickThroughEnabled = !clickThroughEnabled;
+
+  const toggle = document.getElementById('click-through-toggle');
+
+  if (clickThroughEnabled) {
+    // Enable click-through mode
+    document.body.classList.add('click-through-mode');
+    if (toggle) toggle.classList.add('active');
+    toast('Ghost mode enabled - click through to windows below');
+
+    // Tell Tauri to enable click-through at window level
+    try {
+      const { invoke } = window.__TAURI__.core;
+      await invoke('set_click_through', { enabled: true });
+    } catch (e) {
+      console.log('Tauri invoke not available:', e);
+    }
+  } else {
+    // Disable click-through mode
+    document.body.classList.remove('click-through-mode');
+    if (toggle) toggle.classList.remove('active');
+    toast('Ghost mode disabled');
+
+    // Tell Tauri to disable click-through
+    try {
+      const { invoke } = window.__TAURI__.core;
+      await invoke('set_click_through', { enabled: false });
+    } catch (e) {
+      console.log('Tauri invoke not available:', e);
+    }
+  }
 }
 
 // ============================================================================
@@ -1493,10 +1550,12 @@ function centerOrb() {
 
 function uncenterOrb() {
   state.orbCentered = false;
+  state.menuOpen = false;
   if (els.orbContainer) els.orbContainer.classList.remove('centered');
   if (els.radialMenu) els.radialMenu.classList.remove('centered');
   if (els.orbOverlay) els.orbOverlay.classList.remove('visible');
-  els.radialMenu.classList.add('hidden');
+  if (els.radialMenu) els.radialMenu.classList.add('hidden');
+  if (els.orb) els.orb.classList.remove('active');
 }
 
 function updatePomodoroUI() {
@@ -2405,8 +2464,23 @@ function updateTodayProgress() {
 // Mind Map
 // ============================================================================
 
+function toggleMindmapFullscreen() {
+  const panel = document.getElementById('mindmap-view');
+  if (panel) {
+    panel.classList.toggle('fullscreen');
+    const btn = document.getElementById('btn-fullscreen');
+    if (btn) {
+      btn.textContent = panel.classList.contains('fullscreen') ? '⇱' : '⛶';
+    }
+  }
+}
+
 function openMindmap() {
   closeMenu();
+  if (!els.mindmapView) {
+    console.error('Mindmap view element not found');
+    return;
+  }
   els.mindmapView.classList.remove('hidden');
   state.openPanels.add('mindmap-view');
   bringPanelToFront(els.mindmapView);
@@ -2415,12 +2489,32 @@ function openMindmap() {
 
 function renderMindmap() {
   console.log('Rendering mindmap, blocks:', state.blocks.length);
+
+  // Guard against missing elements
+  if (!els.blocksLayer) {
+    console.error('Blocks layer element not found');
+    return;
+  }
+
   if (!state.blocks || state.blocks.length === 0) {
     els.blocksLayer.innerHTML = '<div style="padding:20px;color:var(--text-muted);">No blocks yet. Click "+ Add Block" to create one.</div>';
     return;
   }
 
-  els.blocksLayer.innerHTML = state.blocks.map(b => `
+  // Ensure each block has required properties
+  const validBlocks = state.blocks.map(b => ({
+    id: b.id || 'block-' + Date.now(),
+    name: b.name || 'Untitled',
+    type: b.type || 'note',
+    icon: b.icon || '📝',
+    x: typeof b.x === 'number' ? b.x : 100,
+    y: typeof b.y === 'number' ? b.y : 100,
+    children: b.children || [],
+    todos: b.todos || [],
+    parentId: b.parentId || null
+  }));
+
+  els.blocksLayer.innerHTML = validBlocks.map(b => `
     <div class="block-node" data-id="${b.id}" style="left:${b.x}px;top:${b.y}px">
       <div class="node-header">
         <span class="node-icon">${b.icon}</span>
@@ -2436,7 +2530,7 @@ function renderMindmap() {
 
   renderConnections();
   initBlockEvents();
-  console.log('Mindmap rendered successfully');
+  console.log('Mindmap rendered successfully, blocks:', validBlocks.length);
 }
 
 function renderConnections() {
@@ -2560,6 +2654,10 @@ function createBlock() {
   els.blockPopup.classList.add('hidden');
   if (!els.mindmapView.classList.contains('hidden')) renderMindmap();
   else if (!els.blockEditor.classList.contains('hidden')) renderSubblocks();
+
+  // Sync with calendar and todos
+  syncBlocksToCalendarAndTodos();
+
   toast('Block created');
 }
 
@@ -2596,19 +2694,75 @@ function selectIcon(icon) {
 }
 
 function deleteBlock() {
-  if (!state.contextBlock) return;
-  const id = state.contextBlock.id;
-  const parent = state.blocks.find(b => b.children?.includes(id));
-  if (parent) parent.children = parent.children.filter(c => c !== id);
+  if (!state.contextBlock) {
+    console.error('No block selected for deletion');
+    return;
+  }
 
+  const id = state.contextBlock.id;
+  console.log('Deleting block:', id);
+
+  // Find and update parent
+  const parent = state.blocks.find(b => b.children?.includes(id));
+  if (parent) {
+    parent.children = parent.children.filter(c => c !== id);
+  }
+
+  // Recursive function to remove block and its children
   function removeWithChildren(blockId) {
     const block = state.blocks.find(b => b.id === blockId);
-    if (block?.children) block.children.forEach(removeWithChildren);
+    if (block?.children) {
+      block.children.forEach(removeWithChildren);
+    }
     state.blocks = state.blocks.filter(b => b.id !== blockId);
   }
+
   removeWithChildren(id);
-  save(); renderMindmap(); hideContextMenu();
-  toast('Deleted');
+
+  // Save and re-render
+  save();
+
+  // Check if mindmap is visible and re-render
+  if (els.mindmapView && !els.mindmapView.classList.contains('hidden')) {
+    renderMindmap();
+  }
+
+  // Sync with calendar and todos after deletion
+  syncBlocksToCalendarAndTodos();
+
+  hideContextMenu();
+  toast('Block deleted');
+}
+
+// ============================================================================
+// Block/Task Sync with Calendar and Todos
+// ============================================================================
+
+function syncBlocksToCalendarAndTodos() {
+  console.log('Syncing blocks to calendar and todos...');
+
+  // Update calendar view if open
+  if (els.calendarPanel && !els.calendarPanel.classList.contains('hidden')) {
+    renderCalendar();
+  }
+
+  // Update tasks view if open
+  if (els.tasksPanel && !els.tasksPanel.classList.contains('hidden')) {
+    renderAllTasks();
+  }
+
+  // Update mini calendar and todos in focus panel
+  if (state.focusSection === 'calendar') {
+    renderMiniCalendar();
+  }
+  if (state.focusSection === 'todos') {
+    renderMiniTodos();
+  }
+
+  // Update today's progress
+  updateTodayProgress();
+
+  console.log('Sync complete');
 }
 
 // ============================================================================
@@ -3173,7 +3327,7 @@ let voiceEnabled = true;
 
 // Check if browser supports voice
 function checkVoiceSupport() {
-  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia());
 }
 
 // Start voice recording
@@ -3711,6 +3865,12 @@ function initEvents() {
   // Mind Map
   els.btnCloseMindmap.addEventListener('click', () => els.mindmapView.classList.add('hidden'));
   els.btnAddBlock.addEventListener('click', () => openBlockPopup(null));
+
+  // Fullscreen toggle for mind map
+  const btnFullscreen = document.getElementById('btn-fullscreen');
+  if (btnFullscreen) {
+    btnFullscreen.addEventListener('click', toggleMindmapFullscreen);
+  }
   els.ctxOpen.addEventListener('click', () => { if (state.contextBlock) openBlockEditor(state.contextBlock.id); hideContextMenu(); });
   els.ctxRename.addEventListener('click', openRenamePopup);
   els.ctxIcon.addEventListener('click', openIconPopup);
@@ -3781,6 +3941,12 @@ function initEvents() {
   if (els.floatTimerPause) els.floatTimerPause.addEventListener('click', pausePomodoro);
   if (els.floatTimerReset) els.floatTimerReset.addEventListener('click', resetPomodoroTimer);
 
+  // Click-Through Toggle (Ghost Mode)
+  const clickThroughToggle = document.getElementById('click-through-toggle');
+  if (clickThroughToggle) {
+    clickThroughToggle.addEventListener('click', toggleClickThroughMode);
+  }
+
   // Panel Dragging
   document.addEventListener('mousedown', e => {
     const header = e.target.closest('[data-drag]');
@@ -3830,8 +3996,18 @@ function initEvents() {
     const target = e.target;
     const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
 
-    // Global shortcuts (work even in inputs)
-    if (e.key === '`' || e.key === '~') { e.preventDefault(); toggleAllPanelsVisibility(); return; }
+    // Global shortcuts: backtick/~ hides overlay to system tray (use Alt+Space to show again)
+    if (e.key === '`' || e.key === '~') {
+      e.preventDefault();
+      if (window.__TAURI__?.core?.invoke) {
+        window.__TAURI__.core.invoke('minimize_to_tray').then(() => {
+          toast('Overlay hidden to tray — press Alt+Space to show again');
+        }).catch(() => toggleAllPanelsVisibility());
+      } else {
+        toggleAllPanelsVisibility();
+      }
+      return;
+    }
     if (e.altKey && e.code === 'Space') { e.preventDefault(); toggleMenu(); return; }
     if (e.ctrlKey && e.key === 'k') { e.preventDefault(); openSearch(); return; }
     if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openQuickAdd(); return; }
@@ -3840,6 +4016,8 @@ function initEvents() {
     // Escape - close things progressively
     if (e.key === 'Escape') {
       if (state.aiInputOpen) { closeAiInput(); closeAiOutput(); return; }
+      if (state.menuOpen) { closeMenu(); return; }
+      if (state.currentPanel) { closeAllOpenPanels(); return; }
       closeMenu(); closeSearch(); hideContextMenu();
       document.querySelectorAll('.popup').forEach(p => p.classList.add('hidden'));
       return;
@@ -3911,6 +4089,12 @@ async function init() {
 
   // Initialize offline-first sync system
   await initOfflineSync();
+
+  // Smooth overlay fade-in when app is ready
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
+  });
+
   console.log('Aion Complete v2 with AI and Offline Sync ready');
 }
 
