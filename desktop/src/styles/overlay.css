@@ -440,6 +440,8 @@ body.overlay-ready {
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-dim);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 #ai-response p {
@@ -735,6 +737,10 @@ body.overlay-ready {
   font-size: 32px;
   font-weight: 700;
   font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 5ch;
+  display: inline-block;
+  text-align: center;
   color: var(--accent-light);
   text-shadow: 0 0 10px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.3);
 }
@@ -1552,6 +1558,10 @@ body.overlay-ready {
   font-size: 32px;
   font-weight: 700;
   font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 5ch;
+  display: inline-block;
+  text-align: center;
   color: var(--accent-light);
   text-shadow: 0 0 15px hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.3);
 }
@@ -2209,6 +2219,9 @@ body.overlay-ready {
   font-size: 36px;
   font-weight: 700;
   font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 5ch;
+  text-align: center;
 }
 
 .pomo-controls {
