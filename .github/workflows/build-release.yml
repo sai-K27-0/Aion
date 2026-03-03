@@ -139,6 +139,44 @@ jobs:
         working-directory: desktop
         run: npm run tauri build -- --target aarch64-apple-darwin
 
+      - name: Ad-hoc sign the app bundle
+        run: |
+          APP_PATH=$(find desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos -name "*.app" -type d | head -1)
+          if [ -n "$APP_PATH" ]; then
+            echo "Signing $APP_PATH"
+            codesign --force --deep -s - --entitlements desktop/src-tauri/entitlements.plist "$APP_PATH"
+            echo "Verifying signature..."
+            codesign -dvv "$APP_PATH" 2>&1 || true
+          else
+            echo "WARNING: No .app bundle found to sign"
+          fi
+
+      - name: Create signed DMG
+        run: |
+          APP_PATH=$(find desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos -name "*.app" -type d | head -1)
+          if [ -n "$APP_PATH" ]; then
+            APP_NAME=$(basename "$APP_PATH" .app)
+            VERSION=${{ github.ref_name || '0.2.0' }}
+            DMG_NAME="${APP_NAME}_${VERSION}_aarch64.dmg"
+            DMG_DIR="desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+            mkdir -p "$DMG_DIR"
+
+            # Create a temporary directory for DMG contents
+            STAGE_DIR=$(mktemp -d)
+            cp -R "$APP_PATH" "$STAGE_DIR/"
+            ln -s /Applications "$STAGE_DIR/Applications"
+
+            # Build the DMG
+            hdiutil create -volname "$APP_NAME" \
+              -srcfolder "$STAGE_DIR" \
+              -ov -format UDZO \
+              "$DMG_DIR/$DMG_NAME"
+
+            rm -rf "$STAGE_DIR"
+            echo "Created DMG: $DMG_DIR/$DMG_NAME"
+            ls -la "$DMG_DIR/"
+          fi
+
       - name: List build artifacts
         run: |
           echo "=== DMG files ==="
@@ -278,6 +316,23 @@ jobs:
         with:
           draft: false
           generate_release_notes: true
+          body: |
+            ## Installation
+
+            ### macOS
+            1. Download the `.dmg` file and open it
+            2. Drag **Aion** to your Applications folder
+            3. Before opening for the first time, run in Terminal:
+               ```
+               xattr -cr /Applications/Aion.app
+               ```
+            4. Open Aion from Applications
+
+            ### Windows
+            Download and run the `.msi` installer or the `.exe` (NSIS) installer.
+
+            ### Android
+            Download the `.apk` file and install it on your device (enable "Install from unknown sources" if prompted).
           files: |
             artifacts/**/*.msi
             artifacts/**/*.exe
