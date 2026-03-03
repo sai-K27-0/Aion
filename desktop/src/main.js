@@ -289,6 +289,9 @@ function toast(msg) {
   }, 2000);
 }
 
+// Alias so both toast() and showToast() work
+const showToast = toast;
+
 function showNotification(title, message, icon = '🔔') {
   const notification = $('notification');
   if (!notification) return; // Guard against missing element
@@ -303,6 +306,11 @@ function showNotification(title, message, icon = '🔔') {
 
   notification.classList.remove('hidden');
   setTimeout(() => notification.classList.add('hidden'), 5000);
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -404,16 +412,21 @@ async function sendAiQuery() {
   els.aiInput.value = '';
 
   // Process command locally first
-  const result = await processAiCommand(text);
+  try {
+    const result = await processAiCommand(text);
+    els.aiThinking.classList.add('hidden');
+    els.aiResponse.innerHTML = result.html;
 
-  els.aiThinking.classList.add('hidden');
-  els.aiResponse.innerHTML = result.html;
-
-  // Execute any actions
-  if (result.actions) {
-    for (const action of result.actions) {
-      await executeAiAction(action);
+    // Execute any actions
+    if (result.actions) {
+      for (const action of result.actions) {
+        await executeAiAction(action);
+      }
     }
+  } catch (err) {
+    console.error('AI query error:', err);
+    els.aiThinking.classList.add('hidden');
+    els.aiResponse.innerHTML = '<div class="ai-info"><p>Something went wrong. Please try again.</p></div>';
   }
 }
 
@@ -2593,9 +2606,14 @@ function initBlockEventDelegation() {
     e.preventDefault();
     state.contextBlock = state.blocks.find(b => b.id === node.dataset.id);
     if (els.contextMenu) {
-      els.contextMenu.style.left = `${e.clientX}px`;
-      els.contextMenu.style.top = `${e.clientY}px`;
       els.contextMenu.classList.remove('hidden');
+      // Clamp to viewport so menu never appears off-screen
+      const mw = els.contextMenu.offsetWidth || 160;
+      const mh = els.contextMenu.offsetHeight || 200;
+      const x = Math.min(e.clientX, window.innerWidth - mw - 8);
+      const y = Math.min(e.clientY, window.innerHeight - mh - 8);
+      els.contextMenu.style.left = `${Math.max(0, x)}px`;
+      els.contextMenu.style.top = `${Math.max(0, y)}px`;
     }
   });
 
@@ -2612,13 +2630,18 @@ function initBlockEvents() {
   // No longer adds event listeners - handled by event delegation
 }
 
+let _rafPending = false;
 function handleMouseMove(e) {
   if (!state.dragging) return;
   state.dragging.x = Math.max(10, e.clientX - state.dragOffset.x);
   state.dragging.y = Math.max(10, e.clientY - state.dragOffset.y);
   const node = els.blocksLayer.querySelector(`[data-id="${state.dragging.id}"]`);
   if (node) { node.style.left = `${state.dragging.x}px`; node.style.top = `${state.dragging.y}px`; }
-  renderConnections();
+  // Throttle SVG redraw to once per animation frame
+  if (!_rafPending) {
+    _rafPending = true;
+    requestAnimationFrame(() => { renderConnections(); _rafPending = false; });
+  }
 }
 
 function handleMouseUp() {
@@ -3890,6 +3913,11 @@ function initEvents() {
   els.btnCloseChat.addEventListener('click', () => els.chatBox.classList.add('hidden'));
   els.btnSend.addEventListener('click', sendChat);
   els.chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+  // Auto-grow chat textarea as user types
+  els.chatInput.addEventListener('input', () => {
+    els.chatInput.style.height = 'auto';
+    els.chatInput.style.height = Math.min(els.chatInput.scrollHeight, 100) + 'px';
+  });
 
   // Mind Map
   els.btnCloseMindmap.addEventListener('click', () => els.mindmapView.classList.add('hidden'));
@@ -3926,8 +3954,9 @@ function initEvents() {
   // Block Editor
   els.btnBack.addEventListener('click', closeEditor);
   els.btnCloseEditor.addEventListener('click', () => { saveCurrentBlock(); stopTimer(); closeAllPanels(); });
-  els.blockTitle.addEventListener('input', saveCurrentBlock);
-  els.blockNotes.addEventListener('input', saveCurrentBlock);
+  const debouncedSaveBlock = debounce(saveCurrentBlock, 300);
+  els.blockTitle.addEventListener('input', debouncedSaveBlock);
+  els.blockNotes.addEventListener('input', debouncedSaveBlock);
   els.blockDate.addEventListener('change', saveCurrentBlock);
   els.blockDateEnd.addEventListener('change', saveCurrentBlock);
   els.blockIconBtn.addEventListener('click', () => { state.contextBlock = state.currentBlock; openIconPopup(); });
@@ -4118,7 +4147,8 @@ function initEvents() {
     const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
 
     // Global shortcuts: backtick/~ hides overlay to system tray (use Alt+Space to show again)
-    if (e.key === '`' || e.key === '~') {
+    // Guard: don't fire when user is typing in an input/textarea
+    if ((e.key === '`' || e.key === '~') && !isInput) {
       e.preventDefault();
       if (window.__TAURI__?.core?.invoke) {
         window.__TAURI__.core.invoke('minimize_to_tray').then(() => {
@@ -4242,9 +4272,8 @@ async function initOfflineSync() {
     // Update UI
     updateSyncStatusUI();
 
-    // Listen for online/offline
-    window.addEventListener('online', handleOnlineStatusChange);
-    window.addEventListener('offline', handleOnlineStatusChange);
+    // Note: online/offline events are already handled by SyncService constructor
+    // which fires handleSyncEvent('online'/'offline') - no duplicate listeners needed.
 
     // Sync on close: when user closes the window or quits (Cmd+Q on macOS),
     // run one final sync then exit the app process.
@@ -4353,7 +4382,7 @@ async function loadFromLocalDb() {
         todos: b.todos || [],
       }));
       save();
-      renderMindMap();
+      renderMindmap();
       renderMiniTodos();
       showToast('Data synced from server');
     }
