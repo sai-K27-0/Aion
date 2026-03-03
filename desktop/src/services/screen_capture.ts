@@ -40,8 +40,9 @@ class ScreenCaptureService {
         formData.append('file', blob, 'screenshot.png');
         formData.append('extract_text', 'true');
 
-        // Send to Python Backend
-        const response = await fetch('http://localhost:8000/api/v1/ai/screen/analyze', {
+        // Send to Python Backend (use user-configured server URL)
+        const apiBase = localStorage.getItem('aion_server_url') || 'http://localhost:8000/api/v1';
+        const response = await fetch(`${apiBase}/ai/screen/analyze`, {
             method: 'POST',
             body: formData,
         });

@@ -843,6 +843,22 @@
         </div>
       </div>
       <div class="settings-group">
+        <h3>Server</h3>
+        <p class="settings-hint">Set the URL of your Aion backend server (e.g. your Windows PC's IP)</p>
+        <div class="setting-row">
+          <span>Server URL</span>
+          <input id="server-url-input" type="text" class="setting-input" placeholder="http://192.168.1.x:8000/api/v1" />
+        </div>
+        <div class="setting-row">
+          <button id="btn-save-server-url" class="setting-btn">Save & Reconnect</button>
+          <button id="btn-reset-server-url" class="setting-btn">Reset to Default</button>
+        </div>
+        <div class="setting-row">
+          <span>Sync Status</span>
+          <span id="sync-status-indicator" class="status-indicator">--</span>
+        </div>
+      </div>
+      <div class="settings-group">
         <h3>Data</h3>
         <div class="setting-row">
           <button id="btn-export" class="setting-btn">Export Data</button>

@@ -3862,13 +3862,19 @@ body.overlay-ready {
   color: var(--text-dim);
 }
 
-.setting-select {
+.setting-select,
+.setting-input {
   padding: 6px 10px;
   background: var(--glass-light);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
   font-size: 12px;
+}
+
+.setting-input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .setting-btn {

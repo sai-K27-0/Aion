@@ -222,6 +222,7 @@ function initEls() {
     blockNotes: $('block-notes'), todoList: $('todo-list'), btnAddTodo: $('btn-add-todo'),
     subblocksList: $('subblocks-list'), btnAddSubblock: $('btn-add-subblock'),
     settingsPanel: $('settings-panel'), btnCloseSettings: $('btn-close-settings'),
+    serverUrlInput: $('server-url-input'), btnSaveServerUrl: $('btn-save-server-url'), btnResetServerUrl: $('btn-reset-server-url'), syncStatusIndicator: $('sync-status-indicator'),
     pomoWorkDuration: $('pomo-work-duration'), pomoShortBreak: $('pomo-short-break'), pomoLongBreak: $('pomo-long-break'),
     btnExport: $('btn-export'), btnImport: $('btn-import'), btnClearData: $('btn-clear-data'), importFile: $('import-file'),
     profilePopup: $('profile-popup'), profileNameInput: $('profile-name-input'),
@@ -3590,6 +3591,14 @@ function openSettings() {
   els.pomoWorkDuration.value = state.pomodoro.workDuration;
   els.pomoShortBreak.value = state.pomodoro.shortBreak;
   els.pomoLongBreak.value = state.pomodoro.longBreak;
+  // Populate server URL field
+  if (els.serverUrlInput) {
+    els.serverUrlInput.value = CONFIG.API_BASE;
+  }
+  if (els.syncStatusIndicator) {
+    els.syncStatusIndicator.textContent = isOnline ? 'Online' : 'Offline';
+    els.syncStatusIndicator.style.color = isOnline ? '#34d399' : '#f87171';
+  }
   els.settingsPanel.classList.remove('hidden');
   state.openPanels.add('settings-panel');
   bringPanelToFront(els.settingsPanel);
@@ -3948,6 +3957,41 @@ function initEvents() {
   els.btnImport.addEventListener('click', () => els.importFile.click());
   els.importFile.addEventListener('change', e => { if (e.target.files[0]) importData(e.target.files[0]); });
   els.btnClearData.addEventListener('click', clearData);
+
+  // Server URL settings
+  if (els.btnSaveServerUrl) {
+    els.btnSaveServerUrl.addEventListener('click', async () => {
+      const url = els.serverUrlInput?.value?.trim();
+      if (!url) return toast('Please enter a server URL');
+      CONFIG.API_BASE_SETTABLE = url;
+      toast('Server URL saved. Reconnecting...');
+      // Re-initialize sync with new URL
+      try {
+        if (syncService) {
+          syncService.serverUrl = url.replace('/api/v1', '');
+          await syncService.sync();
+        }
+        if (els.syncStatusIndicator) {
+          els.syncStatusIndicator.textContent = 'Connected';
+          els.syncStatusIndicator.style.color = '#34d399';
+        }
+        toast('Connected to server');
+      } catch (e) {
+        if (els.syncStatusIndicator) {
+          els.syncStatusIndicator.textContent = 'Failed';
+          els.syncStatusIndicator.style.color = '#f87171';
+        }
+        toast('Could not connect: ' + (e?.message || e));
+      }
+    });
+  }
+  if (els.btnResetServerUrl) {
+    els.btnResetServerUrl.addEventListener('click', () => {
+      CONFIG.API_BASE_SETTABLE = null;
+      if (els.serverUrlInput) els.serverUrlInput.value = CONFIG.API_BASE;
+      toast('Server URL reset to default (localhost:8000)');
+    });
+  }
 
   // Check for updates (Tauri updater plugin)
   const btnCheckUpdates = document.getElementById('btn-check-updates');
