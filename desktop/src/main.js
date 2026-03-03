@@ -4202,9 +4202,13 @@ async function initOfflineSync() {
     window.addEventListener('online', handleOnlineStatusChange);
     window.addEventListener('offline', handleOnlineStatusChange);
 
-    // Sync on close: when user closes the window, run one sync then close
+    // Sync on close: when user closes the window or quits (Cmd+Q on macOS),
+    // run one final sync then exit the app process.
     if (window.__TAURI__?.event?.listen && syncService) {
+      let isClosing = false;
       window.__TAURI__.event.listen('sync-before-close', async () => {
+        if (isClosing) return; // prevent re-entrant calls
+        isClosing = true;
         const SYNC_CLOSE_TIMEOUT_MS = 5000;
         try {
           const syncPromise = syncService.sync();
@@ -4217,9 +4221,9 @@ async function initOfflineSync() {
         }
         try {
           const { invoke } = window.__TAURI__.core;
-          await invoke('close_window');
+          await invoke('exit_app');
         } catch (err) {
-          console.warn('[Sync] close_window:', err);
+          console.warn('[Sync] exit_app:', err);
         }
       });
     }

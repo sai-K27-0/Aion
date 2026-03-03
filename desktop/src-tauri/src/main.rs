@@ -97,6 +97,12 @@ fn close_window(app_handle: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Exit the application process (use after sync is complete)
+#[tauri::command]
+fn exit_app() {
+    std::process::exit(0);
+}
+
 // =============================================================================
 // Click-Through Mode Commands
 // =============================================================================
@@ -436,28 +442,24 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Alt+Space"])
-                .expect("register Alt+Space shortcut")
-                .with_handler(|app, _shortcut, event| {
-                    use tauri_plugin_global_shortcut::ShortcutState;
+                .with_shortcuts(["Alt+Space", "Alt+G"])
+                .expect("register global shortcuts")
+                .with_handler(|app, shortcut, event| {
+                    use tauri_plugin_global_shortcut::{Code, ShortcutState};
                     if event.state == ShortcutState::Pressed {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                })
-                .build(),
-        )
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Alt+G"])
-                .expect("register Alt+G shortcut")
-                .with_handler(|app, _shortcut, event| {
-                    use tauri_plugin_global_shortcut::ShortcutState;
-                    if event.state == ShortcutState::Pressed {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.emit("toggle-ghost", ());
+                        match shortcut.key {
+                            Code::Space => {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.show();
+                                    let _ = w.set_focus();
+                                }
+                            }
+                            Code::KeyG => {
+                                if let Some(w) = app.get_webview_window("main") {
+                                    let _ = w.emit("toggle-ghost", ());
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 })
@@ -484,6 +486,7 @@ fn main() {
             secure_storage_delete,
             secure_storage_exists,
             close_window,
+            exit_app,
             toggle_click_through,
             set_click_through,
             get_click_through_state,
@@ -514,7 +517,14 @@ fn main() {
                             let _ = window.emit("trigger-capture", ());
                         }
                     }
-                    "quit" => std::process::exit(0),
+                    "quit" => {
+                        // Trigger sync before quitting instead of immediate exit
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("sync-before-close", ());
+                        } else {
+                            std::process::exit(0);
+                        }
+                    }
                     _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
@@ -550,6 +560,16 @@ fn main() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = &event {
+                // Prevent immediate exit (e.g. macOS Cmd+Q) so we can sync first.
+                // If the window still exists, trigger sync; otherwise let the exit proceed.
+                if let Some(w) = app_handle.get_webview_window("main") {
+                    api.prevent_exit();
+                    let _ = w.emit("sync-before-close", ());
+                }
+            }
+        });
 }
