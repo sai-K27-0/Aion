@@ -1,0 +1,25 @@
+node_modules/
+dist/
+
+# Tauri build artefacts
+src-tauri/target/
+src-tauri/gen/
+src-tauri/windows/
+
+# Environment & local config
+.env
+src-tauri/.env
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs and temporary output
+*.log
+err*.txt
+out*.txt
+stderr*.txt
+stdout*.txt
+

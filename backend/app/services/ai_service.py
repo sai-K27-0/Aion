@@ -1,8 +1,8 @@
 """
-AI Service - Interface for local LLM and vision capabilities.
+AI Service - Interface for local and cloud LLM capabilities.
 
 This service provides:
-- Chat completion via Ollama
+- Chat completion via Ollama (default), OpenAI, or Anthropic
 - Text embeddings for semantic search
 - Vision/screen understanding via LLaVA
 - Context-aware assistance based on screen content
@@ -16,6 +16,16 @@ import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+
+# Provider preference when multiple keys exist
+def _chat_provider() -> str:
+    """Return which provider to use for chat: openai | anthropic | ollama."""
+    p = (settings.ai_provider or "ollama").lower()
+    if p == "openai" and settings.openai_api_key:
+        return "openai"
+    if p == "anthropic" and settings.anthropic_api_key:
+        return "anthropic"
+    return "ollama"
 
 
 class AIService:
@@ -54,16 +64,26 @@ class AIService:
     # ========================================================================
     
     async def is_available(self) -> bool:
-        """Check if Ollama is running and accessible."""
+        """Check if the configured AI provider (Ollama, OpenAI, or Anthropic) is available."""
+        provider = _chat_provider()
+        if provider == "openai":
+            return bool(settings.openai_api_key)
+        if provider == "anthropic":
+            return bool(settings.anthropic_api_key)
         try:
             client = await self._get_client()
             response = await client.get("/api/tags")
             return response.status_code == 200
         except Exception:
             return False
-    
+
     async def list_models(self) -> list[str]:
-        """List available models in Ollama."""
+        """List available models for the current provider."""
+        provider = _chat_provider()
+        if provider == "openai":
+            return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+        if provider == "anthropic":
+            return ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"]
         try:
             client = await self._get_client()
             response = await client.get("/api/tags")
@@ -135,6 +155,80 @@ class AIService:
         
         return "\n".join(context_parts) + "\n"
 
+    async def _chat_via_ollama(
+        self,
+        messages: list[dict],
+        model: str,
+        temperature: float = 0.7,
+    ) -> str:
+        """Call Ollama /api/chat."""
+        client = await self._get_client()
+        response = await client.post(
+            "/api/chat",
+            json={
+                "model": model,
+                "messages": messages,
+                "stream": False,
+                "options": {"temperature": temperature, "num_predict": 2048},
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+        return (data.get("message") or {}).get("content", "")
+
+    async def _chat_via_openai(
+        self,
+        messages: list[dict],
+        model: str,
+        temperature: float = 0.7,
+    ) -> str:
+        """Call OpenAI Chat Completions API."""
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        # OpenAI expects system as first message or in messages
+        openai_messages = []
+        for m in messages:
+            role = m.get("role", "user")
+            if role == "system":
+                openai_messages.append({"role": "system", "content": m.get("content", "")})
+            else:
+                openai_messages.append({"role": role, "content": m.get("content", "")})
+        r = await client.chat.completions.create(
+            model=model or "gpt-4o-mini",
+            messages=openai_messages,
+            temperature=temperature,
+        )
+        return (r.choices[0].message.content or "").strip()
+
+    async def _chat_via_anthropic(
+        self,
+        messages: list[dict],
+        model: str,
+        temperature: float = 0.7,
+    ) -> str:
+        """Call Anthropic Messages API."""
+        from anthropic import AsyncAnthropic
+        client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        system = ""
+        chat_messages = []
+        for m in messages:
+            role = m.get("role", "user")
+            content = m.get("content", "") or ""
+            if role == "system":
+                system = system + content + "\n\n" if system else content
+            else:
+                chat_messages.append({"role": "user" if role == "user" else "assistant", "content": content})
+        if not chat_messages:
+            return ""
+        r = await client.messages.create(
+            model=model or "claude-3-5-sonnet-20241022",
+            max_tokens=2048,
+            system=system or "You are a helpful assistant.",
+            messages=chat_messages,
+            temperature=temperature,
+        )
+        return (r.content[0].text if r.content else "").strip()
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=10))
     async def chat(
         self,
@@ -146,44 +240,26 @@ class AIService:
     ) -> str:
         """
         Send a chat message and get a response.
-        
-        Args:
-            model: Override the default model for this request
+        Uses Ollama, OpenAI, or Anthropic based on config (API keys / ai_provider).
         """
-        messages = []
-        
         enriched_context = await self.get_enriched_context(message)
         system_prompt = await self._get_system_context(system_prompt)
-        
         if enriched_context:
             system_prompt = f"{system_prompt}\n\n{enriched_context}"
-            
-        messages.append({"role": "system", "content": system_prompt})
-        
+
+        messages = [{"role": "system", "content": system_prompt}]
         if context:
             messages.extend(context)
-        
         messages.append({"role": "user", "content": message})
-        
-        # Use provided model or fall back to default
+
+        provider = _chat_provider()
         used_model = model or self.model
-        
-        client = await self._get_client()
-        response = await client.post(
-            "/api/chat",
-            json={
-                "model": used_model,
-                "messages": messages,
-                "stream": False,
-                "options": {
-                    "temperature": temperature,
-                },
-            },
-        )
-        response.raise_for_status()
-        
-        data = response.json()
-        return data.get("message", {}).get("content", "")
+
+        if provider == "openai":
+            return await self._chat_via_openai(messages, used_model, temperature)
+        if provider == "anthropic":
+            return await self._chat_via_anthropic(messages, used_model, temperature)
+        return await self._chat_via_ollama(messages, used_model, temperature)
     
     async def chat_stream(
         self,
@@ -192,10 +268,16 @@ class AIService:
         context: Optional[list[dict]] = None,
     ) -> AsyncGenerator[str, None]:
         """
-        Stream a chat response token by token.
+        Stream a chat response token by token. Uses Ollama streaming; for OpenAI/Anthropic yields full response.
         """
+        if _chat_provider() != "ollama":
+            # Non-Ollama: yield full response in one chunk
+            text = await self.chat(message=message, system_prompt=system_prompt, context=context)
+            if text:
+                yield text
+            return
+
         messages = []
-        
         enriched_context = await self.get_enriched_context(message)
         system_prompt = await self._get_system_context(system_prompt)
 
@@ -203,12 +285,10 @@ class AIService:
             system_prompt = f"{system_prompt}\n\n{enriched_context}"
 
         messages.append({"role": "system", "content": system_prompt})
-        
         if context:
             messages.extend(context)
-        
         messages.append({"role": "user", "content": message})
-        
+
         client = await self._get_client()
         async with client.stream(
             "POST",

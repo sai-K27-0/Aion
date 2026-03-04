@@ -19,6 +19,34 @@
 </head>
 
 <body data-theme="sky" style="background: transparent !important; background-color: transparent !important;">
+  <!-- SVG Icon Sprite -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v2M6 12h2M18 12h2M12 18v2M8 8l1.4 1.4M14.6 14.6l1.4 1.4M8 16l1.4-1.4M14.6 9.4l1.4-1.4"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="icon-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 16l1.5 2L9 19.5 6.5 21 5 23l-1.5-2L1 19.5l2.5-1.5L5 16z"/><path d="M19 5l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-9-9"/><path d="M21 3v6h-6"/></symbol>
+    <symbol id="icon-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="icon-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/></symbol>
+    <symbol id="icon-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></symbol>
+    <symbol id="icon-task" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></symbol>
+    <symbol id="icon-project" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/></symbol>
+    <symbol id="icon-idea" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="icon-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+    <symbol id="icon-pomodoro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="icon-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+    <symbol id="icon-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></symbol>
+    <symbol id="icon-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/></symbol>
+    <symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="icon-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+    <symbol id="icon-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="icon-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="icon-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
+    <symbol id="icon-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0112 4.5v15a2.5 2.5 0 01-4.96.44 2.5 2.5 0 01-2.96-3.08 3 3 0 01.34-5.58 2.5 2.5 0 010-4.72 2.5 2.5 0 010-4.72 3 3 0 01.34-5.58 2.5 2.5 0 012.96-3.08A2.5 2.5 0 019.5 2z"/><path d="M14.5 2A2.5 2.5 0 0012 4.5v15a2.5 2.5 0 004.96.44 2.5 2.5 0 002.96-3.08 3 3 0 00-.34-5.58 2.5 2.5 0 000-4.72 2.5 2.5 0 000-4.72 3 3 0 00-.34-5.58 2.5 2.5 0 00-2.96-3.08A2.5 2.5 0 0014.5 2z"/></symbol>
+  </svg>
   <div id="drag-handle" data-tauri-drag-region></div>
 
   <!-- Overlay for centered orb mode -->
@@ -30,12 +58,17 @@
   <div id="orb-container" class="orb-container">
     <div id="orb" class="orb">
       <div class="orb-glow"></div>
-      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <!-- Aion "A" stylized icon -->
-        <path d="M12 3L4 21h3l1.5-4h7l1.5 4h3L12 3z" fill="currentColor" opacity="0.2" />
-        <path d="M12 3L4 21h3l1.5-4h7l1.5 4h3L12 3z" />
-        <path d="M9 14l3-8 3 8" stroke-width="1.2" />
-        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+        <!-- Aion spark – central core with radiating rays, theme-aware -->
+        <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95" />
+        <line x1="12" y1="12" x2="12" y2="3" />
+        <line x1="12" y1="12" x2="12" y2="21" />
+        <line x1="12" y1="12" x2="3" y2="12" />
+        <line x1="12" y1="12" x2="21" y2="12" />
+        <line x1="12" y1="12" x2="5.5" y2="5.5" />
+        <line x1="12" y1="12" x2="18.5" y2="18.5" />
+        <line x1="12" y1="12" x2="18.5" y2="5.5" />
+        <line x1="12" y1="12" x2="5.5" y2="18.5" />
       </svg>
     </div>
   </div>
@@ -43,8 +76,16 @@
   <!-- AI Input Bar (appears when orb clicked) -->
   <div id="ai-input-bar" class="ai-input-bar hidden">
     <div class="ai-input-glow"></div>
-    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-      <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" />
+    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.9" />
+      <line x1="12" y1="12" x2="12" y2="3" />
+      <line x1="12" y1="12" x2="12" y2="21" />
+      <line x1="12" y1="12" x2="3" y2="12" />
+      <line x1="12" y1="12" x2="21" y2="12" />
+      <line x1="12" y1="12" x2="5.5" y2="5.5" />
+      <line x1="12" y1="12" x2="18.5" y2="18.5" />
+      <line x1="12" y1="12" x2="18.5" y2="5.5" />
+      <line x1="12" y1="12" x2="5.5" y2="18.5" />
     </svg>
     <input type="text" id="ai-input" placeholder="Ask Aion anything..." autocomplete="off">
     <button id="ai-send-btn" class="ai-send-btn">
@@ -59,8 +100,16 @@
   <!-- AI Output Box -->
   <div id="ai-output-box" class="ai-output-box hidden">
     <div class="ai-output-header">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.9" />
+        <line x1="12" y1="12" x2="12" y2="3" />
+        <line x1="12" y1="12" x2="12" y2="21" />
+        <line x1="12" y1="12" x2="3" y2="12" />
+        <line x1="12" y1="12" x2="21" y2="12" />
+        <line x1="12" y1="12" x2="5.5" y2="5.5" />
+        <line x1="12" y1="12" x2="18.5" y2="18.5" />
+        <line x1="12" y1="12" x2="18.5" y2="5.5" />
+        <line x1="12" y1="12" x2="5.5" y2="18.5" />
       </svg>
       <span>Aion</span>
       <button id="ai-output-close" class="btn-close">×</button>
@@ -373,6 +422,7 @@
   <div id="pomodoro-panel" class="panel-view hidden">
     <div class="panel-header" data-drag="pomodoro-panel">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
@@ -424,6 +474,7 @@
   <div id="stats-panel" class="panel-view hidden">
     <div class="panel-header" data-drag="stats-panel">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
@@ -441,28 +492,28 @@
       </div>
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon">✅</div>
+          <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#icon-check"/></svg></div>
           <div class="stat-info">
             <span class="stat-number" id="stat-completed">0</span>
             <span class="stat-label">Tasks Completed</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🍅</div>
+          <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#icon-pomodoro"/></svg></div>
           <div class="stat-info">
             <span class="stat-number" id="stat-pomodoros">0</span>
             <span class="stat-label">Pomodoros</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">⏱️</div>
+          <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#icon-timer"/></svg></div>
           <div class="stat-info">
             <span class="stat-number" id="stat-focus-time">0h</span>
             <span class="stat-label">Focus Time</span>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon">🔥</div>
+          <div class="stat-icon"><svg viewBox="0 0 24 24"><use href="#icon-flame"/></svg></div>
           <div class="stat-info">
             <span class="stat-number" id="stat-streak">0</span>
             <span class="stat-label">Day Streak</span>
@@ -482,6 +533,7 @@
   <div id="habits-panel" class="panel-view hidden">
     <div class="panel-header" data-drag="habits-panel">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
           <polyline points="22 4 12 14.01 9 11.01" />
@@ -515,6 +567,7 @@
   <div id="calendar-panel" class="panel-view calendar-panel hidden">
     <div class="panel-header" data-drag="calendar-panel">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <button id="btn-prev-month" class="btn-icon-sm">‹</button>
         <span id="calendar-month">February 2026</span>
         <button id="btn-next-month" class="btn-icon-sm">›</button>
@@ -544,6 +597,7 @@
   <div id="tasks-panel" class="panel-view hidden">
     <div class="panel-header" data-drag="tasks-panel">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <polyline points="9 11 12 14 22 4" />
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -593,6 +647,7 @@
        ================================================ -->
   <div id="chat-box" class="chat-box hidden">
     <div class="chat-header" data-drag="chat-box">
+      <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
@@ -626,6 +681,7 @@
   <div id="mindmap-view" class="panel-view hidden">
     <div class="panel-header" data-drag="mindmap-view">
       <div class="header-left">
+        <svg class="aion-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95"/><line x1="12" y1="12" x2="12" y2="3"/><line x1="12" y1="12" x2="12" y2="21"/><line x1="12" y1="12" x2="3" y2="12"/><line x1="12" y1="12" x2="21" y2="12"/><line x1="12" y1="12" x2="5.5" y2="5.5"/><line x1="12" y1="12" x2="18.5" y2="18.5"/><line x1="12" y1="12" x2="18.5" y2="5.5"/><line x1="12" y1="12" x2="5.5" y2="18.5"/></svg>
         <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="12" cy="12" r="3" />
           <circle cx="4" cy="6" r="2" />
@@ -664,19 +720,19 @@
     <div class="ctx-submenu-wrapper">
       <button class="ctx-item ctx-has-submenu" id="ctx-task-status">Change Status ›</button>
       <div class="ctx-submenu hidden" id="status-submenu">
-        <button class="ctx-item" data-status="not_started">🟣 Not Started</button>
-        <button class="ctx-item" data-status="in_progress">🟡 In Progress</button>
-        <button class="ctx-item" data-status="on_hold">🟠 On Hold</button>
-        <button class="ctx-item" data-status="completed">🟢 Completed</button>
+        <button class="ctx-item" data-status="not_started"><span class="status-dot not_started"></span>Not Started</button>
+        <button class="ctx-item" data-status="in_progress"><span class="status-dot in_progress"></span>In Progress</button>
+        <button class="ctx-item" data-status="on_hold"><span class="status-dot on_hold"></span>On Hold</button>
+        <button class="ctx-item" data-status="completed"><span class="status-dot completed"></span>Completed</button>
       </div>
     </div>
     <div class="ctx-submenu-wrapper">
       <button class="ctx-item ctx-has-submenu" id="ctx-task-priority">Change Priority ›</button>
       <div class="ctx-submenu hidden" id="priority-submenu">
-        <button class="ctx-item" data-priority="none">⚪ None</button>
-        <button class="ctx-item" data-priority="low">🟢 Low</button>
-        <button class="ctx-item" data-priority="medium">🟡 Medium</button>
-        <button class="ctx-item" data-priority="high">🔴 High</button>
+        <button class="ctx-item" data-priority="none"><span class="priority-dot none"></span>None</button>
+        <button class="ctx-item" data-priority="low"><span class="priority-dot low"></span>Low</button>
+        <button class="ctx-item" data-priority="medium"><span class="priority-dot medium"></span>Medium</button>
+        <button class="ctx-item" data-priority="high"><span class="priority-dot high"></span>High</button>
       </div>
     </div>
     <button class="ctx-item" id="ctx-task-move">Move to Block</button>
@@ -700,7 +756,7 @@
        BLOCK EDITOR
        ================================================ -->
   <div id="block-editor" class="panel-view hidden">
-    <div class="panel-header">
+    <div class="panel-header" data-drag="block-editor">
       <button id="btn-back" class="btn-back">← Back</button>
       <div class="editor-title-wrap">
         <button id="block-icon-btn" class="block-icon-btn"></button>
@@ -710,13 +766,13 @@
     </div>
     <div class="editor-props">
       <div class="prop-row">
-        <span class="prop-label">📅 Date</span>
+        <span class="prop-label"><svg class="prop-icon" viewBox="0 0 24 24"><use href="#icon-calendar"/></svg>Date</span>
         <input type="date" id="block-date" class="prop-input">
         <span class="prop-to">→</span>
         <input type="date" id="block-date-end" class="prop-input">
       </div>
       <div class="prop-row">
-        <span class="prop-label">⏱️ Timer</span>
+        <span class="prop-label"><svg class="prop-icon" viewBox="0 0 24 24"><use href="#icon-timer"/></svg>Timer</span>
         <span id="timer-value" class="timer-value">00:00:00</span>
         <button id="btn-timer-start" class="btn-sm">▶</button>
         <button id="btn-timer-pause" class="btn-sm hidden">⏸</button>
@@ -730,14 +786,14 @@
       </div>
       <div class="editor-section">
         <div class="section-header">
-          <span class="section-label">✅ To-Do List</span>
+          <span class="section-label"><svg class="section-icon" viewBox="0 0 24 24"><use href="#icon-task"/></svg>To-Do List</span>
           <button id="btn-add-todo" class="btn-add">+ Add</button>
         </div>
         <div id="todo-list" class="todo-list"></div>
       </div>
       <div class="editor-section">
         <div class="section-header">
-          <span class="section-label">📦 Sub-Blocks</span>
+          <span class="section-label"><svg class="section-icon" viewBox="0 0 24 24"><use href="#icon-box"/></svg>Sub-Blocks</span>
           <button id="btn-add-subblock" class="btn-add">+ Add</button>
         </div>
         <div id="subblocks-list" class="subblocks-list"></div>
@@ -746,126 +802,196 @@
   </div>
 
   <!-- ================================================
-       SETTINGS PANEL
+       SETTINGS PANEL - Hierarchical, glassmorphism
        ================================================ -->
-  <div id="settings-panel" class="panel-view hidden">
-    <div class="panel-header" data-drag="settings-panel">
+  <div id="settings-panel" class="panel-view settings-panel hidden">
+    <div class="panel-header settings-header" data-drag="settings-panel">
       <div class="header-left">
-        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="3" />
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <svg class="aion-logo settings-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95" />
+          <line x1="12" y1="12" x2="12" y2="3" /><line x1="12" y1="12" x2="12" y2="21" />
+          <line x1="12" y1="12" x2="3" y2="12" /><line x1="12" y1="12" x2="21" y2="12" />
+          <line x1="12" y1="12" x2="5.5" y2="5.5" /><line x1="12" y1="12" x2="18.5" y2="18.5" />
+          <line x1="12" y1="12" x2="18.5" y2="5.5" /><line x1="12" y1="12" x2="5.5" y2="18.5" />
         </svg>
         <h2>Settings</h2>
       </div>
       <button id="btn-close-settings" class="btn-close">×</button>
     </div>
-    <div class="settings-content">
-      <div class="settings-group">
-        <h3>Theme</h3>
-        <p class="settings-hint">Changes the color of the orb and all UI elements</p>
-        <div class="theme-grid">
-          <button class="theme-option active" data-theme="sky">
-            <span class="theme-preview sky"></span>Sky Blue
-          </button>
-          <button class="theme-option" data-theme="forest">
-            <span class="theme-preview forest"></span>Forest
-          </button>
-          <button class="theme-option" data-theme="sunset">
-            <span class="theme-preview sunset"></span>Sunset
-          </button>
-          <button class="theme-option" data-theme="ocean">
-            <span class="theme-preview ocean"></span>Ocean
-          </button>
-          <button class="theme-option" data-theme="lavender">
-            <span class="theme-preview lavender"></span>Lavender
-          </button>
-          <button class="theme-option" data-theme="rose">
-            <span class="theme-preview rose"></span>Rose
-          </button>
-          <button class="theme-option" data-theme="mint">
-            <span class="theme-preview mint"></span>Mint
-          </button>
-          <button class="theme-option" data-theme="gold">
-            <span class="theme-preview gold"></span>Gold
-          </button>
+    <div class="settings-body">
+      <nav class="settings-nav">
+        <button class="settings-nav-item active" data-section="appearance">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-palette"/></svg>
+          <span>Appearance</span>
+        </button>
+        <button class="settings-nav-item" data-section="timer">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-clock"/></svg>
+          <span>Timer</span>
+        </button>
+        <button class="settings-nav-item" data-section="ai">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-sparkles"/></svg>
+          <span>AI</span>
+        </button>
+        <button class="settings-nav-item" data-section="updates">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
+          <span>Updates</span>
+        </button>
+        <button class="settings-nav-item" data-section="security">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-brain"/></svg>
+          <span>Security</span>
+        </button>
+        <button class="settings-nav-item" data-section="data">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-folder"/></svg>
+          <span>Data</span>
+        </button>
+      </nav>
+      <div class="settings-panes">
+        <div id="settings-pane-appearance" class="settings-pane active">
+          <h3 class="pane-title">Appearance</h3>
+          <div class="settings-group">
+            <h4>Theme</h4>
+            <p class="settings-hint">Color of the orb and all UI elements</p>
+            <div class="theme-grid">
+              <button class="theme-option active" data-theme="sky"><span class="theme-preview sky"></span>Sky</button>
+              <button class="theme-option" data-theme="forest"><span class="theme-preview forest"></span>Forest</button>
+              <button class="theme-option" data-theme="sunset"><span class="theme-preview sunset"></span>Sunset</button>
+              <button class="theme-option" data-theme="ocean"><span class="theme-preview ocean"></span>Ocean</button>
+              <button class="theme-option" data-theme="lavender"><span class="theme-preview lavender"></span>Lavender</button>
+              <button class="theme-option" data-theme="rose"><span class="theme-preview rose"></span>Rose</button>
+              <button class="theme-option" data-theme="mint"><span class="theme-preview mint"></span>Mint</button>
+              <button class="theme-option" data-theme="gold"><span class="theme-preview gold"></span>Gold</button>
+              <button class="theme-option" data-theme="black"><span class="theme-preview black"></span>Black</button>
+              <button class="theme-option" data-theme="crystallize"><span class="theme-preview crystallize"></span>Crystallize</button>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h4>Mind map style</h4>
+            <p class="settings-hint">Panel look for the mind map</p>
+            <div class="mindmap-style-grid">
+              <button class="mindmap-style-option active" data-mindmap-style="classic">Classic</button>
+              <button class="mindmap-style-option" data-mindmap-style="cards">Cards</button>
+              <button class="mindmap-style-option" data-mindmap-style="minimal">Minimal</button>
+              <button class="mindmap-style-option" data-mindmap-style="dark">Dark</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="settings-group">
-        <h3>AI Model</h3>
-        <p class="settings-hint">Select which Ollama model to use for AI chat</p>
-        <div class="setting-row">
-          <span>Model</span>
-          <select id="ai-model-select" class="setting-select">
-            <option value="llama3.2">llama3.2 (default)</option>
-          </select>
+        <div id="settings-pane-timer" class="settings-pane">
+          <h3 class="pane-title">Timer</h3>
+          <div class="settings-group">
+            <h4>Pomodoro profiles</h4>
+            <p class="settings-hint">Work and break durations</p>
+            <div class="setting-row">
+              <span>Work</span>
+              <select id="pomo-work-duration" class="setting-select">
+                <option value="15">15 min</option>
+                <option value="25" selected>25 min</option>
+                <option value="30">30 min</option>
+                <option value="45">45 min</option>
+                <option value="60">60 min</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <span>Short break</span>
+              <select id="pomo-short-break" class="setting-select">
+                <option value="3">3 min</option>
+                <option value="5" selected>5 min</option>
+                <option value="10">10 min</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <span>Long break</span>
+              <select id="pomo-long-break" class="setting-select">
+                <option value="15" selected>15 min</option>
+                <option value="20">20 min</option>
+                <option value="30">30 min</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="setting-row">
-          <span>AI Status</span>
-          <span id="ai-status-indicator" class="status-indicator">Checking...</span>
+        <div id="settings-pane-ai" class="settings-pane">
+          <h3 class="pane-title">AI</h3>
+          <div class="settings-group">
+            <p class="settings-hint">Backend for RAG & web search, or local Ollama</p>
+            <div class="setting-row">
+              <span>Use backend for AI</span>
+              <label class="toggle-wrap">
+                <input type="checkbox" id="use-backend-ai" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <span>Ollama URL</span>
+              <input type="text" id="ollama-url-input" class="setting-input" placeholder="127.0.0.1:11434" />
+            </div>
+            <div class="setting-row">
+              <span>Model</span>
+              <select id="ai-model-select" class="setting-select">
+                <option value="llama3.2">llama3.2 (default)</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <span>Status</span>
+              <span id="ai-status-indicator" class="status-indicator">Checking...</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="settings-group">
-        <h3>Pomodoro</h3>
-        <div class="setting-row">
-          <span>Work Duration</span>
-          <select id="pomo-work-duration" class="setting-select">
-            <option value="15">15 min</option>
-            <option value="25" selected>25 min</option>
-            <option value="30">30 min</option>
-            <option value="45">45 min</option>
-            <option value="60">60 min</option>
-          </select>
+        <div id="settings-pane-updates" class="settings-pane">
+          <h3 class="pane-title">Updates</h3>
+          <div class="settings-group">
+            <p class="settings-hint">Check for app updates from GitHub</p>
+            <div class="setting-row">
+              <button type="button" id="btn-check-updates" class="btn-primary">Check for updates</button>
+              <span id="update-status" class="status-indicator"></span>
+            </div>
+          </div>
         </div>
-        <div class="setting-row">
-          <span>Short Break</span>
-          <select id="pomo-short-break" class="setting-select">
-            <option value="3">3 min</option>
-            <option value="5" selected>5 min</option>
-            <option value="10">10 min</option>
-          </select>
+        <div id="settings-pane-security" class="settings-pane">
+          <h3 class="pane-title">Security</h3>
+          <div class="settings-group">
+            <h4>Master password</h4>
+            <p class="settings-hint">Protect Aion on this Mac with a master PIN or password.</p>
+            <div class="setting-row">
+              <span>Status</span>
+              <span id="security-status" class="status-indicator">Not set</span>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-lock-app" class="setting-btn">Lock now</button>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h4>API keys</h4>
+            <p class="settings-hint">Store AI provider keys securely in the system keychain. You’ll manage them here after unlocking.</p>
+          </div>
         </div>
-        <div class="setting-row">
-          <span>Long Break</span>
-          <select id="pomo-long-break" class="setting-select">
-            <option value="15" selected>15 min</option>
-            <option value="20">20 min</option>
-            <option value="30">30 min</option>
-          </select>
+        <div id="settings-pane-server" class="settings-pane">
+          <h3 class="pane-title">Server</h3>
+          <div class="settings-group">
+            <p class="settings-hint">Set the URL of your Aion backend server (e.g. your Windows PC's IP)</p>
+            <div class="setting-row">
+              <span>Server URL</span>
+              <input id="server-url-input" type="text" class="setting-input" placeholder="http://192.168.1.x:8000/api/v1" />
+            </div>
+            <div class="setting-actions">
+              <button id="btn-save-server-url" class="setting-btn">Save &amp; Reconnect</button>
+              <button id="btn-reset-server-url" class="setting-btn">Reset to Default</button>
+            </div>
+            <div class="setting-row">
+              <span>Sync Status</span>
+              <span id="sync-status-indicator" class="status-indicator">--</span>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="settings-group">
-        <h3>Updates</h3>
-        <p class="settings-hint">Check for app updates from GitHub releases</p>
-        <div class="setting-row">
-          <button type="button" id="btn-check-updates" class="btn-primary">Check for updates</button>
-          <span id="update-status" class="status-indicator"></span>
-        </div>
-      </div>
-      <div class="settings-group">
-        <h3>Server</h3>
-        <p class="settings-hint">Set the URL of your Aion backend server (e.g. your Windows PC's IP)</p>
-        <div class="setting-row">
-          <span>Server URL</span>
-          <input id="server-url-input" type="text" class="setting-input" placeholder="http://192.168.1.x:8000/api/v1" />
-        </div>
-        <div class="setting-row">
-          <button id="btn-save-server-url" class="setting-btn">Save & Reconnect</button>
-          <button id="btn-reset-server-url" class="setting-btn">Reset to Default</button>
-        </div>
-        <div class="setting-row">
-          <span>Sync Status</span>
-          <span id="sync-status-indicator" class="status-indicator">--</span>
-        </div>
-      </div>
-      <div class="settings-group">
-        <h3>Data</h3>
-        <div class="setting-row">
-          <button id="btn-export" class="setting-btn">Export Data</button>
-          <button id="btn-import" class="setting-btn">Import Data</button>
-        </div>
-        <div class="setting-row">
-          <button id="btn-clear-data" class="setting-btn danger">Clear All Data</button>
+        <div id="settings-pane-data" class="settings-pane">
+          <h3 class="pane-title">Data</h3>
+          <div class="settings-group">
+            <div class="setting-actions">
+              <button id="btn-export" class="setting-btn">Export</button>
+              <button id="btn-import" class="setting-btn">Import</button>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-clear-data" class="setting-btn danger">Clear all data</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -888,10 +1014,10 @@
     <div class="popup-title">New Block</div>
     <input type="text" id="new-block-name" class="popup-field" placeholder="Block name">
     <div class="type-picker">
-      <button class="type-opt selected" data-type="note">📝 Note</button>
-      <button class="type-opt" data-type="task">✅ Tasks</button>
-      <button class="type-opt" data-type="project">📁 Project</button>
-      <button class="type-opt" data-type="idea">💡 Idea</button>
+      <button class="type-opt selected" data-type="note"><svg class="type-icon" viewBox="0 0 24 24"><use href="#icon-note"/></svg>Note</button>
+      <button class="type-opt" data-type="task"><svg class="type-icon" viewBox="0 0 24 24"><use href="#icon-task"/></svg>Tasks</button>
+      <button class="type-opt" data-type="project"><svg class="type-icon" viewBox="0 0 24 24"><use href="#icon-project"/></svg>Project</button>
+      <button class="type-opt" data-type="idea"><svg class="type-icon" viewBox="0 0 24 24"><use href="#icon-idea"/></svg>Idea</button>
     </div>
     <div class="popup-btns">
       <button id="btn-cancel-block" class="btn-text">Cancel</button>
@@ -924,9 +1050,9 @@
         <span>Priority:</span>
         <select id="todo-priority" class="option-select">
           <option value="none">None</option>
-          <option value="low">🟢 Low</option>
-          <option value="medium">🟡 Medium</option>
-          <option value="high">🔴 High</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
         </select>
       </label>
       <label class="option-row">
@@ -938,9 +1064,9 @@
           <option value="completed">Completed</option>
         </select>
       </label>
-      <label class="option-row">
-        <span>Due:</span>
-        <input type="date" id="todo-date" class="option-input">
+      <label class="option-row option-row-date">
+        <span class="option-label-date"><svg class="option-icon" viewBox="0 0 24 24" width="14" height="14"><use href="#icon-calendar"/></svg>Complete by:</span>
+        <input type="date" id="todo-date" class="option-input option-input-date" title="Pick date">
       </label>
       <label class="option-row">
         <span>Tags:</span>
@@ -976,9 +1102,9 @@
         <span>Priority:</span>
         <select id="global-task-priority" class="option-select">
           <option value="none">None</option>
-          <option value="low">🟢 Low</option>
-          <option value="medium">🟡 Medium</option>
-          <option value="high">🔴 High</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
         </select>
       </label>
       <label class="option-row">
@@ -1013,9 +1139,9 @@
         <span>Priority:</span>
         <select id="edit-task-priority" class="option-select">
           <option value="none">None</option>
-          <option value="low">🟢 Low</option>
-          <option value="medium">🟡 Medium</option>
-          <option value="high">🔴 High</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
         </select>
       </label>
       <label class="option-row">
@@ -1049,14 +1175,14 @@
       <label class="option-row">
         <span>Icon:</span>
         <select id="habit-icon" class="option-select">
-          <option value="💪">💪 Exercise</option>
-          <option value="📚">📚 Reading</option>
-          <option value="🧘">🧘 Meditation</option>
-          <option value="💧">💧 Water</option>
-          <option value="🌱">🌱 Learning</option>
-          <option value="✍️">✍️ Writing</option>
-          <option value="🎯">🎯 Goal</option>
-          <option value="⭐">⭐ Custom</option>
+          <option value="zap">Exercise</option>
+          <option value="book">Reading</option>
+          <option value="heart">Meditation</option>
+          <option value="flame">Water</option>
+          <option value="brain">Learning</option>
+          <option value="note">Writing</option>
+          <option value="target">Goal</option>
+          <option value="star">Custom</option>
         </select>
       </label>
       <label class="option-row">
@@ -1120,20 +1246,63 @@
       </div>
       <div class="shortcuts-section">
         <div class="shortcuts-section-title">Global</div>
-        <div class="shortcut"><kbd>`</kbd> / <kbd>~</kbd><span>Hide overlay to tray</span></div>
-        <div class="shortcut"><kbd>Alt</kbd>+<kbd>Space</kbd><span>Show overlay</span></div>
-        <div class="shortcut"><kbd>Alt</kbd>+<kbd>G</kbd><span>Toggle Ghost (click-through)</span></div>
+        <div class="shortcut"><kbd>Win</kbd>/<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd><span>Show/hide overlay</span></div>
+        <div class="shortcut"><kbd>Alt</kbd>/<kbd>Option</kbd>+<kbd>Space</kbd><span>Radial menu</span></div>
         <div class="shortcut"><kbd>Q</kbd><span>Close All Panels</span></div>
         <div class="shortcut"><kbd>Esc</kbd><span>Close Current</span></div>
-        <div class="shortcut"><kbd>Alt</kbd>+<kbd>Space</kbd><span>Toggle Menu</span></div>
-        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>K</kbd><span>Search</span></div>
-        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>N</kbd><span>Quick Add Task</span></div>
-        <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>/</kbd><span>AI Input</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>K</kbd><span>Search</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>N</kbd><span>Quick Add Task</span></div>
+        <div class="shortcut"><kbd>Ctrl</kbd>/<kbd>Cmd</kbd>+<kbd>/</kbd><span>AI Input</span></div>
         <div class="shortcut"><kbd>?</kbd><span>This Help</span></div>
       </div>
     </div>
     <div class="popup-btns">
       <button id="btn-close-shortcuts" class="btn-primary">Got it</button>
+    </div>
+  </div>
+
+  <!-- Security / Master Password Overlay -->
+  <div id="security-overlay" class="security-overlay hidden">
+    <div class="security-card" id="security-setup">
+      <h2 class="security-title">Set master password</h2>
+      <p class="security-subtitle">This protects Aion and your API keys on this Mac. It never leaves your device.</p>
+      <div class="security-mode-toggle">
+        <button type="button" id="master-mode-pin" class="mode-btn active">Use PIN</button>
+        <button type="button" id="master-mode-password" class="mode-btn">Use password</button>
+      </div>
+      <div class="security-fields">
+        <div class="security-field">
+          <label for="master-password" id="master-password-label">New PIN</label>
+          <input type="password" id="master-password" autocomplete="new-password" inputmode="numeric">
+        </div>
+        <div class="security-field">
+          <label for="master-password-confirm">Confirm</label>
+          <input type="password" id="master-password-confirm" autocomplete="new-password" inputmode="numeric">
+        </div>
+        <div class="security-field">
+          <label for="master-hint">Hint (optional)</label>
+          <input type="text" id="master-hint" maxlength="80">
+        </div>
+      </div>
+      <div id="master-setup-error" class="security-error"></div>
+      <div class="security-actions">
+        <button type="button" id="btn-master-setup" class="btn-primary">Save &amp; unlock</button>
+      </div>
+    </div>
+
+    <div class="security-card hidden" id="security-unlock">
+      <h2 class="security-title">Unlock Aion</h2>
+      <p class="security-subtitle" id="security-hint-text">Enter your master PIN or password for this Mac.</p>
+      <div class="security-fields">
+        <div class="security-field">
+          <label for="master-unlock">Master password</label>
+          <input type="password" id="master-unlock" autocomplete="current-password">
+        </div>
+      </div>
+      <div id="master-unlock-error" class="security-error"></div>
+      <div class="security-actions">
+        <button type="button" id="btn-master-unlock" class="btn-primary">Unlock</button>
+      </div>
     </div>
   </div>
 
@@ -1148,16 +1317,6 @@
     </div>
     <span class="sync-text">Synced</span>
   </div>
-
-  <!-- Click-Through Toggle -->
-  <button id="click-through-toggle" class="click-through-toggle" title="Toggle click-through mode (Ghost Mode)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-    </svg>
-    <span>Ghost</span>
-  </button>
 
   <!-- Toast -->
   <div id="toast" class="toast hidden"></div>

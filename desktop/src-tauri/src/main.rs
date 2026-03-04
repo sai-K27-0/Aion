@@ -196,43 +196,112 @@ fn is_window_visible(app_handle: tauri::AppHandle) -> Result<bool, String> {
 
 // =============================================================================
 // Ollama Proxy (avoids CORS when frontend calls localhost:11434)
+// Uses /api/chat with system + user message so the model responds to each input.
 // =============================================================================
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct OllamaGenerateRequest {
+struct OllamaChatMessage {
+    role: String,
+    content: String,
+}
+
+#[derive(serde::Serialize)]
+struct OllamaChatRequest {
     model: String,
-    prompt: String,
+    messages: Vec<OllamaChatMessage>,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<OllamaOptions>,
+}
+
+#[derive(serde::Serialize)]
+struct OllamaOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    num_predict: Option<u32>,
 }
 
 #[derive(serde::Deserialize)]
-struct OllamaGenerateResponse {
-    response: Option<String>,
+struct OllamaChatResponse {
+    message: Option<OllamaChatMessageResponse>,
 }
 
-/// Call Ollama /api/generate from Rust so the webview doesn't hit CORS.
+#[derive(serde::Deserialize)]
+struct OllamaChatMessageResponse {
+    content: Option<String>,
+}
+
+/// Call Ollama /api/chat so the model gets system context and the actual user message.
+/// base_url: optional, e.g. "http://127.0.0.1:11434" or "http://other-device:11434"
 #[tauri::command]
-async fn ollama_generate(prompt: String, model: String) -> Result<String, String> {
-    let client = reqwest::Client::new();
-    let body = OllamaGenerateRequest {
-        model: if model.is_empty() { "llama3.2".to_string() } else { model },
-        prompt,
+async fn ollama_generate(
+    prompt: String,
+    model: String,
+    base_url: Option<String>,
+) -> Result<String, String> {
+    let base = base_url
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
+    let url = format!("{}/api/chat", base.trim_end_matches('/'));
+
+    let system_content = "You are Aion, a helpful AI assistant. Answer the user concisely and accurately. \
+        You can help with tasks, study plans, timers, blocks, and general questions. \
+        Always respond directly to what the user asked; never repeat the same reply.";
+
+    let messages = vec![
+        OllamaChatMessage {
+            role: "system".to_string(),
+            content: system_content.to_string(),
+        },
+        OllamaChatMessage {
+            role: "user".to_string(),
+            content: prompt.trim().to_string(),
+        },
+    ];
+
+    let body = OllamaChatRequest {
+        model: if model.is_empty() {
+            "llama3.2".to_string()
+        } else {
+            model
+        },
+        messages,
         stream: false,
+        options: Some(OllamaOptions {
+            temperature: Some(0.7),
+            num_predict: Some(2048),
+        }),
     };
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
     let res = client
-        .post("http://127.0.0.1:11434/api/generate")
+        .post(&url)
         .json(&body)
         .send()
         .await
         .map_err(|e| format!("Ollama connection failed: {}", e))?;
+
     if !res.status().is_success() {
-        return Err(format!("Ollama error: {}", res.status()));
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        return Err(format!("Ollama error {}: {}", status, body));
     }
-    let data: OllamaGenerateResponse = res
+
+    let data: OllamaChatResponse = res
         .json()
         .await
         .map_err(|e| format!("Ollama response error: {}", e))?;
-    Ok(data.response.unwrap_or_default().trim().to_string())
+
+    let content = data
+        .message
+        .and_then(|m| m.content)
+        .unwrap_or_default();
+    Ok(content.trim().to_string())
 }
 
 // =============================================================================
@@ -442,19 +511,26 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Alt+Space", "Alt+G"])
+                .with_shortcuts(["Super+Shift+O", "Alt+G"])
                 .expect("register global shortcuts")
                 .with_handler(|app, shortcut, event| {
                     use tauri_plugin_global_shortcut::{Code, ShortcutState};
                     if event.state == ShortcutState::Pressed {
                         match shortcut.key {
-                            Code::Space => {
+                            Code::KeyO => {
+                                // Super+Shift+O: toggle overlay visibility
                                 if let Some(w) = app.get_webview_window("main") {
-                                    let _ = w.show();
-                                    let _ = w.set_focus();
+                                    let visible = w.is_visible().unwrap_or(false);
+                                    if visible {
+                                        let _ = w.hide();
+                                    } else {
+                                        let _ = w.show();
+                                        let _ = w.set_focus();
+                                    }
                                 }
                             }
                             Code::KeyG => {
+                                // Alt+G: toggle ghost/click-through mode
                                 if let Some(w) = app.get_webview_window("main") {
                                     let _ = w.emit("toggle-ghost", ());
                                 }

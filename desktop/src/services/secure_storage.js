@@ -27,7 +27,7 @@ const KEYS = {
 async function get(key) {
   if (isTauri()) {
     try {
-      const { invoke } = window.__TAURI__.tauri;
+      const { invoke } = window.__TAURI__.core;
       return await invoke('secure_storage_get', { key });
     } catch (error) {
       console.error('[SecureStorage] Failed to get:', error);
@@ -49,7 +49,7 @@ async function get(key) {
 async function set(key, value) {
   if (isTauri()) {
     try {
-      const { invoke } = window.__TAURI__.tauri;
+      const { invoke } = window.__TAURI__.core;
       await invoke('secure_storage_set', { key, value });
       return true;
     } catch (error) {
@@ -71,7 +71,7 @@ async function set(key, value) {
 async function remove(key) {
   if (isTauri()) {
     try {
-      const { invoke } = window.__TAURI__.tauri;
+      const { invoke } = window.__TAURI__.core;
       await invoke('secure_storage_delete', { key });
       return true;
     } catch (error) {
@@ -92,7 +92,7 @@ async function remove(key) {
 async function exists(key) {
   if (isTauri()) {
     try {
-      const { invoke } = window.__TAURI__.tauri;
+      const { invoke } = window.__TAURI__.core;
       return await invoke('secure_storage_exists', { key });
     } catch (error) {
       console.error('[SecureStorage] Failed to check existence:', error);

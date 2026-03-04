@@ -138,7 +138,16 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _filteredTasks.isEmpty
-              ? _buildEmptyState()
+              ? RefreshIndicator(
+                  onRefresh: _loadTasks,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: MediaQuery.of(context).size.height - 200,
+                      child: _buildEmptyState(),
+                    ),
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _loadTasks,
                   child: ListView.builder(
@@ -412,15 +421,17 @@ class _TaskTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 56),
+          child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
               GestureDetector(
                 onTap: onToggle,
                 child: Container(
-                  width: 24,
-                  height: 24,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: isCompleted
@@ -434,7 +445,7 @@ class _TaskTile extends StatelessWidget {
                     ),
                   ),
                   child: isCompleted
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      ? const Icon(Icons.check, size: 20, color: Colors.white)
                       : null,
                 ),
               ),
@@ -483,6 +494,7 @@ class _TaskTile extends StatelessWidget {
               _PriorityDot(priority: task.priority),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -435,15 +435,20 @@ class ActionExecutor:
     # ========================================================================
     
     async def _execute_create_block(self, params: Dict[str, Any]) -> ActionResult:
-        """Create a new block."""
+        """Create a new block. Sanitize name so full user message is not used as block title."""
+        raw_name = (params.get("name") or "New Block").strip()
+        if len(raw_name) > 100 or any(
+            phrase in raw_name.lower() for phrase in ("clear the block", "delete the block", "remove the block")
+        ):
+            raw_name = "New Block"
         return ActionResult(
             success=True,
             action_type="create_block",
-            message=f"Created block: {params.get('name')}",
+            message=f"Created block: {raw_name}",
             frontend_action={
                 "type": "create_block",
                 "params": {
-                    "name": params.get("name"),
+                    "name": raw_name,
                     "type": params.get("type", "note"),
                     "parent_id": params.get("parent_id"),
                     "notes": params.get("notes", ""),

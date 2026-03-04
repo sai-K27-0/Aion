@@ -65,7 +65,7 @@ class Settings(BaseSettings):
         """Construct Qdrant connection URL."""
         return f"http://{self.qdrant_host}:{self.qdrant_port}"
     
-    # AI - Ollama
+    # AI - Ollama (default; used when no API key is set)
     ollama_host: str = "localhost"
     ollama_port: int = 11434
     ollama_model: str = "llama3.2"
@@ -73,8 +73,14 @@ class Settings(BaseSettings):
     
     @property
     def ollama_url(self) -> str:
-        """Construct Ollama API URL."""
+        """Construct Ollama API URL. Set OLLAMA_HOST/PORT for device-specific Ollama."""
         return f"http://{self.ollama_host}:{self.ollama_port}"
+    
+    # AI - Optional API keys (if set, used for chat instead of Ollama)
+    openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    # Preferred provider when multiple keys exist: ollama | openai | anthropic
+    ai_provider: str = "ollama"
     
     # Security
     secret_key: str = "change-this-in-production-to-a-secure-random-key"
