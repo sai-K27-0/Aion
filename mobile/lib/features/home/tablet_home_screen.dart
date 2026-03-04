@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/config.dart';
 import '../../core/services/sync_service.dart';
 import '../tasks/tasks_screen.dart';
 
-/// Tablet-optimized home screen with split-view layout
+/// Tablet-optimized home screen: orb hub, landscape rail, touch-first.
+/// Rail indices: 0=Orb/Dashboard, 1=Tasks, 2=Mind Map, 3=Pomodoro, 4=Stats, 5=Habits, 6=Calendar, 7=Chat, 8=Settings.
 class TabletHomeScreen extends ConsumerStatefulWidget {
   const TabletHomeScreen({super.key});
 
@@ -20,7 +22,6 @@ class _TabletHomeScreenState extends ConsumerState<TabletHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize sync on startup after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSync();
     });
@@ -38,6 +39,14 @@ class _TabletHomeScreenState extends ConsumerState<TabletHomeScreen> {
     }
   }
 
+  void _navigateTo(int index) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _selectedNavIndex = index;
+      _selectedBlockId = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final syncState = ref.watch(restSyncStateProvider);
@@ -46,113 +55,140 @@ class _TabletHomeScreenState extends ConsumerState<TabletHomeScreen> {
     return Scaffold(
       body: Row(
         children: [
-          // Navigation Rail
-          NavigationRail(
-            selectedIndex: _selectedNavIndex,
-            onDestinationSelected: (index) {
-              setState(() {
-                _selectedNavIndex = index;
-                _selectedBlockId = null;
-              });
-            },
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Theme.of(context).colorScheme.primary,
-                          Theme.of(context).colorScheme.secondary,
+          // Touch-friendly navigation rail (extended, min 72dp targets)
+          SizedBox(
+            width: 140,
+            child: NavigationRail(
+              extended: true,
+              minExtendedWidth: 140,
+              selectedIndex: _selectedNavIndex,
+              onDestinationSelected: _navigateTo,
+              labelType: NavigationRailLabelType.all,
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Theme.of(context).colorScheme.primary,
+                            Theme.of(context).colorScheme.secondary,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
-                      borderRadius: BorderRadius.circular(12),
+                      child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
                     ),
-                    child: const Icon(Icons.auto_awesome, color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text('Aion', style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
+                    const SizedBox(height: 6),
+                    Text('Aion', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  ],
+                ),
               ),
+              trailing: Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    syncState.when(
+                      data: (state) => _SyncIndicator(state: state),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.dashboard_outlined, size: 26),
+                  selectedIcon: Icon(Icons.dashboard, size: 26),
+                  label: Text('Orb'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.task_outlined, size: 26),
+                  selectedIcon: Icon(Icons.task, size: 26),
+                  label: Text('Tasks'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.account_tree_outlined, size: 26),
+                  selectedIcon: Icon(Icons.account_tree, size: 26),
+                  label: Text('Mind Map'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.timer_outlined, size: 26),
+                  selectedIcon: Icon(Icons.timer, size: 26),
+                  label: Text('Pomodoro'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.analytics_outlined, size: 26),
+                  selectedIcon: Icon(Icons.analytics, size: 26),
+                  label: Text('Stats'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.check_circle_outline, size: 26),
+                  selectedIcon: Icon(Icons.check_circle, size: 26),
+                  label: Text('Habits'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.calendar_month_outlined, size: 26),
+                  selectedIcon: Icon(Icons.calendar_month, size: 26),
+                  label: Text('Calendar'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.chat_outlined, size: 26),
+                  selectedIcon: Icon(Icons.chat, size: 26),
+                  label: Text('Chat'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.settings_outlined, size: 26),
+                  selectedIcon: Icon(Icons.settings, size: 26),
+                  label: Text('Settings'),
+                ),
+              ],
             ),
-            trailing: Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // Sync status
-                  syncState.when(
-                    data: (state) => _SyncIndicator(state: state),
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: Text('Dashboard'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.task_outlined),
-                selectedIcon: Icon(Icons.task),
-                label: Text('Tasks'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.account_tree_outlined),
-                selectedIcon: Icon(Icons.account_tree),
-                label: Text('Mind Map'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.calendar_month_outlined),
-                selectedIcon: Icon(Icons.calendar_month),
-                label: Text('Calendar'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.chat_outlined),
-                selectedIcon: Icon(Icons.chat),
-                label: Text('Chat'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: Text('Settings'),
-              ),
-            ],
           ),
           const VerticalDivider(thickness: 1, width: 1),
-          // Main content area with split view
           Expanded(
             child: _buildMainContent(isWide),
           ),
         ],
       ),
+      floatingActionButton: _QuickCaptureFab(onNavigate: _navigateTo),
     );
   }
 
   Widget _buildMainContent(bool isWide) {
     switch (_selectedNavIndex) {
-      case 0: // Dashboard
-        return _DashboardView(isWide: isWide);
-      case 1: // Tasks
+      case 0:
+        return _OrbHubView(isWide: isWide, onNavigate: _navigateTo);
+      case 1:
         return const TasksScreen();
-      case 2: // Mind Map
+      case 2:
         return _MindMapView(
           isWide: isWide,
           selectedBlockId: _selectedBlockId,
           onBlockSelected: (id) => setState(() => _selectedBlockId = id),
         );
-      case 3: // Calendar
+      case 3:
+        return const _PomodoroView();
+      case 4:
+        return const _StatsView();
+      case 5:
+        return const _HabitsView();
+      case 6:
         return const _CalendarView();
-      case 4: // Chat
+      case 7:
         return const _TabletChatView();
-      case 5: // Settings
+      case 8:
         return const _TabletSettingsView();
       default:
         return const SizedBox.shrink();
@@ -199,14 +235,28 @@ class _SyncIndicator extends StatelessWidget {
   }
 }
 
-/// Dashboard with overview widgets
-class _DashboardView extends ConsumerWidget {
+/// Orb hub: one place for all entry points (same as desktop radial menu).
+/// Large touch tiles for two-handed landscape use.
+class _OrbHubView extends ConsumerWidget {
   final bool isWide;
+  final void Function(int index) onNavigate;
 
-  const _DashboardView({required this.isWide});
+  const _OrbHubView({required this.isWide, required this.onNavigate});
+
+  static const List<({String label, IconData icon, int index})> _tiles = [
+    (label: 'Tasks', icon: Icons.task_alt, index: 1),
+    (label: 'Mind Map', icon: Icons.account_tree, index: 2),
+    (label: 'Pomodoro', icon: Icons.timer, index: 3),
+    (label: 'Statistics', icon: Icons.analytics, index: 4),
+    (label: 'Habits', icon: Icons.check_circle, index: 5),
+    (label: 'Calendar', icon: Icons.calendar_month, index: 6),
+    (label: 'AI Chat', icon: Icons.chat, index: 7),
+    (label: 'Settings', icon: Icons.settings, index: 8),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -214,75 +264,41 @@ class _DashboardView extends ConsumerWidget {
         children: [
           Text(
             'Good ${_getGreeting()}!',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: theme.textTheme.headlineMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             _getDateString(),
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey,
-                ),
+            style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Expanded(
-            child: isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 2, child: _buildLeftColumn(context)),
-                      const SizedBox(width: 24),
-                      Expanded(flex: 1, child: _buildRightColumn(context)),
-                    ],
-                  )
-                : SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildLeftColumn(context),
-                        const SizedBox(height: 24),
-                        _buildRightColumn(context),
-                      ],
-                    ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = isWide && constraints.maxWidth > 700 ? 4 : 2;
+                return GridView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 1.1,
                   ),
+                  itemCount: _tiles.length,
+                  itemBuilder: (context, index) {
+                    final t = _tiles[index];
+                    return _OrbTile(
+                      label: t.label,
+                      icon: t.icon,
+                      onTap: () => onNavigate(t.index),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildLeftColumn(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _DashboardCard(
-          title: 'Today\'s Tasks',
-          icon: Icons.task_alt,
-          child: const _QuickTaskList(),
-        ),
-        const SizedBox(height: 16),
-        _DashboardCard(
-          title: 'Recent Blocks',
-          icon: Icons.folder,
-          child: const _RecentBlocks(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRightColumn(BuildContext context) {
-    return Column(
-      children: [
-        _DashboardCard(
-          title: 'Quick Stats',
-          icon: Icons.analytics,
-          child: const _QuickStats(),
-        ),
-        const SizedBox(height: 16),
-        _DashboardCard(
-          title: 'AI Assistant',
-          icon: Icons.auto_awesome,
-          child: const _QuickChat(),
-        ),
-      ],
     );
   }
 
@@ -295,41 +311,197 @@ class _DashboardView extends ConsumerWidget {
 
   String _getDateString() {
     final now = DateTime.now();
-    final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    final months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                    'July', 'August', 'September', 'October', 'November', 'December'];
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
     return '${days[now.weekday % 7]}, ${months[now.month - 1]} ${now.day}';
   }
 }
 
-class _DashboardCard extends StatelessWidget {
-  final String title;
+/// Single orb tile: min 48dp touch target, haptic, splash.
+class _OrbTile extends StatelessWidget {
+  final String label;
   final IconData icon;
-  final Widget child;
+  final VoidCallback onTap;
 
-  const _DashboardCard({
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
+  const _OrbTile({required this.label, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      borderRadius: BorderRadius.circular(20),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 40, color: theme.colorScheme.primary),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Quick capture FAB: opens bottom sheet (New Task, New Note, Voice).
+class _QuickCaptureFab extends StatelessWidget {
+  final void Function(int index) onNavigate;
+
+  const _QuickCaptureFab({required this.onNavigate});
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.extended(
+      onPressed: () => _showQuickCaptureSheet(context),
+      icon: const Icon(Icons.add),
+      label: const Text('Quick capture'),
+    );
+  }
+
+  void _showQuickCaptureSheet(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Quick capture',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.task_alt, size: 28),
+                title: const Text('New task'),
+                subtitle: const Text('Add a task to your list'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onNavigate(1);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.note_add, size: 28),
+                title: const Text('New note'),
+                subtitle: const Text('Add a block or note in Mind Map'),
+                onTap: () {
+                  Navigator.pop(context);
+                  onNavigate(2);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.mic, size: 28),
+                title: const Text('Voice note'),
+                subtitle: const Text('Speak to capture (coming soon)'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Placeholder for voice
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Placeholder: Pomodoro (matches desktop).
+class _PomodoroView extends StatelessWidget {
+  const _PomodoroView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer, size: 80, color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text('Pomodoro', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 8),
+          Text('25:00', style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Start'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Placeholder: Statistics (matches desktop).
+class _StatsView extends StatelessWidget {
+  const _StatsView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Statistics', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 24),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
               children: [
-                Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                _StatCard(value: '—', label: 'Tasks done'),
+                _StatCard(value: '—', label: 'Active'),
+                _StatCard(value: '—', label: 'Pomodoros'),
+                _StatCard(value: '—', label: 'Habits'),
               ],
             ),
-            const Divider(),
-            child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+
+  const _StatCard({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(value, style: theme.textTheme.headlineMedium?.copyWith(color: theme.colorScheme.primary)),
+            const SizedBox(height: 4),
+            Text(label, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
           ],
         ),
       ),
@@ -337,133 +509,29 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
-class _QuickTaskList extends StatelessWidget {
-  const _QuickTaskList();
+/// Placeholder: Habits (matches desktop).
+class _HabitsView extends StatelessWidget {
+  const _HabitsView();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.check_circle_outline),
-          title: const Text('Complete project review'),
-          subtitle: const Text('Work'),
-          dense: true,
-        ),
-        ListTile(
-          leading: const Icon(Icons.check_circle, color: Colors.green),
-          title: const Text('Team meeting'),
-          subtitle: const Text('Work'),
-          dense: true,
-        ),
-        ListTile(
-          leading: const Icon(Icons.check_circle_outline),
-          title: const Text('Study for exam'),
-          subtitle: const Text('Personal'),
-          dense: true,
-        ),
-        TextButton(
-          onPressed: () {},
-          child: const Text('View All Tasks →'),
-        ),
-      ],
-    );
-  }
-}
-
-class _RecentBlocks extends StatelessWidget {
-  const _RecentBlocks();
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _BlockChip(icon: '💼', name: 'Work'),
-        _BlockChip(icon: '🌟', name: 'Personal'),
-        _BlockChip(icon: '📚', name: 'Studies'),
-        _BlockChip(icon: '💡', name: 'Ideas'),
-      ],
-    );
-  }
-}
-
-class _BlockChip extends StatelessWidget {
-  final String icon;
-  final String name;
-
-  const _BlockChip({required this.icon, required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    return ActionChip(
-      avatar: Text(icon),
-      label: Text(name),
-      onPressed: () {},
-    );
-  }
-}
-
-class _QuickStats extends StatelessWidget {
-  const _QuickStats();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _StatItem(value: '12', label: 'Tasks Done'),
-        _StatItem(value: '3', label: 'Active'),
-        _StatItem(value: '5', label: 'Pomodoros'),
-      ],
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
-
-  const _StatItem({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Habits', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Center(
+              child: Text(
+                'Track daily habits here. Connect to backend when ready.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.grey),
               ),
-        ),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _QuickChat extends StatelessWidget {
-  const _QuickChat();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          'Ask Aion anything...',
-          style: TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          decoration: InputDecoration(
-            hintText: 'Type a message',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon: const Icon(Icons.send),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -566,17 +634,20 @@ class _MindMapViewState extends ConsumerState<_MindMapView> {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _blocks.length,
-            itemBuilder: (context, index) {
-              return _BlockTreeItem(
-                block: _blocks[index],
-                depth: 0,
-                selectedId: widget.selectedBlockId,
-                onSelect: widget.onBlockSelected,
-              );
-            },
+          child: RefreshIndicator(
+            onRefresh: _loadBlocks,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _blocks.length,
+              itemBuilder: (context, index) {
+                return _BlockTreeItem(
+                  block: _blocks[index],
+                  depth: 0,
+                  selectedId: widget.selectedBlockId,
+                  onSelect: widget.onBlockSelected,
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -614,39 +685,50 @@ class _BlockTreeItemState extends State<_BlockTreeItem> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
-          onTap: () => widget.onSelect(widget.block['id']),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            widget.onSelect(widget.block['id']);
+          },
           child: Container(
+            constraints: const BoxConstraints(minHeight: 52),
             padding: EdgeInsets.only(
-              left: widget.depth * 20.0,
-              top: 8,
-              bottom: 8,
-              right: 8,
+              left: 16 + widget.depth * 24.0,
+              top: 14,
+              bottom: 14,
+              right: 16,
             ),
             decoration: BoxDecoration(
               color: isSelected
                   ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
                   : null,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 if (hasChildren)
                   GestureDetector(
-                    onTap: () => setState(() => _expanded = !_expanded),
-                    child: Icon(
-                      _expanded ? Icons.expand_more : Icons.chevron_right,
-                      size: 20,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _expanded = !_expanded);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        _expanded ? Icons.expand_more : Icons.chevron_right,
+                        size: 28,
+                      ),
                     ),
                   )
                 else
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 44),
                 const SizedBox(width: 4),
-                Text(widget.block['icon'] ?? '📄'),
-                const SizedBox(width: 8),
+                Text(widget.block['icon'] ?? '📄', style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     widget.block['name'] ?? 'Untitled',
                     style: TextStyle(
+                      fontSize: 16,
                       fontWeight: isSelected ? FontWeight.bold : null,
                     ),
                   ),
@@ -898,7 +980,9 @@ class _TabletSettingsView extends ConsumerWidget {
                   title: 'Connection',
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.link),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minVerticalPadding: 16,
+                      leading: const Icon(Icons.link, size: 26),
                       title: const Text('Server URL'),
                       subtitle: const Text('http://localhost:8000'),
                     ),
@@ -908,7 +992,9 @@ class _TabletSettingsView extends ConsumerWidget {
                   title: 'Sync',
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.sync),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minVerticalPadding: 16,
+                      leading: const Icon(Icons.sync, size: 26),
                       title: const Text('Auto Sync'),
                       trailing: Switch(value: true, onChanged: (v) {}),
                     ),
@@ -918,7 +1004,9 @@ class _TabletSettingsView extends ConsumerWidget {
                   title: 'About',
                   children: [
                     const ListTile(
-                      leading: Icon(Icons.info),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      minVerticalPadding: 16,
+                      leading: Icon(Icons.info, size: 26),
                       title: Text('Version'),
                       subtitle: Text('0.1.0 (Tablet)'),
                     ),

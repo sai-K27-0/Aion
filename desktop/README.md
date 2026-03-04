@@ -33,9 +33,66 @@ npm run tauri dev
 ### Build
 
 ```bash
-# Build for production
+# Build for production (current platform)
 npm run tauri build
 ```
+
+### Build on macOS
+
+On your MacBook:
+
+```bash
+git clone <your-private-github-url>.git
+cd desktop
+
+# Install dependencies
+npm install
+
+# Install Tauri CLI if you don't have it yet
+# (this also installs Rust components as needed)
+npm run tauri -h || npm install --global @tauri-apps/cli
+
+# Development (hot reload)
+npm run tauri dev
+
+# Production build (.app / .dmg under src-tauri/target/release/bundle)
+npm run tauri build
+```
+
+You may need Xcode Command Line Tools installed first:
+
+```bash
+xcode-select --install
+```
+
+### Auto-updates & releases (macOS + GitHub)
+
+To enable the built-in Tauri updater (for macOS and other platforms):
+
+1. **Generate signing keys** on a secure machine (only keep the private key there):
+   ```bash
+   npm run tauri signer generate -- -w ~/.tauri/aion.key
+   ```
+   This prints a public key – copy that value.
+2. **Set the public key** in `src-tauri/tauri.conf.json`:
+   ```jsonc
+   \"plugins\": {
+     \"updater\": {
+       \"pubkey\": \"REPLACE_WITH_TAURI_PUBLIC_KEY\",  // paste here
+       \"endpoints\": [
+         \"https://raw.githubusercontent.com/<your-user>/<your-updates-repo>/main/latest.json\"
+       ]
+     }
+   }
+   ```
+3. **Prepare an updates feed repo** (can be public, while your main code repo is private):
+   - Host `latest.json` and the `.app.tar.gz` / `.sig` files in that repo or on GitHub Pages.
+   - Point the `endpoints` URL above to the raw `latest.json`.
+4. **Release flow**:
+   - Bump version in `package.json` / `tauri.conf.json`.
+   - Run `npm run tauri build` on macOS with the signing key configured.
+   - Upload the generated macOS bundle + signatures and update `latest.json` in the updates repo.
+   - The app can then call the updater plugin to check/download/install new versions.
 
 ## ⌨️ Keyboard Shortcuts
 

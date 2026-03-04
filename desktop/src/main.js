@@ -43,7 +43,8 @@ const STATUSES = {
   completed: { label: 'Completed', color: '#34d399' },
 };
 
-const ICONS = ['📝', '✅', '📁', '💡', '⭐', '❤️', '💻', '📚', '🎯', '📅', '⏰', '🚀', '🔥', '💪', '🧠', '🎨', '🔧', '📊'];
+const ICON_IDS = ['note', 'task', 'project', 'idea', 'star', 'heart', 'monitor', 'book', 'target', 'calendar', 'timer', 'rocket', 'flame', 'zap', 'brain', 'palette', 'wrench', 'chart'];
+const ICON_EMOJI_MAP = { '📝': 'note', '✅': 'task', '📁': 'project', '💡': 'idea', '⭐': 'star', '❤️': 'heart', '💻': 'monitor', '📚': 'book', '🎯': 'target', '📅': 'calendar', '⏰': 'timer', '🚀': 'rocket', '🔥': 'flame', '💪': 'zap', '🧠': 'brain', '🎨': 'palette', '🔧': 'wrench', '📊': 'chart', '💼': 'project', '🌟': 'star', '🧘': 'heart', '💧': 'flame', '🌱': 'brain', '✍️': 'note', '🎯': 'target' };
 
 // ============================================================================
 // State
@@ -61,14 +62,16 @@ const state = {
   miniCalDate: new Date(),
   // Multi-panel system
   openPanels: new Set(),  // Track which panels are open
-  panelPositions: {},     // Store panel positions { panelId: { x, y } }
+  panelPositions: {},     // Store panel positions { panelId: { x, y, w?, h? } }
   draggingPanel: null,    // Currently dragging panel
   dragPanelOffset: { x: 0, y: 0 },
+  dragPanelSize: { w: 0, h: 0 },  // Size at drag start so panel doesn't resize while dragging
   allPanelsHidden: false, // Master toggle for hiding all
   profiles: [],
   currentProfile: null,
   currentFocus: null,
   theme: 'sky',
+  mindmapStyle: 'classic',
   blocks: [],
   currentBlock: null,
   newBlockParent: null,
@@ -101,6 +104,15 @@ const state = {
     currentTask: '',
   },
   searchQuery: '',
+  security: {
+    hasMasterPassword: false,
+    isLocked: false,
+    failedAttempts: 0,
+    lockUntil: 0,
+    mode: 'pin',
+    record: null,
+  },
+  apiKeys: {},
 };
 
 // ============================================================================
@@ -114,6 +126,7 @@ function load() {
     state.currentProfile = data.currentProfile || state.profiles[0];
     state.currentFocus = data.currentFocus || null;
     state.theme = data.theme || 'sky';
+    state.mindmapStyle = data.mindmapStyle || 'classic';
     state.blocks = data.blocks?.length ? data.blocks : defaultBlocks();
     state.calendarTasks = data.calendarTasks || [];
     state.habits = data.habits || [];
@@ -136,6 +149,7 @@ function save() {
     currentProfile: state.currentProfile,
     currentFocus: state.currentFocus,
     theme: state.theme,
+    mindmapStyle: state.mindmapStyle,
     blocks: state.blocks,
     calendarTasks: state.calendarTasks,
     habits: state.habits,
@@ -222,6 +236,7 @@ function initEls() {
     blockNotes: $('block-notes'), todoList: $('todo-list'), btnAddTodo: $('btn-add-todo'),
     subblocksList: $('subblocks-list'), btnAddSubblock: $('btn-add-subblock'),
     settingsPanel: $('settings-panel'), btnCloseSettings: $('btn-close-settings'),
+    serverUrlInput: $('server-url-input'), btnSaveServerUrl: $('btn-save-server-url'), btnResetServerUrl: $('btn-reset-server-url'), syncStatusIndicator: $('sync-status-indicator'),
     pomoWorkDuration: $('pomo-work-duration'), pomoShortBreak: $('pomo-short-break'), pomoLongBreak: $('pomo-long-break'),
     btnExport: $('btn-export'), btnImport: $('btn-import'), btnClearData: $('btn-clear-data'), importFile: $('import-file'),
     profilePopup: $('profile-popup'), profileNameInput: $('profile-name-input'),
@@ -272,6 +287,24 @@ function initEls() {
     floatTimerBar: $('float-timer-bar'), floatTimerStart: $('float-timer-start'),
     floatTimerPause: $('float-timer-pause'), floatTimerReset: $('float-timer-reset'),
     floatSessions: $('float-sessions'), floatTotalTime: $('float-total-time'),
+    // Security / master password
+    securityOverlay: $('security-overlay'),
+    securitySetup: $('security-setup'),
+    securityUnlock: $('security-unlock'),
+    masterModePin: $('master-mode-pin'),
+    masterModePassword: $('master-mode-password'),
+    masterPassword: $('master-password'),
+    masterPasswordConfirm: $('master-password-confirm'),
+    masterPasswordLabel: $('master-password-label'),
+    masterHint: $('master-hint'),
+    masterSetupError: $('master-setup-error'),
+    masterUnlock: $('master-unlock'),
+    masterUnlockError: $('master-unlock-error'),
+    securityHintText: $('security-hint-text'),
+    btnMasterSetup: $('btn-master-setup'),
+    btnMasterUnlock: $('btn-master-unlock'),
+    securityStatus: $('security-status'),
+    btnLockApp: $('btn-lock-app'),
   };
 }
 
@@ -287,6 +320,17 @@ function toast(msg) {
     if (els.toast) els.toast.classList.add('hidden');
   }, 2000);
 }
+const showToast = toast;
+
+function getIconHtml(icon) {
+  if (!icon) return '';
+  const id = ICON_EMOJI_MAP[icon] || (ICON_IDS.includes(icon) ? icon : null);
+  if (id) return `<svg class="block-icon-svg" viewBox="0 0 24 24"><use href="#icon-${id}"/></svg>`;
+  return `<span class="block-icon-emoji">${icon}</span>`;
+}
+
+// Alias so both toast() and showToast() work
+const showToast = toast;
 
 function showNotification(title, message, icon = '🔔') {
   const notification = $('notification');
@@ -304,6 +348,11 @@ function showNotification(title, message, icon = '🔔') {
   setTimeout(() => notification.classList.add('hidden'), 5000);
 }
 
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function formatTime(sec) { const m = Math.floor(sec / 60); const s = sec % 60; return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
 function formatTimeFull(sec) { const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
@@ -311,6 +360,131 @@ function formatDate(d) { return d.toLocaleDateString('en-US', { month: 'short', 
 function dateStr(d) { return d.toISOString().split('T')[0]; }
 function today() { return dateStr(new Date()); }
 function dateInRange(date, start, end) { if (!start) return false; if (!end) return date === start; return date >= start && date <= end; }
+
+// Secure storage + master password helpers
+const MASTER_KEY_NAME = 'aion_master_password_v1';
+const API_KEYS_KEY_NAME = 'aion_api_keys_v1';
+const PASSWORD_ITERATIONS_PIN = 80000;
+const PASSWORD_ITERATIONS_STRONG = 150000;
+
+async function secureGet(key) {
+  if (!window.__TAURI__?.core?.invoke) return null;
+  try {
+    return await window.__TAURI__.core.invoke('secure_storage_get', { key });
+  } catch (e) {
+    console.error('secure_storage_get failed', e);
+    return null;
+  }
+}
+
+async function secureSet(key, value) {
+  if (!window.__TAURI__?.core?.invoke) return;
+  try {
+    await window.__TAURI__.core.invoke('secure_storage_set', { key, value });
+  } catch (e) {
+    console.error('secure_storage_set failed', e);
+  }
+}
+
+async function secureExists(key) {
+  if (!window.__TAURI__?.core?.invoke) return false;
+  try {
+    return await window.__TAURI__.core.invoke('secure_storage_exists', { key });
+  } catch (e) {
+    console.error('secure_storage_exists failed', e);
+    return false;
+  }
+}
+
+function bytesToBase64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+
+function base64ToBytes(str) {
+  const bin = atob(str);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function derivePasswordHash(password, saltBytes, iterations) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: saltBytes, iterations },
+    keyMaterial,
+    256,
+  );
+  return new Uint8Array(bits);
+}
+
+async function createMasterPasswordRecord(password, mode, hint) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iterations = mode === 'pin' ? PASSWORD_ITERATIONS_PIN : PASSWORD_ITERATIONS_STRONG;
+  const hashBytes = await derivePasswordHash(password, salt, iterations);
+  return {
+    version: 1,
+    mode,
+    iterations,
+    salt: bytesToBase64(salt),
+    hash: bytesToBase64(hashBytes),
+    hint: hint || '',
+  };
+}
+
+async function verifyMasterPassword(password, record) {
+  if (!record) return false;
+  try {
+    const salt = base64ToBytes(record.salt);
+    const hashBytes = await derivePasswordHash(password, salt, record.iterations);
+    const hash = bytesToBase64(hashBytes);
+    return hash === record.hash;
+  } catch (e) {
+    console.error('verifyMasterPassword failed', e);
+    return false;
+  }
+}
+
+async function loadApiKeys() {
+  if (!window.__TAURI__?.core?.invoke) {
+    state.apiKeys = {};
+    return;
+  }
+  try {
+    const raw = await secureGet(API_KEYS_KEY_NAME);
+    if (!raw) {
+      state.apiKeys = {};
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    state.apiKeys = parsed.providers || {};
+  } catch (e) {
+    console.error('Failed to load API keys', e);
+    state.apiKeys = {};
+  }
+}
+
+async function saveApiKeys() {
+  if (!window.__TAURI__?.core?.invoke) return;
+  try {
+    const payload = { version: 1, providers: state.apiKeys || {} };
+    await secureSet(API_KEYS_KEY_NAME, JSON.stringify(payload));
+  } catch (e) {
+    console.error('Failed to save API keys', e);
+  }
+}
+
+function clearApiKeysInMemory() {
+  state.apiKeys = {};
+}
 
 // ============================================================================
 // Theme
@@ -320,6 +494,16 @@ function applyTheme(theme) {
   state.theme = theme;
   document.body.setAttribute('data-theme', theme);
   document.querySelectorAll('.theme-option').forEach(o => o.classList.toggle('active', o.dataset.theme === theme));
+  save();
+}
+
+function applyMindmapStyle(style) {
+  state.mindmapStyle = style || 'classic';
+  const view = document.getElementById('mindmap-view');
+  if (!view) return;
+  view.classList.remove('mindmap-style-classic', 'mindmap-style-cards', 'mindmap-style-minimal', 'mindmap-style-dark');
+  if (style && style !== 'classic') view.classList.add('mindmap-style-' + style);
+  document.querySelectorAll('.mindmap-style-option').forEach(o => o.classList.toggle('active', o.dataset.mindmapStyle === style));
   save();
 }
 
@@ -348,6 +532,25 @@ function closeAllPanels() {
   panels.forEach(panel => {
     if (panel) panel.classList.add('hidden');
   });
+  state.openPanels.clear();
+  updateOrbVisibility();
+}
+
+/** Hide orb when any panel (mind map, tasks, etc.) is open; show when all are closed */
+function updateOrbVisibility() {
+  const mainPanels = [
+    els.mindmapView, els.blockEditor, els.chatBox, els.tasksPanel,
+    els.calendarPanel, els.pomodoroPanel, els.statsPanel, els.habitsPanel,
+    els.settingsPanel, els.searchBar, els.searchResults
+  ];
+  const anyMainOpen = mainPanels.some(el => el && !el.classList.contains('hidden'));
+  const anyFloatingOpen = Array.from(state.openPanels).some(id => {
+    const p = document.getElementById(id);
+    return p && !p.classList.contains('hidden');
+  });
+  const hideOrb = anyMainOpen || anyFloatingOpen;
+  if (els.orbContainer) els.orbContainer.classList.toggle('orb-hidden-when-panel-open', hideOrb);
+  if (hideOrb && els.radialMenu) els.radialMenu.classList.add('hidden');
 }
 
 // ============================================================================
@@ -365,8 +568,7 @@ function toggleAiInput() {
     }
     // Close radial menu if open
     closeMenu();
-    // Undock output box when opening input
-    if (els.aiOutputBox) els.aiOutputBox.classList.remove('docked');
+    // Keep output docked on left when opening input for new query
   }
 }
 
@@ -396,28 +598,59 @@ async function sendAiQuery() {
   const text = els.aiInput.value.trim();
   if (!text) return;
 
-  // Show output box with thinking animation
+  // Show output box on the left immediately so it never overlaps the input
   els.aiOutputBox.classList.remove('hidden');
+  els.aiOutputBox.classList.add('docked');
   els.aiThinking.classList.remove('hidden');
   els.aiResponse.innerHTML = '';
   els.aiInput.value = '';
 
   // Process command locally first
-  const result = await processAiCommand(text);
+  try {
+    const result = await processAiCommand(text);
+    els.aiThinking.classList.add('hidden');
+    els.aiResponse.innerHTML = result.html;
 
-  els.aiThinking.classList.add('hidden');
-  els.aiResponse.innerHTML = result.html;
-
-  // Execute any actions
-  if (result.actions) {
-    for (const action of result.actions) {
-      await executeAiAction(action);
+    // Execute any actions
+    if (result.actions) {
+      for (const action of result.actions) {
+        await executeAiAction(action);
+      }
     }
+  } catch (err) {
+    console.error('AI query error:', err);
+    els.aiThinking.classList.add('hidden');
+    els.aiResponse.innerHTML = '<div class="ai-info"><p>Something went wrong. Please try again.</p></div>';
   }
 }
 
 async function processAiCommand(input) {
+  lastAiUserMessage = input;
   const lower = input.toLowerCase();
+
+  // Clear/delete block - must run before create block so "clear the block" doesn't create one
+  if (/clear\s+(the\s+)?block|delete\s+(the\s+)?block|remove\s+(the\s+)?block/i.test(input.trim())) {
+    return handleClearOrDeleteBlock(input);
+  }
+
+  // Time and date - use local system time (no internet needed)
+  if (/what('s|\s+is)\s+(the\s+)?time|current\s+time|time\s+now|what\s+time/i.test(input.trim())) {
+    return handleTimeRequest();
+  }
+  if (/what('s|\s+is)\s+(the\s+)?date|today('s)?\s+date|current\s+date|date\s+now/i.test(input.trim())) {
+    return handleDateRequest();
+  }
+
+  // Find website / search - open in browser
+  if (/find\s+(?:a\s+)?website|search\s+for|open\s+(?:website|url)|look\s+up/i.test(input.trim())) {
+    const query = input.replace(/find\s+(?:a\s+)?website|search\s+for|open\s+(?:website|url)?|look\s+up/gi, '').trim();
+    const searchUrl = query ? `https://www.google.com/search?q=${encodeURIComponent(query)}` : 'https://www.google.com';
+    window.open(searchUrl, '_blank');
+    return {
+      html: `<div class="ai-success"><h3>🔍 Search</h3><p>Opening search${query ? ` for: <strong>${escHtml(query)}</strong>` : ''}.</p></div>`,
+      actions: []
+    };
+  }
 
   // Study/Exam related commands
   if (lower.includes('study') || lower.includes('exam') || lower.includes('learn') || lower.includes('prepare')) {
@@ -449,6 +682,11 @@ async function processAiCommand(input) {
     return handleTimetableRequest(input);
   }
 
+  // Homework-style: create block + todos + timer with breaks
+  if (lower.includes('homework') || (lower.includes('sum') && lower.includes('break')) || (lower.includes('task') && lower.includes('break every'))) {
+    return handleHomeworkRequest(input);
+  }
+
   // Help command
   if (lower.includes('help') || lower.includes('what can you do')) {
     return getHelpResponse();
@@ -463,6 +701,147 @@ async function processAiCommand(input) {
   return await getOllamaResponse(input);
 }
 
+function handleClearOrDeleteBlock(input) {
+  const lower = input.toLowerCase();
+  const isDelete = /delete|remove/.test(lower);
+  const isClear = /clear/.test(lower);
+
+  if (isDelete) {
+    const block = state.currentBlock || state.contextBlock;
+    if (!block) {
+      return { html: '<p>Open a block first (e.g. from the Mind Map) to delete it.</p>', actions: [] };
+    }
+    state.contextBlock = block;
+    deleteBlock();
+    return {
+      html: '<div class="ai-success"><h3>Block deleted</h3><p>The block has been removed.</p></div>',
+      actions: []
+    };
+  }
+
+  if (isClear) {
+    const block = state.currentBlock;
+    if (!block) {
+      return { html: '<p>Open a block first to clear its content.</p>', actions: [] };
+    }
+    block.notes = '';
+    block.todos = block.todos || [];
+    block.todos.length = 0;
+    save();
+    if (els.blockNotes) els.blockNotes.value = '';
+    renderTodos();
+    toast('Block cleared');
+    return {
+      html: '<div class="ai-success"><h3>Block cleared</h3><p>Notes and tasks in this block have been cleared.</p></div>',
+      actions: []
+    };
+  }
+
+  return { html: '<p>Say "clear the block" to clear content, or "delete block" to remove it.</p>', actions: [] };
+}
+
+function handleTimeRequest() {
+  const now = new Date();
+  const time = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+  return {
+    html: `<div class="ai-success"><h3>🕐 Current Time</h3><p><strong>${time}</strong></p><p class="ai-muted">${tz}</p></div>`,
+    actions: []
+  };
+}
+
+function handleDateRequest() {
+  const now = new Date();
+  const date = now.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  return {
+    html: `<div class="ai-success"><h3>📅 Today's Date</h3><p><strong>${date}</strong></p></div>`,
+    actions: []
+  };
+}
+
+function handleHomeworkRequest(input) {
+  const lower = input.toLowerCase();
+  const countMatch = input.match(/(\d+)\s*(?:sums?|tasks?|items?|problems?)/i) || input.match(/(\d+)\s+(?:sum|task|item|problem)/i);
+  const breakMatch = input.match(/break\s+every\s+(\d+)\s*(?:min|minutes?|m)/i) || input.match(/(\d+)\s*min(?:ute)?s?\s+break/i);
+  const taskCount = countMatch ? parseInt(countMatch[1]) : 5;
+  const breakMinutes = breakMatch ? parseInt(breakMatch[1]) : 5;
+
+  // Parse multiple subjects: "math and science", "math, science, english", "two homework blocks"
+  let subjects = [];
+  const twoMatch = input.match(/(\d+)\s*(?:homework|study|work)\s*blocks?/i) || input.match(/two\s*(?:homework|study|work)\s*blocks?/i);
+  if (twoMatch) {
+    const n = (twoMatch[1] && parseInt(twoMatch[1])) || 2;
+    subjects = Array.from({ length: Math.min(n, 5) }, (_, i) => `Block ${i + 1}`);
+  } else {
+    const forMatch = input.match(/(?:homework|study)\s+(?:for\s+)?(.+?)(?:\s+with|\s+break|$)/i);
+    if (forMatch) {
+      const part = forMatch[1].trim();
+      subjects = part.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+    }
+  }
+  if (subjects.length === 0) subjects = ['Homework'];
+
+  const blocks = [];
+  const tasksPerBlock = Math.max(1, Math.ceil(taskCount / subjects.length));
+  const baseX = 200;
+  const baseY = 100;
+
+  for (let s = 0; s < subjects.length; s++) {
+    const subj = subjects[s];
+    const name = subj.toLowerCase().includes('study') || subj.toLowerCase().includes('homework') ? subj : subj;
+    const block = {
+      id: 'block-' + Date.now() + '-' + s,
+      name,
+      icon: 'book',
+      type: 'task',
+      x: baseX + s * 180 + Math.random() * 40,
+      y: baseY + s * 60 + Math.random() * 30,
+      notes: `Break every ${breakMinutes} minutes. Created ${new Date().toLocaleDateString()}.`,
+      todos: [],
+      children: [],
+      parentId: null,
+    };
+    for (let i = 0; i < tasksPerBlock; i++) {
+      block.todos.push({
+        id: 'todo-hw-' + Date.now() + '-' + s + '-' + i,
+        text: `Task ${i + 1}`,
+        status: 'not_started',
+        priority: 'medium',
+        date: today(),
+        tags: [],
+      });
+    }
+    state.blocks.push(block);
+    blocks.push(block);
+  }
+  save();
+
+  state.pomodoro.workDuration = breakMinutes;
+  state.pomodoro.shortBreak = Math.min(breakMinutes, 2);
+
+  const blockList = blocks.map(b => `<strong>${b.name}</strong>`).join(', ');
+  return {
+    html: `
+      <div class="ai-success">
+        <h3>${blocks.length > 1 ? 'Blocks Ready!' : 'Homework Block Ready!'}</h3>
+        <p>Created <strong>${blocks.length}</strong> block(s): ${blockList}</p>
+        <p>Each with <strong>${tasksPerBlock}</strong> tasks. Timer: work <strong>${breakMinutes} min</strong>, then break.</p>
+        <div class="ai-actions-done">
+          <span class="action-badge">${blocks.length} block(s)</span>
+          <span class="action-badge">${blocks.length * tasksPerBlock} tasks</span>
+          <span class="action-badge">Timer ready</span>
+        </div>
+      </div>
+    `,
+    actions: [
+      { type: 'openPanel', panel: 'mindmap' },
+      { type: 'openBlock', blockId: blocks[0].id },
+      { type: 'openPanel', panel: 'floating-timer' },
+      { type: 'toast', message: `${blocks.length} block(s) with ${blocks.length * tasksPerBlock} tasks ready!` }
+    ]
+  };
+}
+
 function handleStudyRequest(input) {
   const lower = input.toLowerCase();
 
@@ -475,7 +854,7 @@ function handleStudyRequest(input) {
   const blockId = 'block-' + Date.now();
   const studyBlock = {
     id: blockId,
-    name: `📚 Study: ${subject}`,
+    name: `Study: ${subject}`,
     icon: '📚',
     type: 'Study Plan',
     x: 200 + Math.random() * 100,
@@ -493,13 +872,13 @@ function handleStudyRequest(input) {
   return {
     html: `
       <div class="ai-success">
-        <h3>📚 Study Plan Created!</h3>
+        <h3>Study Plan Created!</h3>
         <p>I've created a comprehensive study plan for <strong>${subject}</strong>.</p>
         ${studyGuide}
         <div class="ai-actions-done">
-          <span class="action-badge">✅ Created study block</span>
-          <span class="action-badge">✅ Added ${studyBlock.todos.length} tasks</span>
-          <span class="action-badge">✅ Generated study guide</span>
+          <span class="action-badge">Created study block</span>
+          <span class="action-badge">Added ${studyBlock.todos.length} tasks</span>
+          <span class="action-badge">Generated study guide</span>
         </div>
       </div>
     `,
@@ -539,13 +918,13 @@ function generateStudyNotes(subject) {
 function generateStudyTasks(subject) {
   const tasks = [
     { text: `📖 Review ${subject} fundamentals`, priority: 'high', status: 'not_started' },
-    { text: `📝 Create summary notes`, priority: 'high', status: 'not_started' },
-    { text: `💡 Identify key concepts`, priority: 'medium', status: 'not_started' },
+    { text: `Create summary notes`, priority: 'high', status: 'not_started' },
+    { text: `Identify key concepts`, priority: 'medium', status: 'not_started' },
     { text: `📋 Practice problems - Set 1`, priority: 'high', status: 'not_started' },
     { text: `📋 Practice problems - Set 2`, priority: 'medium', status: 'not_started' },
-    { text: `🔄 Review mistakes`, priority: 'medium', status: 'not_started' },
+    { text: `Review mistakes`, priority: 'medium', status: 'not_started' },
     { text: `🎯 Mock test/self-assessment`, priority: 'high', status: 'not_started' },
-    { text: `📚 Final revision`, priority: 'high', status: 'not_started' },
+    { text: `Final revision`, priority: 'high', status: 'not_started' },
   ];
 
   return tasks.map((t, i) => ({
@@ -573,7 +952,7 @@ function generateStudyGuide(subject) {
         <li><strong>Review</strong> - Use spaced repetition</li>
         <li><strong>Test</strong> - Self-assess your knowledge</li>
       </ol>
-      <h4>⏱️ Recommended Schedule</h4>
+      <h4>Recommended Schedule</h4>
       <ul>
         <li>25 min study + 5 min break (Pomodoro)</li>
         <li>After 4 sessions, take a 15-30 min break</li>
@@ -607,7 +986,7 @@ function handleCreateBlock(input) {
   return {
     html: `
       <div class="ai-success">
-        <h3>✅ Block Created!</h3>
+        <h3>Block Created!</h3>
         <p>Created new block: <strong>${name}</strong></p>
         <p>Opening the Mind Map now...</p>
       </div>
@@ -662,7 +1041,7 @@ function handleCreateTask(input) {
   return {
     html: `
       <div class="ai-success">
-        <h3>✅ Task Added!</h3>
+        <h3>Task Added!</h3>
         <p>Added task: <strong>${taskText}</strong></p>
         <p>Added to: ${targetBlock.name}</p>
       </div>
@@ -681,7 +1060,7 @@ function handleTimerCommand(input) {
   return {
     html: `
       <div class="ai-success">
-        <h3>⏱️ Timer Set!</h3>
+        <h3>Timer Set!</h3>
         <p>Starting a <strong>${duration} minute</strong> focus session.</p>
         <p>Stay focused! I'll notify you when it's time for a break.</p>
       </div>
@@ -732,11 +1111,11 @@ function handleTimetableRequest(input) {
   const activities = [
     { time: '06:00 - 07:00', activity: '🌅 Wake up, Exercise' },
     { time: '07:00 - 08:00', activity: '🍳 Breakfast, Get ready' },
-    { time: '08:00 - 10:00', activity: '📚 Study Session 1' },
+    { time: '08:00 - 10:00', activity: 'Study Session 1' },
     { time: '10:00 - 10:30', activity: '☕ Break' },
-    { time: '10:30 - 12:30', activity: '📚 Study Session 2' },
+    { time: '10:30 - 12:30', activity: 'Study Session 2' },
     { time: '12:30 - 14:00', activity: '🍽️ Lunch & Rest' },
-    { time: '14:00 - 16:00', activity: '📚 Study Session 3' },
+    { time: '14:00 - 16:00', activity: 'Study Session 3' },
     { time: '16:00 - 16:30', activity: '☕ Break' },
     { time: '16:30 - 18:30', activity: '📋 Practice/Review' },
     { time: '18:30 - 19:30', activity: '🍽️ Dinner' },
@@ -778,8 +1157,8 @@ function handleTimetableRequest(input) {
           <p class="tt-more">...and more</p>
         </div>
         <div class="ai-actions-done">
-          <span class="action-badge">✅ Created schedule block</span>
-          <span class="action-badge">✅ Added daily tasks</span>
+          <span class="action-badge">Created schedule block</span>
+          <span class="action-badge">Added daily tasks</span>
         </div>
       </div>
     `,
@@ -800,10 +1179,14 @@ function handleThemeCommand(input) {
   else if (lower.includes('ocean') || lower.includes('deep blue')) theme = 'ocean';
   else if (lower.includes('lavender') || lower.includes('purple')) theme = 'lavender';
   else if (lower.includes('rose') || lower.includes('pink')) theme = 'rose';
+  else if (lower.includes('mint') || lower.includes('teal')) theme = 'mint';
+  else if (lower.includes('gold') || lower.includes('yellow')) theme = 'gold';
+  else if (lower.includes('black') || lower.includes('dark transparent')) theme = 'black';
+  else if (lower.includes('crystallize') || lower.includes('crystal')) theme = 'crystallize';
 
   if (theme) {
     return {
-      html: `<div class="ai-success"><h3>🎨 Theme Changed!</h3><p>Switched to <strong>${theme}</strong> theme.</p></div>`,
+      html: `<div class="ai-success"><h3>Theme Changed!</h3><p>Switched to <strong>${theme}</strong> theme.</p></div>`,
       actions: [{ type: 'setTheme', theme }]
     };
   }
@@ -811,7 +1194,7 @@ function handleThemeCommand(input) {
   return {
     html: `
       <div class="ai-info">
-        <h3>🎨 Available Themes</h3>
+        <h3>Available Themes</h3>
         <p>Say "change theme to [name]":</p>
         <ul>
           <li><strong>Sky</strong> - Light blue</li>
@@ -820,6 +1203,10 @@ function handleThemeCommand(input) {
           <li><strong>Ocean</strong> - Deep blue</li>
           <li><strong>Lavender</strong> - Purple</li>
           <li><strong>Rose</strong> - Pink</li>
+          <li><strong>Mint</strong> - Teal</li>
+          <li><strong>Gold</strong> - Yellow</li>
+          <li><strong>Black</strong> - Dark transparent</li>
+          <li><strong>Crystallize</strong> - Frosted glass</li>
         </ul>
       </div>
     `
@@ -830,9 +1217,9 @@ function getHelpResponse() {
   return {
     html: `
       <div class="ai-help">
-        <h3>🤖 What I Can Do</h3>
+        <h3>What I Can Do</h3>
         <div class="help-section">
-          <h4>📚 Study Help</h4>
+          <h4>Study Help</h4>
           <p>"I need to study for math exam"</p>
           <p>"Help me prepare for biology test"</p>
         </div>
@@ -842,7 +1229,7 @@ function getHelpResponse() {
           <p>"Add task: finish homework"</p>
         </div>
         <div class="help-section">
-          <h4>⏱️ Timer</h4>
+          <h4>Timer</h4>
           <p>"Start 25 minute timer"</p>
           <p>"Pomodoro session"</p>
         </div>
@@ -852,7 +1239,7 @@ function getHelpResponse() {
           <p>"Plan my week"</p>
         </div>
         <div class="help-section">
-          <h4>🎨 Appearance</h4>
+          <h4>Appearance</h4>
           <p>"Change theme to forest"</p>
         </div>
         <div class="help-section">
@@ -868,11 +1255,47 @@ function getHelpResponse() {
 async function getOllamaResponse(input) {
   const model = (typeof currentAiModel !== 'undefined' ? currentAiModel : null) ||
     document.getElementById('ai-model-select')?.value || 'llama3.2';
+  const useBackendAi = localStorage.getItem('aion_use_backend_ai') === 'true';
+  let ollamaBaseUrl = (localStorage.getItem('aion_ollama_url') || '').trim();
+  if (ollamaBaseUrl && !/^https?:\/\//i.test(ollamaBaseUrl)) ollamaBaseUrl = 'http://' + ollamaBaseUrl;
+
+  // Option 1: Use backend AI (RAG, web search, API keys) when enabled and available
+  if (useBackendAi) {
+    try {
+      const { getSyncService } = await import('./services/sync.js');
+      const sync = getSyncService();
+      const baseUrl = (sync && sync.getServerBaseUrl && sync.getServerBaseUrl()) || CONFIG.API_BASE.replace(/\/api\/v1\/?$/, '');
+      const chatUrl = `${baseUrl}/api/v1/ai/chat`;
+      const headers = sync && typeof sync.getAuthHeaders === 'function' ? await sync.getAuthHeaders() : { 'Content-Type': 'application/json' };
+      const res = await fetch(chatUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: input,
+          web_search: true,
+          model: model || undefined,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.response || data.message || '';
+        if (text.trim()) return { html: `<div class="ai-info">${formatAiResponse(text)}</div>` };
+      }
+      if (res.status === 401) {
+        // Auth required; fall through to local Ollama
+      }
+    } catch (e) {
+      console.warn('Backend AI not available, using local Ollama:', e);
+    }
+  }
+
+  // Option 2: Local Ollama (or device-specific Ollama URL)
   try {
     const { invoke } = window.__TAURI__.core;
     const text = await invoke('ollama_generate', {
       prompt: input,
       model: model || 'llama3.2',
+      baseUrl: ollamaBaseUrl || undefined,
     });
     if (!text || !text.trim()) return getSmartResponse(input);
     return { html: `<div class="ai-info">${formatAiResponse(text)}</div>` };
@@ -889,12 +1312,12 @@ function getSmartResponse(input) {
         <p>I understand you said: "<em>${escHtml(input)}</em>"</p>
         <p>Ollama isn't running or didn't respond. I can also help with:</p>
         <ul>
-          <li>📚 <strong>Study plans</strong> - "I need to study for [subject]"</li>
+          <li><strong>Study plans</strong> - "I need to study for [subject]"</li>
           <li>📦 <strong>Create blocks</strong> - "Create block called [name]"</li>
-          <li>✅ <strong>Add tasks</strong> - "Add task: [description]"</li>
-          <li>⏱️ <strong>Set timers</strong> - "Start 25 minute timer"</li>
+          <li><strong>Add tasks</strong> - "Add task: [description]"</li>
+          <li><strong>Set timers</strong> - "Start 25 minute timer"</li>
           <li>📅 <strong>Make schedules</strong> - "Create a timetable"</li>
-          <li>🎨 <strong>Change theme</strong> - "Theme [color]"</li>
+          <li><strong>Change theme</strong> - "Theme [color]"</li>
         </ul>
         <p>Start <strong>Ollama</strong> (e.g. <code>ollama serve</code>) and try again for AI replies.</p>
       </div>
@@ -1134,12 +1557,18 @@ function openFloatingPanel(panelId) {
 
   panel.classList.remove('hidden');
   state.openPanels.add(panelId);
+  updateOrbVisibility();
 
-  // Restore position if saved
-  if (state.panelPositions[panelId]) {
-    panel.style.left = state.panelPositions[panelId].x + 'px';
-    panel.style.top = state.panelPositions[panelId].y + 'px';
+  // Restore position and size if saved
+  const saved = state.panelPositions[panelId];
+  if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+    panel.style.left = saved.x + 'px';
+    panel.style.top = saved.y + 'px';
     panel.style.right = 'auto';
+    if (typeof saved.w === 'number' && saved.w > 0 && typeof saved.h === 'number' && saved.h > 0) {
+      panel.style.width = saved.w + 'px';
+      panel.style.height = saved.h + 'px';
+    }
   }
 
   // Bring to front
@@ -1152,6 +1581,7 @@ function closeFloatingPanel(panelId) {
 
   panel.classList.add('hidden');
   state.openPanels.delete(panelId);
+  updateOrbVisibility();
 }
 
 function toggleFloatingPanel(panelId) {
@@ -1172,7 +1602,31 @@ function bringPanelToFront(panel) {
   });
 }
 
-// Panel Dragging
+/** Apply saved position/size to a panel so it doesn't open full-screen or change shape when moved */
+function applyPanelPosition(panel) {
+  if (!panel) return;
+  const saved = state.panelPositions[panel.id];
+  if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+    panel.style.left = saved.x + 'px';
+    panel.style.top = saved.y + 'px';
+    panel.style.right = 'auto';
+    panel.style.transform = 'none';
+    if (typeof saved.w === 'number' && saved.w > 0 && typeof saved.h === 'number' && saved.h > 0) {
+      panel.style.width = saved.w + 'px';
+      panel.style.height = saved.h + 'px';
+    }
+  } else {
+    // First open: clear any inline position so CSS default (centered) applies
+    panel.style.left = '';
+    panel.style.top = '';
+    panel.style.right = '';
+    panel.style.transform = '';
+    panel.style.width = '';
+    panel.style.height = '';
+  }
+}
+
+// Panel Dragging - preserve width/height so panel doesn't resize or change shape when moving
 function initPanelDrag(e) {
   const header = e.target.closest('[data-drag]');
   if (!header) return;
@@ -1189,9 +1643,14 @@ function initPanelDrag(e) {
     x: e.clientX - rect.left,
     y: e.clientY - rect.top
   };
+  state.dragPanelSize = { w: rect.width, h: rect.height };
 
   bringPanelToFront(panel);
   panel.style.transition = 'none';
+  panel.style.transform = 'none';
+  panel.style.width = state.dragPanelSize.w + 'px';
+  panel.style.height = state.dragPanelSize.h + 'px';
+  panel.style.right = 'auto';
 }
 
 function handlePanelDrag(e) {
@@ -1203,14 +1662,20 @@ function handlePanelDrag(e) {
   state.draggingPanel.style.left = x + 'px';
   state.draggingPanel.style.top = y + 'px';
   state.draggingPanel.style.right = 'auto';
+  state.draggingPanel.style.width = state.dragPanelSize.w + 'px';
+  state.draggingPanel.style.height = state.dragPanelSize.h + 'px';
 }
 
 function endPanelDrag() {
   if (!state.draggingPanel) return;
 
-  // Save position
   const rect = state.draggingPanel.getBoundingClientRect();
-  state.panelPositions[state.draggingPanel.id] = { x: rect.left, y: rect.top };
+  state.panelPositions[state.draggingPanel.id] = {
+    x: rect.left,
+    y: rect.top,
+    w: rect.width,
+    h: rect.height
+  };
 
   state.draggingPanel.style.transition = '';
   state.draggingPanel = null;
@@ -1360,6 +1825,7 @@ function closeAllOpenPanels() {
   closeAiInput();
   closeAiOutput();
   closeMenu();
+  updateOrbVisibility();
   closeSearch();
 }
 
@@ -1392,7 +1858,7 @@ function performSearch(query) {
     }
     (b.todos || []).forEach(t => {
       if (t.text.toLowerCase().includes(q)) {
-        results.push({ type: 'task', blockId: b.id, id: t.id, title: t.text, icon: '✅', subtitle: `in ${b.name}` });
+        results.push({ type: 'task', blockId: b.id, id: t.id, title: t.text, icon: 'task', subtitle: `in ${b.name}` });
       }
     });
   });
@@ -1661,7 +2127,9 @@ function openPomodoro() {
   populatePomoTasks();
   els.pomodoroPanel.classList.remove('hidden');
   state.openPanels.add('pomodoro-panel');
+  applyPanelPosition(els.pomodoroPanel);
   bringPanelToFront(els.pomodoroPanel);
+  updateOrbVisibility();
 }
 
 // ============================================================================
@@ -1743,7 +2211,9 @@ function openStats() {
   renderStats('today');
   els.statsPanel.classList.remove('hidden');
   state.openPanels.add('stats-panel');
+  applyPanelPosition(els.statsPanel);
   bringPanelToFront(els.statsPanel);
+  updateOrbVisibility();
 }
 
 // ============================================================================
@@ -1764,9 +2234,9 @@ function renderHabits() {
   els.habitsList.innerHTML = state.habits.map(h => `
     <div class="habit-item" data-id="${h.id}">
       <div class="habit-check ${checks[h.id] ? 'done' : ''}" data-habit="${h.id}">${checks[h.id] ? '✓' : ''}</div>
-      <span class="habit-icon">${h.icon}</span>
+      <span class="habit-icon">${getIconHtml(h.icon)}</span>
       <span class="habit-name">${escHtml(h.name)}</span>
-      <span class="habit-streak">${getHabitStreak(h.id)} 🔥</span>
+      <span class="habit-streak">${getHabitStreak(h.id)} day streak</span>
     </div>
   `).join('');
 
@@ -1813,7 +2283,9 @@ function openHabits() {
   renderHabits();
   els.habitsPanel.classList.remove('hidden');
   state.openPanels.add('habits-panel');
+  applyPanelPosition(els.habitsPanel);
   bringPanelToFront(els.habitsPanel);
+  updateOrbVisibility();
 }
 
 function openHabitPopup() {
@@ -1844,7 +2316,9 @@ function openCalendar() {
   renderCalendar();
   els.calendarPanel.classList.remove('hidden');
   state.openPanels.add('calendar-panel');
+  applyPanelPosition(els.calendarPanel);
   bringPanelToFront(els.calendarPanel);
+  updateOrbVisibility();
 }
 
 function renderCalendar() {
@@ -1943,7 +2417,9 @@ function openTasks() {
   renderAllTasks();
   els.tasksPanel.classList.remove('hidden');
   state.openPanels.add('tasks-panel');
+  applyPanelPosition(els.tasksPanel);
   bringPanelToFront(els.tasksPanel);
+  updateOrbVisibility();
 }
 
 function getDueDateStatus(dateStr) {
@@ -2017,7 +2493,7 @@ function renderAllTasks() {
     Object.entries(groups).forEach(([blockId, group]) => {
       html += `<div class="task-group">
         <div class="task-group-header">
-          <span>${group.icon}</span>
+          <span class="task-group-icon">${getIconHtml(group.icon)}</span>
           <span class="task-group-name">${escHtml(group.name)}</span>
           <span class="task-group-count">${group.todos.length}</span>
         </div>
@@ -2050,13 +2526,13 @@ function renderTaskItem(t, blockId) {
       <div class="global-task-info">
         <div class="global-task-text ${t.status === 'completed' ? 'done' : ''}">
           ${escHtml(t.text)}
-          ${t.priority && t.priority !== 'none' ? `<span class="priority-badge">${t.priority === 'high' ? '🔴' : t.priority === 'medium' ? '🟡' : '🟢'}</span>` : ''}
+          ${t.priority && t.priority !== 'none' ? `<span class="priority-badge priority-dot ${t.priority}"></span>` : ''}
           ${dueBadge}
             </div>
         <div class="global-task-meta">
           ${t.date ? `<span class="todo-date">${t.date}</span>` : ''}
           ${t.tags?.length ? t.tags.map(tag => `<span class="todo-tag">${escHtml(tag)}</span>`).join('') : ''}
-          ${state.taskSort !== 'block' ? `<span class="task-block-name">${t.blockIcon} ${escHtml(t.blockName)}</span>` : ''}
+          ${state.taskSort !== 'block' ? `<span class="task-block-name">${getIconHtml(t.blockIcon)} ${escHtml(t.blockName)}</span>` : ''}
             </div>
             </div>
       <span class="status-badge ${t.status || 'not_started'}" data-block="${blockId}" data-todo="${t.id}">${STATUSES[t.status || 'not_started']?.label}</span>
@@ -2221,6 +2697,7 @@ function saveEditedTask() {
 
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   updateTodayProgress();
   els.editTaskPopup.classList.add('hidden');
   state.contextTask = null;
@@ -2249,6 +2726,7 @@ function changeTaskStatusFromContext(status) {
 
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   updateTodayProgress();
   hideTaskContextMenu();
   toast(`Status: ${STATUSES[status].label}`);
@@ -2265,6 +2743,7 @@ function changeTaskPriorityFromContext(priority) {
     task.priority = priority;
     save();
     renderAllTasks();
+    syncBlocksToCalendarAndTodos();
     hideTaskContextMenu();
     toast('Priority updated');
   }
@@ -2275,7 +2754,7 @@ function openMoveTaskPopup() {
 
   els.moveTaskBlock.innerHTML = state.blocks
     .filter(b => b.id !== state.contextTask.blockId)
-    .map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`)
+    .map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`)
     .join('');
 
   els.moveTaskPopup.classList.remove('hidden');
@@ -2303,6 +2782,7 @@ function moveTaskToBlock() {
 
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   els.moveTaskPopup.classList.add('hidden');
   state.contextTask = null;
   toast(`Moved to ${targetBlock.name}`);
@@ -2324,6 +2804,7 @@ function duplicateTaskFromContext() {
   block.todos.push(newTask);
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   updateTodayProgress();
   hideTaskContextMenu();
   toast('Task duplicated');
@@ -2345,6 +2826,7 @@ function deleteTaskFromContext() {
   block.todos = block.todos.filter(t => t.id !== taskId);
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   updateTodayProgress();
   hideTaskContextMenu();
   toast('Task deleted');
@@ -2357,7 +2839,7 @@ function deleteTaskFromContext() {
 function openGlobalTaskPopup() {
   els.globalTaskText.value = '';
   els.globalTaskBlock.innerHTML = '<option value="">Select block...</option>' +
-    state.blocks.map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`).join('');
+    state.blocks.map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`).join('');
   els.globalTaskPriority.value = 'none';
   els.globalTaskStatus.value = 'not_started';
   els.globalTaskDate.value = '';
@@ -2390,6 +2872,7 @@ function saveGlobalTask() {
 
   save();
   renderAllTasks();
+  syncBlocksToCalendarAndTodos();
   updateTodayProgress();
   els.globalTaskPopup.classList.add('hidden');
   toast('Task added');
@@ -2408,6 +2891,7 @@ function bulkChangeStatus(status) {
   });
 
   save();
+  syncBlocksToCalendarAndTodos();
   clearTaskSelection();
   updateTodayProgress();
   toast(`Updated ${state.selectedTasks.length} tasks`);
@@ -2417,7 +2901,7 @@ function bulkMoveTasks() {
   if (state.selectedTasks.length === 0) return;
 
   els.moveTaskBlock.innerHTML = state.blocks
-    .map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`)
+    .map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`)
     .join('');
 
   // Store that this is a bulk move
@@ -2447,6 +2931,7 @@ function bulkMoveTasksConfirm() {
   });
 
   save();
+  syncBlocksToCalendarAndTodos();
   els.moveTaskPopup.classList.add('hidden');
   clearTaskSelection();
   toast(`Moved tasks to ${targetBlock.name}`);
@@ -2463,6 +2948,7 @@ function bulkDeleteTasks() {
   });
 
   save();
+  syncBlocksToCalendarAndTodos();
   clearTaskSelection();
   updateTodayProgress();
   toast('Tasks deleted');
@@ -2503,7 +2989,9 @@ function openMindmap() {
   }
   els.mindmapView.classList.remove('hidden');
   state.openPanels.add('mindmap-view');
+  applyPanelPosition(els.mindmapView);
   bringPanelToFront(els.mindmapView);
+  updateOrbVisibility();
   renderMindmap();
 }
 
@@ -2526,27 +3014,40 @@ function renderMindmap() {
     id: b.id || 'block-' + Date.now(),
     name: b.name || 'Untitled',
     type: b.type || 'note',
-    icon: b.icon || '📝',
+    icon: b.icon || 'note',
     x: typeof b.x === 'number' ? b.x : 100,
     y: typeof b.y === 'number' ? b.y : 100,
     children: b.children || [],
     todos: b.todos || [],
-    parentId: b.parentId || null
+    parentId: b.parentId || null,
+    dateStart: b.dateStart || '',
+    dateEnd: b.dateEnd || '',
   }));
 
-  els.blocksLayer.innerHTML = validBlocks.map(b => `
+  function formatNodeDate(dateStart, dateEnd) {
+    if (!dateStart && !dateEnd) return '';
+    const fmt = (s) => formatDate(new Date(s + 'T12:00:00'));
+    if (dateStart && dateEnd) return `${fmt(dateStart)} – ${fmt(dateEnd)}`;
+    if (dateEnd) return `Due ${fmt(dateEnd)}`;
+    return `From ${fmt(dateStart)}`;
+  }
+
+  els.blocksLayer.innerHTML = validBlocks.map(b => {
+    const dateLine = formatNodeDate(b.dateStart, b.dateEnd);
+    return `
     <div class="block-node" data-id="${b.id}" style="left:${b.x}px;top:${b.y}px">
       <div class="node-header">
-        <span class="node-icon">${b.icon}</span>
+        <span class="node-icon">${getIconHtml(b.icon)}</span>
         <span class="node-name">${escHtml(b.name)}</span>
       </div>
       <div class="node-meta">${b.type}</div>
+      ${dateLine ? `<div class="node-date">${dateLine}</div>` : ''}
       <div class="node-badges">
-        ${b.children?.length ? `<span class="node-badge">📦 ${b.children.length}</span>` : ''}
-        ${b.todos?.length ? `<span class="node-badge">✅ ${b.todos.filter(t => t.status !== 'completed').length}/${b.todos.length}</span>` : ''}
+        ${b.children?.length ? `<span class="node-badge">${b.children.length}</span>` : ''}
+        ${b.todos?.length ? `<span class="node-badge">${b.todos.filter(t => t.status !== 'completed').length}/${b.todos.length}</span>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   renderConnections();
   initBlockEvents();
@@ -2579,9 +3080,7 @@ function initBlockEventDelegation() {
     const block = state.blocks.find(b => b.id === node.dataset.id);
     if (!block) return;
 
-    state.dragging = block;
-    state.dragOffset = { x: e.clientX - block.x, y: e.clientY - block.y };
-    node.classList.add('dragging');
+    state.pendingBlockDrag = { block, node, startX: e.clientX, startY: e.clientY };
     e.preventDefault();
   });
 
@@ -2592,17 +3091,20 @@ function initBlockEventDelegation() {
     e.preventDefault();
     state.contextBlock = state.blocks.find(b => b.id === node.dataset.id);
     if (els.contextMenu) {
-      els.contextMenu.style.left = `${e.clientX}px`;
-      els.contextMenu.style.top = `${e.clientY}px`;
       els.contextMenu.classList.remove('hidden');
+      // Clamp to viewport so menu never appears off-screen
+      const mw = els.contextMenu.offsetWidth || 160;
+      const mh = els.contextMenu.offsetHeight || 200;
+      const x = Math.min(e.clientX, window.innerWidth - mw - 8);
+      const y = Math.min(e.clientY, window.innerHeight - mh - 8);
+      els.contextMenu.style.left = `${Math.max(0, x)}px`;
+      els.contextMenu.style.top = `${Math.max(0, y)}px`;
     }
   });
 
   els.blocksLayer.addEventListener('dblclick', e => {
     const node = e.target.closest('.block-node');
-    if (node) {
-      openBlockEditor(node.dataset.id);
-    }
+    if (node) openBlockEditor(node.dataset.id);
   });
 }
 
@@ -2611,16 +3113,38 @@ function initBlockEvents() {
   // No longer adds event listeners - handled by event delegation
 }
 
+let _rafPending = false;
 function handleMouseMove(e) {
+  const pending = state.pendingBlockDrag;
+  if (pending) {
+    const dx = e.clientX - pending.startX;
+    const dy = e.clientY - pending.startY;
+    if (Math.sqrt(dx * dx + dy * dy) > 5) { // drag threshold 5px
+      state.dragging = pending.block;
+      state.dragOffset = { x: e.clientX - pending.block.x, y: e.clientY - pending.block.y };
+      pending.node.classList.add('dragging');
+      state.pendingBlockDrag = null;
+    } else {
+      return;
+    }
+  }
   if (!state.dragging) return;
   state.dragging.x = Math.max(10, e.clientX - state.dragOffset.x);
   state.dragging.y = Math.max(10, e.clientY - state.dragOffset.y);
   const node = els.blocksLayer.querySelector(`[data-id="${state.dragging.id}"]`);
   if (node) { node.style.left = `${state.dragging.x}px`; node.style.top = `${state.dragging.y}px`; }
-  renderConnections();
+  // Throttle SVG redraw to once per animation frame
+  if (!_rafPending) {
+    _rafPending = true;
+    requestAnimationFrame(() => { renderConnections(); _rafPending = false; });
+  }
 }
 
 function handleMouseUp() {
+  if (state.pendingBlockDrag) {
+    openBlockEditor(state.pendingBlockDrag.node.dataset.id);
+    state.pendingBlockDrag = null;
+  }
   if (state.dragging) {
     const node = els.blocksLayer.querySelector(`[data-id="${state.dragging.id}"]`);
     if (node) node.classList.remove('dragging');
@@ -2647,7 +3171,7 @@ function createBlock() {
   const name = els.newBlockName.value.trim();
   if (!name) return;
   const type = document.querySelector('.type-opt.selected')?.dataset.type || 'note';
-  const icons = { note: '📝', task: '✅', project: '📁', idea: '💡' };
+  const icons = { note: 'note', task: 'task', project: 'project', idea: 'idea' };
 
   // Position new blocks in a spread pattern across the screen
   let x = 100 + (state.blocks.length * 50) % 600;
@@ -2699,7 +3223,7 @@ function saveRename() {
 
 function openIconPopup() {
   if (!state.contextBlock) return;
-  els.iconGrid.innerHTML = ICONS.map(icon => `<button class="icon-option" data-icon="${icon}">${icon}</button>`).join('');
+  els.iconGrid.innerHTML = ICON_IDS.map(id => `<button class="icon-option" data-icon="${id}"><svg class="icon-option-svg" viewBox="0 0 24 24"><use href="#icon-${id}"/></svg></button>`).join('');
   els.iconPopup.classList.remove('hidden');
   hideContextMenu();
 }
@@ -2708,7 +3232,7 @@ function selectIcon(icon) {
   if (!state.contextBlock) return;
   state.contextBlock.icon = icon;
   save(); renderMindmap();
-  if (state.currentBlock?.id === state.contextBlock.id) els.blockIconBtn.textContent = icon;
+  if (state.currentBlock?.id === state.contextBlock.id) els.blockIconBtn.innerHTML = getIconHtml(icon);
   els.iconPopup.classList.add('hidden');
   toast('Icon changed');
 }
@@ -2795,7 +3319,7 @@ function openBlockEditor(blockId) {
   state.currentBlock = block;
   stopTimer();
 
-  els.blockIconBtn.textContent = block.icon;
+  els.blockIconBtn.innerHTML = getIconHtml(block.icon);
   els.blockTitle.value = block.name;
   els.blockDate.value = block.dateStart || '';
   els.blockDateEnd.value = block.dateEnd || '';
@@ -2808,6 +3332,10 @@ function openBlockEditor(blockId) {
 
   closeAllPanels();
   els.blockEditor.classList.remove('hidden');
+  state.openPanels.add('block-editor');
+  applyPanelPosition(els.blockEditor);
+  bringPanelToFront(els.blockEditor);
+  updateOrbVisibility();
 }
 
 function saveCurrentBlock() {
@@ -2817,12 +3345,15 @@ function saveCurrentBlock() {
   state.currentBlock.dateStart = els.blockDate.value;
   state.currentBlock.dateEnd = els.blockDateEnd.value;
   save();
+  syncBlocksToCalendarAndTodos();
 }
 
 function closeEditor() {
   saveCurrentBlock(); stopTimer();
   state.currentBlock = null;
   els.blockEditor.classList.add('hidden');
+  state.openPanels.delete('block-editor');
+  updateOrbVisibility();
   openMindmap();
 }
 
@@ -2854,7 +3385,7 @@ function renderTodos() {
     <div class="todo-item" data-id="${t.id}">
       <div class="todo-checkbox ${t.status === 'completed' ? 'checked' : ''}" data-todo="${t.id}">${t.status === 'completed' ? '✓' : ''}</div>
       <div class="todo-content">
-        <div class="todo-text ${t.status === 'completed' ? 'done' : ''}">${escHtml(t.text)}${t.priority && t.priority !== 'none' ? ` ${t.priority === 'high' ? '🔴' : t.priority === 'medium' ? '🟡' : '🟢'}` : ''}</div>
+        <div class="todo-text ${t.status === 'completed' ? 'done' : ''}">${t.priority && t.priority !== 'none' ? `<span class="priority-dot ${t.priority}"></span>` : ''}${escHtml(t.text)}</div>
         <div class="todo-meta">
           <span class="status-badge ${t.status || 'not_started'}">${STATUSES[t.status || 'not_started']?.label}</span>
           ${t.date ? `<span class="todo-date">${t.date}</span>` : ''}
@@ -2879,6 +3410,7 @@ function toggleTodoStatus(todoId) {
       state.stats.completed++;
     }
     save(); renderTodos(); updateTodayProgress();
+    syncBlocksToCalendarAndTodos();
   }
 }
 
@@ -2904,6 +3436,7 @@ function saveTodo() {
     tags,
   });
   save(); renderTodos(); updateTodayProgress();
+  syncBlocksToCalendarAndTodos();
   els.todoPopup.classList.add('hidden');
   toast('To-do added');
 }
@@ -2917,10 +3450,10 @@ function renderSubblocks() {
   }
   els.subblocksList.innerHTML = children.map(c => `
     <div class="subblock-item" data-id="${c.id}">
-      <span class="subblock-icon">${c.icon}</span>
+      <span class="subblock-icon">${getIconHtml(c.icon)}</span>
       <span class="subblock-name">${escHtml(c.name)}</span>
       <span class="subblock-arrow">→</span>
-            </div>
+    </div>
   `).join('');
 }
 
@@ -2931,7 +3464,7 @@ function renderSubblocks() {
 function openQuickAdd() {
   els.quickTaskText.value = '';
   els.quickTaskBlock.innerHTML = '<option value="">Select block...</option>' +
-    state.blocks.map(b => `<option value="${b.id}">${b.icon} ${escHtml(b.name)}</option>`).join('');
+    state.blocks.map(b => `<option value="${b.id}">${escHtml(b.name)}</option>`).join('');
   els.quickAddPopup.classList.remove('hidden');
   els.quickTaskText.focus();
 }
@@ -2947,6 +3480,7 @@ function saveQuickTask() {
     block.todos.push({ id: 'todo_' + Date.now(), text, status: 'not_started', priority: 'none', date: '', tags: [] });
     save();
     updateTodayProgress();
+    syncBlocksToCalendarAndTodos();
     toast('Task added');
   }
   els.quickAddPopup.classList.add('hidden');
@@ -2960,19 +3494,23 @@ const chatHistory = [];
 let aiWebSocket = null;
 let aiModels = [];
 let currentAiModel = 'llama3.2';
+/** Last user message sent to AI - used to avoid using it as block name when AI mis-parses (e.g. "clear the block") */
+let lastAiUserMessage = '';
 
 // AI Action Handlers - Execute actions triggered by AI
 const aiActionHandlers = {
   create_block: (params) => {
-    const name = params.name || 'New Block';
+    let name = (params.name || 'New Block').trim();
+    if (name.length > 80) name = name.slice(0, 77) + '…';
+    if (lastAiUserMessage && name.toLowerCase() === lastAiUserMessage.trim().toLowerCase()) name = 'New Block';
     const type = params.type || 'note';
-    const icons = { note: '📝', task: '✅', project: '📁', idea: '💡' };
+    const icons = { note: 'note', task: 'task', project: 'project', idea: 'idea' };
     const x = Math.max(...state.blocks.map(b => b.x), 0) + 200;
     const newBlock = {
       id: Date.now().toString(),
       name,
       type,
-      icon: icons[type] || '📝',
+      icon: icons[type] || 'note',
       notes: params.notes || '',
       todos: [],
       dateStart: '',
@@ -3005,6 +3543,7 @@ const aiActionHandlers = {
           tags: params.tags || [],
         });
         save();
+        syncBlocksToCalendarAndTodos();
       }
     } else {
       // Add to first block or create general task
@@ -3020,6 +3559,7 @@ const aiActionHandlers = {
           tags: [],
         });
         save();
+        syncBlocksToCalendarAndTodos();
       }
     }
     updateTodayProgress();
@@ -3308,11 +3848,14 @@ function openChat() {
   if (els.chatBox.classList.contains('hidden')) {
     els.chatBox.classList.remove('hidden');
     state.openPanels.add('chat-box');
+    applyPanelPosition(els.chatBox);
     bringPanelToFront(els.chatBox);
+    updateOrbVisibility();
     connectAiWebSocket();
   } else {
     els.chatBox.classList.add('hidden');
     state.openPanels.delete('chat-box');
+    updateOrbVisibility();
   }
 }
 
@@ -3590,9 +4133,19 @@ function openSettings() {
   els.pomoWorkDuration.value = state.pomodoro.workDuration;
   els.pomoShortBreak.value = state.pomodoro.shortBreak;
   els.pomoLongBreak.value = state.pomodoro.longBreak;
+  // Populate server URL field
+  if (els.serverUrlInput) {
+    els.serverUrlInput.value = CONFIG.API_BASE;
+  }
+  if (els.syncStatusIndicator) {
+    els.syncStatusIndicator.textContent = isOnline ? 'Online' : 'Offline';
+    els.syncStatusIndicator.style.color = isOnline ? '#34d399' : '#f87171';
+  }
   els.settingsPanel.classList.remove('hidden');
   state.openPanels.add('settings-panel');
+  applyPanelPosition(els.settingsPanel);
   bringPanelToFront(els.settingsPanel);
+  updateOrbVisibility();
 }
 
 function saveSettings() {
@@ -3632,6 +4185,269 @@ function clearData() {
     localStorage.removeItem(CONFIG.STORAGE_KEY);
     location.reload();
   }
+}
+
+// ============================================================================
+// Security & Master Password
+// ============================================================================
+
+function updateSecurityStatus() {
+  if (!els.securityStatus) return;
+  if (!state.security.hasMasterPassword) {
+    els.securityStatus.textContent = 'Not set';
+  } else if (state.security.isLocked) {
+    els.securityStatus.textContent = 'Locked';
+  } else {
+    els.securityStatus.textContent = 'Unlocked';
+  }
+}
+
+function showSecurityOverlay(showSetup) {
+  if (!els.securityOverlay) return;
+  els.securityOverlay.classList.remove('hidden');
+  if (els.securitySetup && els.securityUnlock) {
+    if (showSetup) {
+      els.securitySetup.classList.remove('hidden');
+      els.securityUnlock.classList.add('hidden');
+      if (els.masterSetupError) els.masterSetupError.textContent = '';
+      if (els.masterPassword) els.masterPassword.value = '';
+      if (els.masterPasswordConfirm) els.masterPasswordConfirm.value = '';
+      if (els.masterHint) els.masterHint.value = '';
+    } else {
+      els.securitySetup.classList.add('hidden');
+      els.securityUnlock.classList.remove('hidden');
+      if (els.masterUnlockError) els.masterUnlockError.textContent = '';
+      if (els.masterUnlock) {
+        els.masterUnlock.value = '';
+        els.masterUnlock.focus();
+      }
+    }
+  }
+  document.body.classList.add('security-lock');
+}
+
+function hideSecurityOverlay() {
+  if (!els.securityOverlay) return;
+  els.securityOverlay.classList.add('hidden');
+  document.body.classList.remove('security-lock');
+}
+
+function setMasterMode(mode) {
+  state.security.mode = mode;
+  if (!els.masterModePin || !els.masterModePassword) return;
+  els.masterModePin.classList.toggle('active', mode === 'pin');
+  els.masterModePassword.classList.toggle('active', mode === 'password');
+  if (els.masterPasswordLabel) {
+    els.masterPasswordLabel.textContent = mode === 'pin' ? 'New PIN' : 'New password';
+  }
+  const inputMode = mode === 'pin' ? 'numeric' : 'text';
+  if (els.masterPassword) {
+    els.masterPassword.value = '';
+    els.masterPassword.type = 'password';
+    els.masterPassword.inputMode = inputMode;
+  }
+  if (els.masterPasswordConfirm) {
+    els.masterPasswordConfirm.value = '';
+    els.masterPasswordConfirm.type = 'password';
+    els.masterPasswordConfirm.inputMode = inputMode;
+  }
+}
+
+async function initSecurity() {
+  if (!window.__TAURI__?.core?.invoke) {
+    state.security.hasMasterPassword = false;
+    state.security.isLocked = false;
+    updateSecurityStatus();
+    return;
+  }
+
+  try {
+    const exists = await secureExists(MASTER_KEY_NAME);
+    if (!exists) {
+      state.security.hasMasterPassword = false;
+      state.security.isLocked = true;
+      setMasterMode('pin');
+      updateSecurityStatus();
+      showSecurityOverlay(true);
+      return;
+    }
+
+    const raw = await secureGet(MASTER_KEY_NAME);
+    if (!raw) {
+      state.security.hasMasterPassword = false;
+      state.security.isLocked = true;
+      setMasterMode('pin');
+      updateSecurityStatus();
+      showSecurityOverlay(true);
+      return;
+    }
+
+    let record;
+    try {
+      record = JSON.parse(raw);
+    } catch (e) {
+      console.error('Failed to parse master password record', e);
+      state.security.hasMasterPassword = false;
+      state.security.isLocked = true;
+      setMasterMode('pin');
+      updateSecurityStatus();
+      showSecurityOverlay(true);
+      return;
+    }
+
+    state.security.hasMasterPassword = true;
+    state.security.isLocked = true;
+    state.security.record = record;
+    state.security.mode = record.mode || 'password';
+    state.security.failedAttempts = 0;
+    state.security.lockUntil = 0;
+    if (els.securityHintText) {
+      if (record.hint) {
+        els.securityHintText.textContent = `Hint: ${record.hint}`;
+      } else {
+        els.securityHintText.textContent = 'Enter your master PIN or password for this Mac.';
+      }
+    }
+    await loadApiKeys();
+    updateSecurityStatus();
+    showSecurityOverlay(false);
+  } catch (e) {
+    console.error('Failed to initialize security', e);
+    state.security.hasMasterPassword = false;
+    state.security.isLocked = false;
+    state.apiKeys = {};
+    updateSecurityStatus();
+  }
+}
+
+async function handleMasterSetup() {
+  if (!els.masterPassword || !els.masterPasswordConfirm) return;
+  const mode = state.security.mode || 'pin';
+  const pass = els.masterPassword.value.trim();
+  const confirm = els.masterPasswordConfirm.value.trim();
+  const hint = els.masterHint ? els.masterHint.value.trim() : '';
+  const errEl = els.masterSetupError;
+  if (errEl) errEl.textContent = '';
+
+  if (!pass || !confirm) {
+    if (errEl) errEl.textContent = 'Enter and confirm your password.';
+    return;
+  }
+  if (pass !== confirm) {
+    if (errEl) errEl.textContent = 'Values do not match.';
+    return;
+  }
+
+  if (mode === 'pin') {
+    if (!/^[0-9]{4,6}$/.test(pass)) {
+      if (errEl) errEl.textContent = 'PIN must be 4–6 digits.';
+      return;
+    }
+    if (/^0+$/.test(pass) || pass === '1234' || pass === '123456') {
+      if (errEl) errEl.textContent = 'Choose a less predictable PIN.';
+      return;
+    }
+  } else {
+    if (pass.length < 10) {
+      if (errEl) errEl.textContent = 'Password should be at least 10 characters.';
+      return;
+    }
+  }
+
+  if (!window.__TAURI__?.core?.invoke) {
+    if (errEl) errEl.textContent = 'Master password requires the desktop app.';
+    return;
+  }
+
+  try {
+    const record = await createMasterPasswordRecord(pass, mode, hint);
+    await secureSet(MASTER_KEY_NAME, JSON.stringify(record));
+    state.security.hasMasterPassword = true;
+    state.security.isLocked = false;
+    state.security.record = record;
+    state.security.failedAttempts = 0;
+    state.security.lockUntil = 0;
+    if (els.masterPassword) els.masterPassword.value = '';
+    if (els.masterPasswordConfirm) els.masterPasswordConfirm.value = '';
+    if (els.masterHint) els.masterHint.value = '';
+    hideSecurityOverlay();
+    updateSecurityStatus();
+    toast('Master password set');
+  } catch (e) {
+    console.error('Failed to set master password', e);
+    if (errEl) errEl.textContent = 'Failed to save password. Please try again.';
+  }
+}
+
+async function handleMasterUnlock() {
+  if (!els.masterUnlock) return;
+  const errEl = els.masterUnlockError;
+  if (errEl) errEl.textContent = '';
+
+  if (!window.__TAURI__?.core?.invoke) {
+    if (errEl) errEl.textContent = 'Unlock requires the desktop app.';
+    return;
+  }
+
+  if (state.security.lockUntil && Date.now() < state.security.lockUntil) {
+    const remaining = Math.ceil((state.security.lockUntil - Date.now()) / 1000);
+    if (errEl) errEl.textContent = `Too many attempts. Try again in ${remaining}s.`;
+    return;
+  }
+
+  const pass = els.masterUnlock.value.trim();
+  if (!pass) {
+    if (errEl) errEl.textContent = 'Enter your master password.';
+    return;
+  }
+
+  try {
+    if (!state.security.record) {
+      const raw = await secureGet(MASTER_KEY_NAME);
+      if (!raw) {
+        if (errEl) errEl.textContent = 'No master password found.';
+        return;
+      }
+      state.security.record = JSON.parse(raw);
+    }
+
+    const ok = await verifyMasterPassword(pass, state.security.record);
+    if (!ok) {
+      state.security.failedAttempts = (state.security.failedAttempts || 0) + 1;
+      if (state.security.failedAttempts >= 5) {
+        state.security.lockUntil = Date.now() + 30000;
+        if (errEl) errEl.textContent = 'Too many attempts. Locked for 30 seconds.';
+      } else {
+        if (errEl) errEl.textContent = 'Incorrect password. Try again.';
+      }
+      return;
+    }
+
+    state.security.isLocked = false;
+    state.security.failedAttempts = 0;
+    state.security.lockUntil = 0;
+    els.masterUnlock.value = '';
+    await loadApiKeys();
+    hideSecurityOverlay();
+    updateSecurityStatus();
+  } catch (e) {
+    console.error('Failed to verify master password', e);
+    if (errEl) errEl.textContent = 'Something went wrong. Please try again.';
+  }
+}
+
+function lockApp() {
+  if (!window.__TAURI__?.core?.invoke) return;
+  if (!state.security.hasMasterPassword) {
+    state.security.isLocked = true;
+    setMasterMode('pin');
+    showSecurityOverlay(true);
+  } else {
+    state.security.isLocked = true;
+    showSecurityOverlay(false);
+  }
+  clearApiKeysInMemory();
+  updateSecurityStatus();
 }
 
 // ============================================================================
@@ -3776,14 +4592,14 @@ function initEvents() {
   els.btnQuickHelp.addEventListener('click', () => els.shortcutsPopup.classList.remove('hidden'));
 
   // Pomodoro Panel
-  els.btnClosePomodoro.addEventListener('click', () => els.pomodoroPanel.classList.add('hidden'));
+  els.btnClosePomodoro.addEventListener('click', () => { els.pomodoroPanel.classList.add('hidden'); state.openPanels.delete('pomodoro-panel'); updateOrbVisibility(); });
   els.pomoStart.addEventListener('click', startPomodoro);
   els.pomoPause.addEventListener('click', pausePomodoro);
   els.pomoReset.addEventListener('click', resetPomodoroTimer);
   document.querySelectorAll('.pomo-tab').forEach(t => t.addEventListener('click', () => setPomoMode(t.dataset.mode)));
 
   // Stats
-  els.btnCloseStats.addEventListener('click', () => els.statsPanel.classList.add('hidden'));
+  els.btnCloseStats.addEventListener('click', () => { els.statsPanel.classList.add('hidden'); state.openPanels.delete('stats-panel'); updateOrbVisibility(); });
   document.querySelectorAll('.period-btn').forEach(b => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'));
@@ -3793,7 +4609,7 @@ function initEvents() {
   });
 
   // Habits
-  els.btnCloseHabits.addEventListener('click', () => els.habitsPanel.classList.add('hidden'));
+  els.btnCloseHabits.addEventListener('click', () => { els.habitsPanel.classList.add('hidden'); state.openPanels.delete('habits-panel'); updateOrbVisibility(); });
   els.btnAddHabit.addEventListener('click', openHabitPopup);
   els.habitPrevDay.addEventListener('click', () => { state.habitDate.setDate(state.habitDate.getDate() - 1); renderHabits(); });
   els.habitNextDay.addEventListener('click', () => { state.habitDate.setDate(state.habitDate.getDate() + 1); renderHabits(); });
@@ -3805,7 +4621,7 @@ function initEvents() {
   els.btnCancelHabit.addEventListener('click', () => els.habitPopup.classList.add('hidden'));
 
   // Calendar
-  els.btnCloseCalendar.addEventListener('click', () => els.calendarPanel.classList.add('hidden'));
+  els.btnCloseCalendar.addEventListener('click', () => { els.calendarPanel.classList.add('hidden'); state.openPanels.delete('calendar-panel'); updateOrbVisibility(); });
   els.btnPrevMonth.addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() - 1); renderCalendar(); });
   els.btnNextMonth.addEventListener('click', () => { state.calendarDate.setMonth(state.calendarDate.getMonth() + 1); renderCalendar(); });
   els.calendarGrid.addEventListener('click', e => {
@@ -3817,7 +4633,7 @@ function initEvents() {
   els.btnCancelCalTask.addEventListener('click', () => els.calTaskPopup.classList.add('hidden'));
 
   // Tasks Panel
-  els.btnCloseTasks.addEventListener('click', () => { clearTaskSelection(); els.tasksPanel.classList.add('hidden'); });
+  els.btnCloseTasks.addEventListener('click', () => { clearTaskSelection(); els.tasksPanel.classList.add('hidden'); state.openPanels.delete('tasks-panel'); updateOrbVisibility(); });
   document.querySelectorAll('.status-tab').forEach(t => {
     t.addEventListener('click', () => {
       state.taskFilter = t.dataset.status;
@@ -3878,12 +4694,17 @@ function initEvents() {
   if (els.btnCancelMoveTask) els.btnCancelMoveTask.addEventListener('click', () => { els.moveTaskPopup.classList.add('hidden'); state.contextTask = null; });
 
   // Chat
-  els.btnCloseChat.addEventListener('click', () => els.chatBox.classList.add('hidden'));
+  els.btnCloseChat.addEventListener('click', () => { els.chatBox.classList.add('hidden'); state.openPanels.delete('chat-box'); updateOrbVisibility(); });
   els.btnSend.addEventListener('click', sendChat);
   els.chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+  // Auto-grow chat textarea as user types
+  els.chatInput.addEventListener('input', () => {
+    els.chatInput.style.height = 'auto';
+    els.chatInput.style.height = Math.min(els.chatInput.scrollHeight, 100) + 'px';
+  });
 
   // Mind Map
-  els.btnCloseMindmap.addEventListener('click', () => els.mindmapView.classList.add('hidden'));
+  els.btnCloseMindmap.addEventListener('click', () => { els.mindmapView.classList.add('hidden'); state.openPanels.delete('mindmap-view'); updateOrbVisibility(); });
   els.btnAddBlock.addEventListener('click', () => openBlockPopup(null));
 
   // Fullscreen toggle for mind map
@@ -3917,10 +4738,13 @@ function initEvents() {
   // Block Editor
   els.btnBack.addEventListener('click', closeEditor);
   els.btnCloseEditor.addEventListener('click', () => { saveCurrentBlock(); stopTimer(); closeAllPanels(); });
-  els.blockTitle.addEventListener('input', saveCurrentBlock);
-  els.blockNotes.addEventListener('input', saveCurrentBlock);
+  const debouncedSaveBlock = debounce(saveCurrentBlock, 300);
+  els.blockTitle.addEventListener('input', debouncedSaveBlock);
+  els.blockNotes.addEventListener('input', debouncedSaveBlock);
   els.blockDate.addEventListener('change', saveCurrentBlock);
   els.blockDateEnd.addEventListener('change', saveCurrentBlock);
+  const datePropRow = els.blockEditor?.querySelector('.editor-props .prop-row');
+  if (datePropRow) datePropRow.addEventListener('click', (e) => { if (e.target.closest('.prop-label')) els.blockDate.focus(); });
   els.blockIconBtn.addEventListener('click', () => { state.contextBlock = state.currentBlock; openIconPopup(); });
   els.btnTimerStart.addEventListener('click', startTimer);
   els.btnTimerPause.addEventListener('click', pauseTimer);
@@ -3939,8 +4763,19 @@ function initEvents() {
   els.quickTaskText.addEventListener('keydown', e => { if (e.key === 'Enter') saveQuickTask(); });
 
   // Settings
-  els.btnCloseSettings.addEventListener('click', () => els.settingsPanel.classList.add('hidden'));
+  els.btnCloseSettings.addEventListener('click', () => { els.settingsPanel.classList.add('hidden'); state.openPanels.delete('settings-panel'); updateOrbVisibility(); });
+  document.querySelectorAll('.settings-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const section = btn.dataset.section;
+      document.querySelectorAll('.settings-nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const pane = document.getElementById('settings-pane-' + section);
+      if (pane) pane.classList.add('active');
+    });
+  });
   document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => applyTheme(o.dataset.theme)));
+  document.querySelectorAll('.mindmap-style-option').forEach(o => o.addEventListener('click', () => applyMindmapStyle(o.dataset.mindmapStyle)));
   els.pomoWorkDuration.addEventListener('change', saveSettings);
   els.pomoShortBreak.addEventListener('change', saveSettings);
   els.pomoLongBreak.addEventListener('change', saveSettings);
@@ -3948,6 +4783,52 @@ function initEvents() {
   els.btnImport.addEventListener('click', () => els.importFile.click());
   els.importFile.addEventListener('change', e => { if (e.target.files[0]) importData(e.target.files[0]); });
   els.btnClearData.addEventListener('click', clearData);
+
+  // Server URL settings (for multi-device sync — set your backend IP)
+  if (els.btnSaveServerUrl) {
+    els.btnSaveServerUrl.addEventListener('click', async () => {
+      const url = els.serverUrlInput?.value?.trim();
+      if (!url) return toast('Please enter a server URL');
+      CONFIG.API_BASE_SETTABLE = url;
+      toast('Server URL saved. Reconnecting...');
+      try {
+        if (syncService) {
+          syncService.serverUrl = url.replace('/api/v1', '');
+          await syncService.sync();
+        }
+        if (els.syncStatusIndicator) {
+          els.syncStatusIndicator.textContent = 'Connected';
+          els.syncStatusIndicator.style.color = '#34d399';
+        }
+        toast('Connected to server');
+      } catch (e) {
+        if (els.syncStatusIndicator) {
+          els.syncStatusIndicator.textContent = 'Failed';
+          els.syncStatusIndicator.style.color = '#f87171';
+        }
+        toast('Could not connect: ' + (e?.message || e));
+      }
+    });
+  }
+  if (els.btnResetServerUrl) {
+    els.btnResetServerUrl.addEventListener('click', () => {
+      CONFIG.API_BASE_SETTABLE = null;
+      if (els.serverUrlInput) els.serverUrlInput.value = CONFIG.API_BASE;
+      toast('Server URL reset to default (localhost:8000)');
+    });
+  }
+
+  // Security / master password
+  if (els.masterModePin && els.masterModePassword) {
+    els.masterModePin.addEventListener('click', () => setMasterMode('pin'));
+    els.masterModePassword.addEventListener('click', () => setMasterMode('password'));
+  }
+  if (els.btnMasterSetup) els.btnMasterSetup.addEventListener('click', () => { handleMasterSetup(); });
+  if (els.btnMasterUnlock) els.btnMasterUnlock.addEventListener('click', () => { handleMasterUnlock(); });
+  if (els.masterUnlock) {
+    els.masterUnlock.addEventListener('keydown', e => { if (e.key === 'Enter') handleMasterUnlock(); });
+  }
+  if (els.btnLockApp) els.btnLockApp.addEventListener('click', lockApp);
 
   // Check for updates (Tauri updater plugin)
   const btnCheckUpdates = document.getElementById('btn-check-updates');
@@ -3988,41 +4869,6 @@ function initEvents() {
   if (els.floatTimerStart) els.floatTimerStart.addEventListener('click', startPomodoro);
   if (els.floatTimerPause) els.floatTimerPause.addEventListener('click', pausePomodoro);
   if (els.floatTimerReset) els.floatTimerReset.addEventListener('click', resetPomodoroTimer);
-
-  // Click-Through Toggle (Ghost Mode)
-  const clickThroughToggle = document.getElementById('click-through-toggle');
-  if (clickThroughToggle) {
-    clickThroughToggle.addEventListener('click', toggleClickThroughMode);
-  }
-  // Alt+G global shortcut: sync with backend and toggle ghost mode (so user can turn off when window is click-through)
-  if (window.__TAURI__?.event?.listen) {
-    window.__TAURI__.event.listen('toggle-ghost', async () => {
-      try {
-        const { invoke } = window.__TAURI__.core;
-        const enabled = await invoke('get_click_through_state');
-        const toggle = document.getElementById('click-through-toggle');
-        if (enabled) {
-          clickThroughEnabled = false;
-          const w = window.__TAURI__.webviewWindow?.getCurrentWebviewWindow?.();
-          if (w) await w.setIgnoreCursorEvents(false);
-          await invoke('set_click_through', { enabled: false });
-          document.body.classList.remove('click-through-mode');
-          if (toggle) toggle.classList.remove('active');
-          toast('Ghost mode disabled');
-        } else {
-          clickThroughEnabled = true;
-          document.body.classList.add('click-through-mode');
-          if (toggle) toggle.classList.add('active');
-          await invoke('set_click_through', { enabled: true });
-          const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
-          await w.setIgnoreCursorEvents(true);
-          toast('Ghost mode on — press Alt+G to turn off');
-        }
-      } catch (e) {
-        console.warn('Toggle ghost:', e);
-      }
-    });
-  }
 
   // Panel Dragging
   document.addEventListener('mousedown', e => {
@@ -4068,27 +4914,30 @@ function initEvents() {
     if (panel) bringPanelToFront(panel);
   });
 
-  // Keyboard Shortcuts
+  // Keyboard Shortcuts (Ctrl = Windows/Linux, Cmd = Mac)
   document.addEventListener('keydown', e => {
     const target = e.target;
-    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.contentEditable === 'true';
+    const isInput = target.closest('input, textarea, select') || target.contentEditable === 'true' || target.isContentEditable;
+    const mod = e.ctrlKey || e.metaKey;
 
-    // Global shortcuts: backtick/~ hides overlay to system tray (use Alt+Space to show again)
-    if (e.key === '`' || e.key === '~') {
+    // Global shortcuts: backtick/~ hides overlay to system tray
+    // Guard: don't fire when user is typing in an input/textarea
+    if ((e.key === '`' || e.key === '~') && !isInput) {
       e.preventDefault();
       if (window.__TAURI__?.core?.invoke) {
         window.__TAURI__.core.invoke('minimize_to_tray').then(() => {
-          toast('Overlay hidden to tray — press Alt+Space to show again');
+          toast('Overlay hidden — press Super+Shift+O to show again');
         }).catch(() => toggleAllPanelsVisibility());
       } else {
         toggleAllPanelsVisibility();
       }
       return;
     }
+    // Win+Shift+O / Cmd+Shift+O handled by Rust (toggle show/hide)
     if (e.altKey && e.code === 'Space') { e.preventDefault(); toggleMenu(); return; }
-    if (e.ctrlKey && e.key === 'k') { e.preventDefault(); openSearch(); return; }
-    if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openQuickAdd(); return; }
-    if (e.ctrlKey && e.key === '/') { e.preventDefault(); toggleAiInput(); return; }
+    if (mod && e.key === 'k') { e.preventDefault(); openSearch(); return; }
+    if (mod && e.key === 'n') { e.preventDefault(); openQuickAdd(); return; }
+    if (mod && e.key === '/') { e.preventDefault(); toggleAiInput(); return; }
 
     // Escape - close things progressively
     if (e.key === 'Escape') {
@@ -4136,8 +4985,10 @@ function initEvents() {
 async function init() {
   initEls();
   load();
+  await initSecurity();
   initEvents();
   applyTheme(state.theme);
+  applyMindmapStyle(state.mindmapStyle);
   updateProfileBadge();
   updateFocusDisplay();
   updateMiniTimer();
@@ -4164,6 +5015,24 @@ async function init() {
     modelSelect.addEventListener('change', (e) => switchAiModel(e.target.value));
   }
 
+  // Use backend AI & Ollama URL
+  const useBackendAiEl = document.getElementById('use-backend-ai');
+  if (useBackendAiEl) {
+    useBackendAiEl.checked = localStorage.getItem('aion_use_backend_ai') === 'true';
+    useBackendAiEl.addEventListener('change', () => {
+      localStorage.setItem('aion_use_backend_ai', useBackendAiEl.checked ? 'true' : 'false');
+    });
+  }
+  const ollamaUrlEl = document.getElementById('ollama-url-input');
+  if (ollamaUrlEl) {
+    ollamaUrlEl.value = localStorage.getItem('aion_ollama_url') || '';
+    ollamaUrlEl.addEventListener('change', () => {
+      let v = (ollamaUrlEl.value || '').trim();
+      if (v && !/^https?:\/\//i.test(v)) v = 'http://' + v;
+      localStorage.setItem('aion_ollama_url', v);
+    });
+  }
+
   // Initialize offline-first sync system
   await initOfflineSync();
 
@@ -4172,6 +5041,7 @@ async function init() {
     requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
   });
 
+  updateOrbVisibility();
   console.log('Aion Complete v2 with AI and Offline Sync ready');
 }
 
@@ -4198,13 +5068,16 @@ async function initOfflineSync() {
     // Update UI
     updateSyncStatusUI();
 
-    // Listen for online/offline
-    window.addEventListener('online', handleOnlineStatusChange);
-    window.addEventListener('offline', handleOnlineStatusChange);
+    // Note: online/offline events are already handled by SyncService constructor
+    // which fires handleSyncEvent('online'/'offline') - no duplicate listeners needed.
 
-    // Sync on close: when user closes the window, run one sync then close
+    // Sync on close: when user closes the window or quits (Cmd+Q on macOS),
+    // run one final sync then exit the app process.
     if (window.__TAURI__?.event?.listen && syncService) {
+      let isClosing = false;
       window.__TAURI__.event.listen('sync-before-close', async () => {
+        if (isClosing) return; // prevent re-entrant calls
+        isClosing = true;
         const SYNC_CLOSE_TIMEOUT_MS = 5000;
         try {
           const syncPromise = syncService.sync();
@@ -4217,9 +5090,9 @@ async function initOfflineSync() {
         }
         try {
           const { invoke } = window.__TAURI__.core;
-          await invoke('close_window');
+          await invoke('exit_app');
         } catch (err) {
-          console.warn('[Sync] close_window:', err);
+          console.warn('[Sync] exit_app:', err);
         }
       });
     }
@@ -4305,7 +5178,7 @@ async function loadFromLocalDb() {
         todos: b.todos || [],
       }));
       save();
-      renderMindMap();
+      renderMindmap();
       renderMiniTodos();
       showToast('Data synced from server');
     }

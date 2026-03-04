@@ -5,7 +5,7 @@ export class RealtimeAudioPlayer {
         this.isPlaying = false;
         this.onStart = callbacks.onStart;
         this.onEnd = callbacks.onEnd;
-        this.checkInterval = null;
+        this._pendingSources = 0;
     }
 
     async enqueue(blob) {
@@ -30,36 +30,34 @@ export class RealtimeAudioPlayer {
             }
 
             source.start(this.nextStartTime);
+            this._pendingSources++;
 
-            // If just starting
+            // If just starting, fire onStart
             if (!this.isPlaying) {
                 this.isPlaying = true;
                 if (this.onStart) this.onStart();
-                this.startMonitoring();
             }
 
             // Update next start time
             this.nextStartTime += audioBuffer.duration;
+
+            // Use onended event instead of polling
+            source.onended = () => {
+                this._pendingSources--;
+                if (this._pendingSources <= 0 && this.isPlaying) {
+                    this._pendingSources = 0;
+                    this.isPlaying = false;
+                    if (this.onEnd) this.onEnd();
+                }
+            };
 
         } catch (err) {
             console.error("Audio Decode Error:", err);
         }
     }
 
-    startMonitoring() {
-        if (this.checkInterval) clearInterval(this.checkInterval);
-        this.checkInterval = setInterval(() => {
-            if (this.isPlaying && this.audioContext.currentTime >= this.nextStartTime) {
-                // Playback finished
-                this.isPlaying = false;
-                if (this.onEnd) this.onEnd();
-                clearInterval(this.checkInterval);
-            }
-        }, 100);
-    }
-
     reset() {
-        if (this.checkInterval) clearInterval(this.checkInterval);
+        this._pendingSources = 0;
         this.nextStartTime = 0;
         this.isPlaying = false;
 

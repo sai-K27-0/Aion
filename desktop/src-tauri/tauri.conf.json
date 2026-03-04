@@ -24,7 +24,7 @@
         "focus": false,
         "transparent": true,
         "decorations": false,
-        "alwaysOnTop": false,
+        "alwaysOnTop": true,
         "skipTaskbar": true,
         "center": true,
         "visible": true
@@ -53,15 +53,25 @@
     "shortDescription": "AI Life Assistant",
     "longDescription": "Aion - Your AI-powered life management system",
     "targets": "all",
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
   },
   "plugins": {
     "shell": {
       "open": true
     },
     "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMkQ3NzlFQ0VBQjA1OTUKUldTVkJhdk9ubmN0VC9wU21iMkZMcmpyNER6bGloOFYyUXBwZm9rUm42bVUweTJ3aHNlZHhqUTQK",
       "endpoints": [
-        "https://github.com/aion-app/aion/releases/latest/download/latest.json"
+        "https://github.com/sai-K27-0/Aion/releases/latest/download/latest.json"
       ]
     }
   }

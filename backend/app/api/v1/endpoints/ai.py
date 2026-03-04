@@ -937,7 +937,7 @@ async def chat(request: Request, data: ChatRequest, current_user: CurrentUser):
     if not await ai_service.is_available():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Ollama is not available. Make sure it's running.",
+            detail="AI is not available. Start Ollama, or set OPENAI_API_KEY / ANTHROPIC_API_KEY.",
         )
     
     try:

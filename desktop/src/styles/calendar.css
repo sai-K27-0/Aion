@@ -29,7 +29,7 @@
 .calendar-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: 60px 1fr;
+    grid-template-columns: clamp(40px, 8vw, 60px) 1fr;
     grid-auto-rows: 60px;
     gap: 1px;
     overflow-y: auto;

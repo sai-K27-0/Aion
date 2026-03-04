@@ -70,13 +70,24 @@ class SyncService {
     }
 
     /**
-     * Get auth headers (Bearer token) for sync API calls.
+     * Get auth headers (Bearer token) for API calls.
+     * Public so desktop can use for backend AI chat etc.
      */
     async _getAuthHeaders() {
         const token = await SecureStorage.getAccessToken();
         const headers = { 'Content-Type': 'application/json' };
         if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
+    }
+
+    /** Public: get auth headers for backend requests (e.g. AI chat). */
+    async getAuthHeaders() {
+        return this._getAuthHeaders();
+    }
+
+    /** Base URL of the server (no /api/v1). */
+    getServerBaseUrl() {
+        return this.serverUrl || '';
     }
 
     /**
