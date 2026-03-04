@@ -329,9 +329,6 @@ function getIconHtml(icon) {
   return `<span class="block-icon-emoji">${icon}</span>`;
 }
 
-// Alias so both toast() and showToast() work
-const showToast = toast;
-
 function showNotification(title, message, icon = '🔔') {
   const notification = $('notification');
   if (!notification) return; // Guard against missing element
