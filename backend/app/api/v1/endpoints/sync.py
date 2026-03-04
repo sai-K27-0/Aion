@@ -14,11 +14,13 @@ Endpoints:
 import asyncio
 import json
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Literal, Optional, Dict, Any, Set
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, Depends
 from fastapi.websockets import WebSocketState
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.services.sync_service import (
     get_sync_service,
@@ -29,6 +31,26 @@ from app.services.sync_service import (
 )
 from app.services.auth_service import AuthService
 from app.api.deps import CurrentUser
+
+# Rate limiter (shared with main app via slowapi)
+limiter = Limiter(key_func=get_remote_address)
+
+
+# =============================================================================
+# Security Helpers
+# =============================================================================
+
+async def _verify_device_ownership(device_id: str, user_id: str, sync_service) -> None:
+    """
+    Verify that the authenticated user owns the specified device.
+    Raises 404 if device not found, 403 if not owned by user.
+    Allows unowned devices (user_id=None) for backward compatibility during migration.
+    """
+    device = await sync_service.get_device_async(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found or not registered")
+    if device.user_id and device.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Device not owned by this user")
 
 
 # =============================================================================
@@ -152,7 +174,7 @@ class SyncChangeRequest(BaseModel):
     entity_type: str = Field(..., description="Type of entity: block, block_field, etc.")
     entity_id: str = Field(..., description="Entity primary key ID")
     sync_id: str = Field(..., description="Sync identifier")
-    operation: str = Field(..., description="Operation: create, update, delete")
+    operation: Literal["create", "update", "delete"] = Field(..., description="Operation: create, update, delete")
     data: Dict[str, Any] = Field(..., description="Entity data")
     local_updated_at: str = Field(..., description="ISO timestamp of local update")
     sync_version: int = Field(..., description="Current sync version")
@@ -234,7 +256,8 @@ class FullSyncResponse(BaseModel):
     summary="Register Device",
     description="Register a new device for syncing. Requires authentication.",
 )
-async def register_device(request: DeviceRegistration, current_user: CurrentUser):
+@limiter.limit("10/minute")
+async def register_device(request: Request, body: DeviceRegistration, current_user: CurrentUser):
     """
     Register a new device for synchronization.
     
@@ -244,10 +267,10 @@ async def register_device(request: DeviceRegistration, current_user: CurrentUser
     sync_service = get_sync_service()
     
     device = sync_service.register_device(
-        device_id=request.device_id,
-        device_name=request.device_name,
-        device_type=request.device_type,
-        platform=request.platform,
+        device_id=body.device_id,
+        device_name=body.device_name,
+        device_type=body.device_type,
+        platform=body.platform,
         user_id=str(current_user.id),
     )
     
@@ -269,17 +292,19 @@ async def register_device(request: DeviceRegistration, current_user: CurrentUser
     summary="Push Changes",
     description="Push local changes from client to server. Requires authentication.",
 )
-async def push_changes(request: PushRequest, current_user: CurrentUser):
+@limiter.limit("60/minute")
+async def push_changes(request: Request, body: PushRequest, current_user: CurrentUser):
     """
     Push local changes to the server.
-    
+
     Handles conflict detection and resolution based on entity type strategy.
     """
     sync_service = get_sync_service()
+    await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
     
     # Convert request changes to SyncChange objects
     changes = []
-    for change_req in request.changes:
+    for change_req in body.changes:
         try:
             entity_type = SyncEntityType(change_req.entity_type)
         except ValueError:
@@ -287,7 +312,7 @@ async def push_changes(request: PushRequest, current_user: CurrentUser):
                 status_code=400,
                 detail=f"Invalid entity_type: {change_req.entity_type}",
             )
-        
+
         # Parse timestamp
         try:
             local_updated_at = datetime.fromisoformat(
@@ -295,7 +320,7 @@ async def push_changes(request: PushRequest, current_user: CurrentUser):
             )
         except ValueError:
             local_updated_at = datetime.now(timezone.utc)
-        
+
         changes.append(SyncChange(
             entity_type=entity_type,
             entity_id=change_req.entity_id,
@@ -304,11 +329,11 @@ async def push_changes(request: PushRequest, current_user: CurrentUser):
             data=change_req.data,
             local_updated_at=local_updated_at,
             sync_version=change_req.sync_version,
-            device_id=request.device_id,
+            device_id=body.device_id,
         ))
-    
+
     # Apply changes
-    result = await sync_service.apply_changes(request.device_id, changes)
+    result = await sync_service.apply_changes(body.device_id, changes)
     
     # Convert conflicts to response format
     conflicts = [
@@ -339,48 +364,50 @@ async def push_changes(request: PushRequest, current_user: CurrentUser):
     summary="Pull Changes",
     description="Pull server changes since last sync. Requires authentication.",
 )
-async def pull_changes(request: PullRequest, current_user: CurrentUser):
+@limiter.limit("60/minute")
+async def pull_changes(request: Request, body: PullRequest, current_user: CurrentUser):
     """
     Pull changes from the server since the last sync.
-    
+
     Returns all changed records for the specified entity types.
     """
     sync_service = get_sync_service()
-    
+    await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+
     # Parse since timestamp
     since = None
-    if request.since:
+    if body.since:
         try:
-            since = datetime.fromisoformat(request.since.replace("Z", "+00:00"))
+            since = datetime.fromisoformat(body.since.replace("Z", "+00:00"))
         except ValueError:
             raise HTTPException(
                 status_code=400,
                 detail="Invalid 'since' timestamp format",
             )
-    
+
     # Parse entity types
     entity_types = None
-    if request.entity_types:
+    if body.entity_types:
         try:
-            entity_types = [SyncEntityType(t) for t in request.entity_types]
+            entity_types = [SyncEntityType(t) for t in body.entity_types]
         except ValueError as e:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid entity_type: {str(e)}",
             )
-    
+
     # Get changes
     changes = await sync_service.get_changes_since(
-        device_id=request.device_id,
+        device_id=body.device_id,
         since=since,
         entity_types=entity_types,
     )
-    
+
     total_changes = sum(len(c) for c in changes.values())
     last_sync_time = datetime.now(timezone.utc)
-    
+
     # Update device sync time
-    sync_service.update_device_sync_time(request.device_id, last_sync_time)
+    sync_service.update_device_sync_time(body.device_id, last_sync_time)
     
     return PullResponse(
         success=True,
@@ -396,20 +423,22 @@ async def pull_changes(request: PullRequest, current_user: CurrentUser):
     summary="Full Sync",
     description="Perform full bidirectional sync. Requires authentication.",
 )
-async def full_sync(request: FullSyncRequest, current_user: CurrentUser):
+@limiter.limit("60/minute")
+async def full_sync(request: Request, body: FullSyncRequest, current_user: CurrentUser):
     """
     Perform a full bidirectional sync.
-    
+
     1. Push client changes to server
     2. Pull server changes since last sync
-    
+
     This is the recommended sync method for most use cases.
     """
     sync_service = get_sync_service()
-    
+    await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+
     # Convert request changes
     changes = []
-    for change_req in request.changes:
+    for change_req in body.changes:
         try:
             entity_type = SyncEntityType(change_req.entity_type)
         except ValueError:
@@ -430,20 +459,20 @@ async def full_sync(request: FullSyncRequest, current_user: CurrentUser):
             data=change_req.data,
             local_updated_at=local_updated_at,
             sync_version=change_req.sync_version,
-            device_id=request.device_id,
+            device_id=body.device_id,
         ))
-    
+
     # Parse last sync time
     last_sync = None
-    if request.last_sync:
+    if body.last_sync:
         try:
-            last_sync = datetime.fromisoformat(request.last_sync.replace("Z", "+00:00"))
+            last_sync = datetime.fromisoformat(body.last_sync.replace("Z", "+00:00"))
         except ValueError:
             pass
-    
+
     # Perform full sync
     result, server_changes = await sync_service.full_sync(
-        device_id=request.device_id,
+        device_id=body.device_id,
         client_changes=changes,
         last_sync=last_sync,
     )
@@ -478,13 +507,15 @@ async def full_sync(request: FullSyncRequest, current_user: CurrentUser):
     summary="Sync Status",
     description="Get sync status for a device. Requires authentication.",
 )
-async def get_sync_status(device_id: str = Query(..., description="Device ID"), current_user: CurrentUser):
+@limiter.limit("120/minute")
+async def get_sync_status(request: Request, current_user: CurrentUser, device_id: str = Query(..., description="Device ID")):
     """
     Get the current sync status for a device.
-    
+
     Returns information about pending changes and last sync time.
     """
     sync_service = get_sync_service()
+    await _verify_device_ownership(device_id, str(current_user.id), sync_service)
     status = await sync_service.get_sync_status(device_id)
     return status
 
@@ -494,37 +525,39 @@ async def get_sync_status(device_id: str = Query(..., description="Device ID"), 
     summary="Resolve Conflict",
     description="Manually resolve a sync conflict. Requires authentication.",
 )
-async def resolve_conflict(request: ConflictResolution, current_user: CurrentUser):
+@limiter.limit("30/minute")
+async def resolve_conflict(request: Request, body: ConflictResolution, current_user: CurrentUser):
     """
     Manually resolve a sync conflict.
     
     Provide the resolved data to be saved on the server.
     """
     sync_service = get_sync_service()
-    
+    await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+
     try:
-        entity_type = SyncEntityType(request.entity_type)
+        entity_type = SyncEntityType(body.entity_type)
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid entity_type: {request.entity_type}",
+            detail=f"Invalid entity_type: {body.entity_type}",
         )
-    
+
     # Create a mock conflict for the resolver
     conflict = SyncConflict(
         entity_type=entity_type,
         entity_id="",
-        sync_id=request.sync_id,
+        sync_id=body.sync_id,
         client_data={},
         server_data={},
         client_version=0,
         server_version=0,
     )
-    
+
     success = await sync_service.resolve_conflict(
-        device_id=request.device_id,
+        device_id=body.device_id,
         conflict=conflict,
-        resolution=request.resolution,
+        resolution=body.resolution,
     )
     
     if not success:
@@ -572,9 +605,10 @@ async def list_devices(current_user: CurrentUser):
     description="Deactivate a registered device. Requires authentication.",
 )
 async def deactivate_device(device_id: str, current_user: CurrentUser):
-    """Deactivate a device (soft delete)."""
+    """Deactivate a device (soft delete). Only the device owner can deactivate it."""
     sync_service = get_sync_service()
-    
+    await _verify_device_ownership(device_id, str(current_user.id), sync_service)
+
     success = await sync_service.deactivate_device(device_id)
     
     if not success:
@@ -678,15 +712,21 @@ async def websocket_sync(
     if not user_id:
         await websocket.close(code=4001, reason="Unauthorized: valid JWT token required")
         return
-    
+
+    # Verify device ownership (if device already exists)
+    sync_service = get_sync_service()
+    existing_device = await sync_service.get_device_async(device_id)
+    if existing_device and existing_device.user_id and existing_device.user_id != user_id:
+        await websocket.close(code=4003, reason="Device not owned by this user")
+        return
+
     try:
         await sync_manager.connect(device_id, websocket, user_id)
     except Exception as e:
         await websocket.close(code=4001, reason=f"Connection failed: {str(e)}")
         return
-    
+
     # Register device with sync service (associated with user)
-    sync_service = get_sync_service()
     sync_service.register_device(
         device_id=device_id,
         device_name=device_name,

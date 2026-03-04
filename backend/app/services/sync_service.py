@@ -93,6 +93,7 @@ class DeviceInfo:
     platform: str  # "windows", "macos", "android", "ios"
     last_sync: Optional[datetime] = None
     registered_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    user_id: Optional[str] = None
 
 
 # Entity type to model class mapping
@@ -313,10 +314,11 @@ class SyncService:
                     platform=device.platform,
                     last_sync=device.last_sync,
                     registered_at=device.created_at,
+                    user_id=device.user_id,
                 )
                 self._device_cache[device_id] = device_info
                 return device_info
-            
+
             return None
     
     def update_device_sync_time(self, device_id: str, sync_time: datetime):

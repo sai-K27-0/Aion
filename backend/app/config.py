@@ -3,6 +3,7 @@ Configuration management for Aion Backend.
 All settings are loaded from environment variables with sensible defaults.
 """
 
+import warnings
 from functools import lru_cache
 from typing import Optional
 
@@ -26,7 +27,15 @@ class Settings(BaseSettings):
     
     # API
     api_v1_prefix: str = "/api/v1"
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "http://localhost:1421", "http://localhost:8000", "http://127.0.0.1:8000", "tauri://localhost", "http://*"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:1421",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "tauri://localhost",
+        "https://tauri.localhost",
+    ]
     
     # Server
     host: str = "0.0.0.0"
@@ -112,13 +121,21 @@ def get_settings() -> Settings:
     """Get cached settings instance."""
     s = Settings()
     
-    # Security check: Fail if using default secret key in production
-    if s.production and s.secret_key == "change-this-in-production-to-a-secure-random-key":
-        raise ValueError(
-            "SECURITY ERROR: You must set a secure SECRET_KEY environment variable in production. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
-        )
-    
+    # Security check: Fail in production, warn in dev
+    if s.secret_key == "change-this-in-production-to-a-secure-random-key":
+        if s.production:
+            raise ValueError(
+                "SECURITY ERROR: You must set a secure SECRET_KEY environment variable in production. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+            )
+        else:
+            warnings.warn(
+                "WARNING: Using default secret key. Set SECRET_KEY env var for security. "
+                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\"",
+                UserWarning,
+                stacklevel=2,
+            )
+
     return s
 
 
