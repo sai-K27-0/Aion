@@ -1,7 +1,7 @@
 """Add devices table for persistent device registration
 
 Revision ID: 20260205_0001
-Revises: 20260201_0002
+Revises: 002
 Create Date: 2026-02-05
 
 """
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '20260205_0001'
-down_revision: Union[str, None] = '20260201_0002'
+down_revision: Union[str, None] = '002'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
