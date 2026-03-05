@@ -39,6 +39,16 @@ class SyncService {
         await this.localDb.init();
         this.deviceId = this.localDb.deviceId;
 
+        // Check if user is authenticated before attempting sync
+        const token = await SecureStorage.getAccessToken();
+        if (!token) {
+            console.log('[Sync] No auth token found - sync will start after login');
+            this._notify('sync_status', { status: 'not_logged_in' });
+            // Still start auto-sync so it picks up when user logs in later
+            this._startAutoSync();
+            return;
+        }
+
         // Register device with server
         await this._registerDevice();
 

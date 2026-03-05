@@ -630,6 +630,27 @@ fn main() {
             let window = app.get_webview_window("main").unwrap();
             let _ = window.maximize();
 
+            // macOS: make overlay visible on all Spaces/desktops
+            #[cfg(target_os = "macos")]
+            {
+                use objc::{msg_send, sel, sel_impl};
+                unsafe {
+                    let app_class = Class::get("NSApplication").expect("NSApplication class");
+                    let ns_app: *mut objc::runtime::Object = msg_send![app_class, sharedApplication];
+                    let windows: *mut objc::runtime::Object = msg_send![ns_app, windows];
+                    let count: usize = msg_send![windows, count];
+                    // NSWindowCollectionBehaviorCanJoinAllSpaces = 1 << 0
+                    // NSWindowCollectionBehaviorFullScreenAuxiliary = 1 << 8
+                    let behavior: u64 = (1 << 0) | (1 << 8);
+                    for i in 0..count {
+                        let ns_win: *mut objc::runtime::Object =
+                            msg_send![windows, objectAtIndex: i];
+                        let _: () = msg_send![ns_win, setCollectionBehavior: behavior];
+                    }
+                    println!("macOS: Set all {} windows to appear on all Spaces", count);
+                }
+            }
+
             println!("Aion Desktop Client started");
 
             let args: Vec<String> = std::env::args().collect();
