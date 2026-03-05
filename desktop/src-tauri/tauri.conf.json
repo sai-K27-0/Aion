@@ -53,7 +53,7 @@
     "shortDescription": "AI Life Assistant",
     "longDescription": "Aion - Your AI-powered life management system",
     "targets": "all",
-    "createUpdaterArtifacts": "v2",
+    "createUpdaterArtifacts": true,
     "macOS": {
       "entitlements": "entitlements.plist",
       "minimumSystemVersion": "10.15"
