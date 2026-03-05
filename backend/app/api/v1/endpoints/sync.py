@@ -30,6 +30,10 @@ from app.services.sync_service import (
     ConflictStrategy,
 )
 from app.services.auth_service import AuthService
+from app.services.device_approval_service import (
+    get_device_approval_service,
+    DeviceApprovalService,
+)
 from app.api.deps import CurrentUser
 
 # Rate limiter (shared with main app via slowapi)
@@ -51,6 +55,20 @@ async def _verify_device_ownership(device_id: str, user_id: str, sync_service) -
         raise HTTPException(status_code=404, detail="Device not found or not registered")
     if device.user_id and device.user_id != user_id:
         raise HTTPException(status_code=403, detail="Device not owned by this user")
+
+
+async def _verify_device_approved(device_id: str) -> None:
+    """
+    Verify that the device has been approved for sync operations.
+    Raises 403 if device is pending or rejected.
+    """
+    approval_service = get_device_approval_service()
+    is_approved = await approval_service.is_device_approved(device_id)
+    if not is_approved:
+        raise HTTPException(
+            status_code=403,
+            detail="Device not approved for sync. Approve this device from an already-trusted device first.",
+        )
 
 
 # =============================================================================
@@ -254,35 +272,44 @@ class FullSyncResponse(BaseModel):
 @router.post(
     "/register",
     summary="Register Device",
-    description="Register a new device for syncing. Requires authentication.",
+    description="Register a new device for syncing. Requires authentication. "
+                "First device is auto-approved; subsequent devices require approval from a trusted device.",
 )
 @limiter.limit("10/minute")
 async def register_device(request: Request, body: DeviceRegistration, current_user: CurrentUser):
     """
-    Register a new device for synchronization.
-    
-    Each device needs a unique device_id (UUID recommended).
-    Device is associated with the authenticated user.
+    Register a new device for synchronization with one-time approval.
+
+    - First device for a user is automatically approved (bootstrap).
+    - Subsequent devices get a 6-character approval code.
+    - The code must be entered on an already-approved device to activate sync.
     """
-    sync_service = get_sync_service()
-    
-    device = sync_service.register_device(
+    approval_service = get_device_approval_service()
+
+    result = await approval_service.register_device_with_approval(
         device_id=body.device_id,
         device_name=body.device_name,
         device_type=body.device_type,
         platform=body.platform,
         user_id=str(current_user.id),
     )
-    
+
+    # Also update the sync service cache
+    sync_service = get_sync_service()
+    sync_service.register_device(
+        device_id=body.device_id,
+        device_name=body.device_name,
+        device_type=body.device_type,
+        platform=body.platform,
+        user_id=str(current_user.id),
+    )
+
     return {
         "success": True,
-        "device": {
-            "device_id": device.device_id,
-            "device_name": device.device_name,
-            "device_type": device.device_type,
-            "platform": device.platform,
-            "registered_at": device.registered_at.isoformat(),
-        },
+        "device": result["device"],
+        "approval_status": result["approval_status"],
+        "approval_code": result.get("approval_code"),
+        "message": result["message"],
     }
 
 
@@ -301,7 +328,8 @@ async def push_changes(request: Request, body: PushRequest, current_user: Curren
     """
     sync_service = get_sync_service()
     await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
-    
+    await _verify_device_approved(body.device_id)
+
     # Convert request changes to SyncChange objects
     changes = []
     for change_req in body.changes:
@@ -373,6 +401,7 @@ async def pull_changes(request: Request, body: PullRequest, current_user: Curren
     """
     sync_service = get_sync_service()
     await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+    await _verify_device_approved(body.device_id)
 
     # Parse since timestamp
     since = None
@@ -435,6 +464,7 @@ async def full_sync(request: Request, body: FullSyncRequest, current_user: Curre
     """
     sync_service = get_sync_service()
     await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+    await _verify_device_approved(body.device_id)
 
     # Convert request changes
     changes = []
@@ -516,6 +546,7 @@ async def get_sync_status(request: Request, current_user: CurrentUser, device_id
     """
     sync_service = get_sync_service()
     await _verify_device_ownership(device_id, str(current_user.id), sync_service)
+    await _verify_device_approved(device_id)
     status = await sync_service.get_sync_status(device_id)
     return status
 
@@ -534,6 +565,7 @@ async def resolve_conflict(request: Request, body: ConflictResolution, current_u
     """
     sync_service = get_sync_service()
     await _verify_device_ownership(body.device_id, str(current_user.id), sync_service)
+    await _verify_device_approved(body.device_id)
 
     try:
         entity_type = SyncEntityType(body.entity_type)
@@ -656,6 +688,134 @@ async def get_connected_devices(current_user: CurrentUser):
 
 
 # =============================================================================
+# Device Approval Endpoints (One-Time Verification)
+# =============================================================================
+
+class DeviceApprovalRequest(BaseModel):
+    """Request to approve a pending device."""
+    target_device_id: str = Field(..., description="Device ID to approve")
+    approval_code: str = Field(..., description="6-character approval code shown on the new device")
+    approver_device_id: str = Field(..., description="ID of the approved device performing the approval")
+
+
+class DeviceRejectionRequest(BaseModel):
+    """Request to reject a pending device."""
+    target_device_id: str = Field(..., description="Device ID to reject")
+    rejector_device_id: str = Field(..., description="ID of the approved device performing the rejection")
+
+
+@router.post(
+    "/approve-device",
+    summary="Approve Pending Device",
+    description="Approve a pending device using its approval code. Must be called from an already-approved device.",
+)
+@limiter.limit("20/minute")
+async def approve_device(request: Request, body: DeviceApprovalRequest, current_user: CurrentUser):
+    """
+    Approve a pending device for sync operations.
+
+    The approval code is displayed on the new device during registration.
+    Enter it here from an already-approved device to grant sync access.
+    """
+    approval_service = get_device_approval_service()
+
+    result = await approval_service.approve_device(
+        target_device_id=body.target_device_id,
+        approval_code=body.approval_code,
+        approver_device_id=body.approver_device_id,
+        user_id=str(current_user.id),
+    )
+
+    if result["success"]:
+        # Notify the newly approved device via WebSocket if connected
+        await sync_manager.send_to_device(body.target_device_id, {
+            "type": "device_approved",
+            "device_id": body.target_device_id,
+            "approved_by": body.approver_device_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    return result
+
+
+@router.post(
+    "/reject-device",
+    summary="Reject Pending Device",
+    description="Reject and deactivate a pending device. Must be called from an already-approved device.",
+)
+@limiter.limit("20/minute")
+async def reject_device(request: Request, body: DeviceRejectionRequest, current_user: CurrentUser):
+    """
+    Reject a pending device. The device will be deactivated and unable to sync.
+
+    Use this if you don't recognize a device trying to connect to your account.
+    """
+    approval_service = get_device_approval_service()
+
+    result = await approval_service.reject_device(
+        target_device_id=body.target_device_id,
+        rejector_device_id=body.rejector_device_id,
+        user_id=str(current_user.id),
+    )
+
+    if result["success"]:
+        # Notify the rejected device via WebSocket if connected
+        await sync_manager.send_to_device(body.target_device_id, {
+            "type": "device_rejected",
+            "device_id": body.target_device_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+
+    return result
+
+
+@router.get(
+    "/pending-devices",
+    summary="List Pending Devices",
+    description="List all devices awaiting approval for the current user.",
+)
+async def get_pending_devices(current_user: CurrentUser):
+    """
+    Get all devices that are waiting to be approved.
+
+    Shows on approved devices so the user can approve or reject new devices.
+    """
+    approval_service = get_device_approval_service()
+    pending = await approval_service.get_pending_devices(str(current_user.id))
+
+    return {
+        "pending_devices": pending,
+        "count": len(pending),
+    }
+
+
+@router.get(
+    "/device-approval-status",
+    summary="Check Device Approval Status",
+    description="Check the approval status of a specific device.",
+)
+async def check_device_approval(
+    current_user: CurrentUser,
+    device_id: str = Query(..., description="Device ID to check"),
+):
+    """
+    Check if a device has been approved, is pending, or was rejected.
+
+    New devices can poll this endpoint to know when they've been approved.
+    """
+    approval_service = get_device_approval_service()
+    status = await approval_service.get_device_approval_status(
+        device_id=device_id,
+        user_id=str(current_user.id),
+    )
+
+    if not status:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    return status
+
+
+# =============================================================================
 # WebSocket Sync Endpoint
 # =============================================================================
 
@@ -720,6 +880,10 @@ async def websocket_sync(
         await websocket.close(code=4003, reason="Device not owned by this user")
         return
 
+    # Verify device is approved (allow pending devices to connect for status updates only)
+    approval_service = get_device_approval_service()
+    device_approved = await approval_service.is_device_approved(device_id)
+
     try:
         await sync_manager.connect(device_id, websocket, user_id)
     except Exception as e:
@@ -735,14 +899,25 @@ async def websocket_sync(
         user_id=user_id,
     )
     
-    # Send connection confirmation
+    # Send connection confirmation (includes approval status)
     await websocket.send_json({
         "type": "connected",
         "device_id": device_id,
         "authenticated": True,
+        "device_approved": device_approved,
         "connected_devices": sync_manager.get_connected_devices(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+
+    # Notify approved devices about pending device connection
+    if not device_approved and user_id:
+        await sync_manager.broadcast_to_user(user_id, {
+            "type": "pending_device_connected",
+            "device_id": device_id,
+            "device_name": device_name,
+            "device_type": device_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }, exclude_device=device_id)
     
     try:
         while True:
@@ -766,6 +941,15 @@ async def websocket_sync(
                 })
             
             elif message_type == "push":
+                # Block sync for unapproved devices
+                if not device_approved:
+                    await websocket.send_json({
+                        "type": "error",
+                        "code": "device_not_approved",
+                        "message": "Device is not approved for sync. Get approval from a trusted device first.",
+                    })
+                    continue
+
                 # Handle push request via WebSocket
                 changes_data = data.get("changes", [])
                 changes = []
@@ -827,6 +1011,15 @@ async def websocket_sync(
                             )
             
             elif message_type == "pull":
+                # Block sync for unapproved devices
+                if not device_approved:
+                    await websocket.send_json({
+                        "type": "error",
+                        "code": "device_not_approved",
+                        "message": "Device is not approved for sync. Get approval from a trusted device first.",
+                    })
+                    continue
+
                 # Handle pull request via WebSocket
                 since_str = data.get("since")
                 since = None
@@ -856,6 +1049,15 @@ async def websocket_sync(
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
             
+            elif message_type == "check_approval":
+                # Allow pending devices to poll their approval status
+                device_approved = await approval_service.is_device_approved(device_id)
+                await websocket.send_json({
+                    "type": "approval_status",
+                    "device_approved": device_approved,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
             elif message_type == "subscribe":
                 # Subscribe to specific entity types
                 await websocket.send_json({

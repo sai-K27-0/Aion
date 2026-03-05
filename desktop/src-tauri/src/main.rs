@@ -512,7 +512,11 @@ fn main() {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_shortcuts(["Super+Shift+O", "Alt+G"])
-                .expect("register global shortcuts")
+                .unwrap_or_else(|e| {
+                    eprintln!("Warning: could not register global shortcuts (may already be registered): {e}");
+                    // Return a builder without pre-registered shortcuts; the app still works.
+                    tauri_plugin_global_shortcut::Builder::new()
+                })
                 .with_handler(|app, shortcut, event| {
                     use tauri_plugin_global_shortcut::{Code, ShortcutState};
                     if event.state == ShortcutState::Pressed {

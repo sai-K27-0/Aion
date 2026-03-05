@@ -69,9 +69,6 @@ jobs:
       - name: Build Tauri app (Windows)
         working-directory: desktop
         run: npm run tauri build
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
@@ -85,15 +82,6 @@ jobs:
         with:
           name: Aion-Windows-nsis
           path: desktop/src-tauri/target/release/bundle/nsis/*.exe
-          if-no-files-found: warn
-
-      - name: Upload Windows updater artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Aion-Windows-updater
-          path: |
-            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
-            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
           if-no-files-found: warn
 
   # ============================================================================
@@ -150,9 +138,6 @@ jobs:
       - name: Build Tauri app (macOS ARM64)
         working-directory: desktop
         run: npm run tauri build -- --target aarch64-apple-darwin
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
       - name: Ad-hoc sign the app bundle
         run: |
@@ -211,15 +196,6 @@ jobs:
         with:
           name: Aion-macOS-app
           path: desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
-          if-no-files-found: warn
-
-      - name: Upload macOS updater artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Aion-macOS-updater
-          path: |
-            desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz
-            desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz.sig
           if-no-files-found: warn
 
   # ============================================================================
@@ -335,46 +311,6 @@ jobs:
       - name: List all artifacts
         run: find artifacts -type f
 
-      - name: Generate latest.json for Tauri updater
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          REPO="sai-K27-0/Aion"
-          BASE_URL="https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}"
-
-          # Find updater artifacts
-          MAC_TAR=$(find artifacts -name "*.tar.gz" ! -name "*.sig" | head -1)
-          MAC_SIG=$(find artifacts -name "*.tar.gz.sig" | head -1)
-          WIN_ZIP=$(find artifacts -name "*.nsis.zip" ! -name "*.sig" | head -1)
-          WIN_SIG=$(find artifacts -name "*.nsis.zip.sig" | head -1)
-
-          # Read signatures
-          MAC_SIG_CONTENT=""
-          WIN_SIG_CONTENT=""
-          if [ -f "$MAC_SIG" ]; then MAC_SIG_CONTENT=$(cat "$MAC_SIG"); fi
-          if [ -f "$WIN_SIG" ]; then WIN_SIG_CONTENT=$(cat "$WIN_SIG"); fi
-
-          # Build latest.json
-          cat > artifacts/latest.json << ENDJSON
-          {
-            "version": "${VERSION}",
-            "notes": "Update to version ${VERSION}",
-            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "${MAC_SIG_CONTENT}",
-                "url": "${BASE_URL}/$(basename "${MAC_TAR:-Aion.app.tar.gz}")"
-              },
-              "windows-x86_64": {
-                "signature": "${WIN_SIG_CONTENT}",
-                "url": "${BASE_URL}/$(basename "${WIN_ZIP:-Aion_${VERSION}_x64-setup.nsis.zip}")"
-              }
-            }
-          }
-          ENDJSON
-
-          echo "Generated latest.json:"
-          cat artifacts/latest.json
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -405,9 +341,5 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.dmg
             artifacts/**/*.apk
-            artifacts/**/*.tar.gz
-            artifacts/**/*.nsis.zip
-            artifacts/**/*.sig
-            artifacts/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
