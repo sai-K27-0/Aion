@@ -533,21 +533,10 @@ function closeAllPanels() {
   updateOrbVisibility();
 }
 
-/** Hide orb when any panel (mind map, tasks, etc.) is open; show when all are closed */
+/** Orb is always visible so users can open multiple panels */
 function updateOrbVisibility() {
-  const mainPanels = [
-    els.mindmapView, els.blockEditor, els.chatBox, els.tasksPanel,
-    els.calendarPanel, els.pomodoroPanel, els.statsPanel, els.habitsPanel,
-    els.settingsPanel, els.searchBar, els.searchResults
-  ];
-  const anyMainOpen = mainPanels.some(el => el && !el.classList.contains('hidden'));
-  const anyFloatingOpen = Array.from(state.openPanels).some(id => {
-    const p = document.getElementById(id);
-    return p && !p.classList.contains('hidden');
-  });
-  const hideOrb = anyMainOpen || anyFloatingOpen;
-  if (els.orbContainer) els.orbContainer.classList.toggle('orb-hidden-when-panel-open', hideOrb);
-  if (hideOrb && els.radialMenu) els.radialMenu.classList.add('hidden');
+  // Orb stays visible at all times - no hiding when panels are open
+  if (els.orbContainer) els.orbContainer.classList.remove('orb-hidden-when-panel-open');
 }
 
 // ============================================================================
@@ -4261,21 +4250,21 @@ async function initSecurity() {
   try {
     const exists = await secureExists(MASTER_KEY_NAME);
     if (!exists) {
+      // No master password set - don't force setup, let user enable in Settings
       state.security.hasMasterPassword = false;
-      state.security.isLocked = true;
+      state.security.isLocked = false;
       setMasterMode('pin');
       updateSecurityStatus();
-      showSecurityOverlay(true);
       return;
     }
 
     const raw = await secureGet(MASTER_KEY_NAME);
     if (!raw) {
+      // Master password record missing/corrupted - skip, don't block app
       state.security.hasMasterPassword = false;
-      state.security.isLocked = true;
+      state.security.isLocked = false;
       setMasterMode('pin');
       updateSecurityStatus();
-      showSecurityOverlay(true);
       return;
     }
 
@@ -5033,6 +5022,23 @@ async function init() {
   // Initialize offline-first sync system
   await initOfflineSync();
 
+  // Listen for Tauri events from Rust backend (global shortcuts)
+  if (window.__TAURI__?.event?.listen) {
+    window.__TAURI__.event.listen('toggle-ghost', () => {
+      toggleClickThroughMode();
+    });
+    window.__TAURI__.event.listen('trigger-capture', async () => {
+      try {
+        const { invoke } = window.__TAURI__.core;
+        const base64 = await invoke('capture_screen');
+        console.log('[Capture] Screen captured, length:', base64.length);
+        if (typeof showToast === 'function') showToast('Screen captured');
+      } catch (e) {
+        console.error('[Capture] Failed:', e);
+      }
+    });
+  }
+
   // Smooth overlay fade-in when app is ready
   requestAnimationFrame(() => {
     requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
@@ -5097,6 +5103,9 @@ async function initOfflineSync() {
     console.log('[Sync] Offline sync system initialized');
   } catch (error) {
     console.error('[Sync] Failed to initialize:', error);
+    if (typeof showToast === 'function') {
+      showToast('Sync unavailable: ' + (error.message || 'initialization failed'), 'warning');
+    }
   }
 }
 
@@ -5125,6 +5134,11 @@ function handleSyncEvent(event, data) {
       break;
     case 'offline':
       updateSyncStatusUI('offline', 'Offline');
+      break;
+    case 'sync_status':
+      if (data.status === 'not_logged_in') {
+        updateSyncStatusUI('offline', 'Not logged in');
+      }
       break;
   }
 }

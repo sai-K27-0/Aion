@@ -4,14 +4,36 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Aion logo placeholder - A stylized "A" -->
+
+    <!-- Geometric/faceted abstract triangle - Aion logo -->
+
+    <!-- Left face (darkest) -->
     <path
-        android:fillColor="#4A90D9"
-        android:pathData="M54,24 L78,84 L66,84 L60,68 L48,68 L42,84 L30,84 L54,24 Z M54,44 L50,60 L58,60 L54,44 Z"/>
-    
-    <!-- Accent circle -->
+        android:fillColor="#1E4B80"
+        android:pathData="M54,17 L28.7,84.4 L54,67.5 Z"/>
+
+    <!-- Right face (medium) -->
+    <path
+        android:fillColor="#2A5FA0"
+        android:pathData="M54,17 L79.3,84.4 L54,67.5 Z"/>
+
+    <!-- Bottom-left face (bright blue) -->
+    <path
+        android:fillColor="#5BA3E6"
+        android:pathData="M28.7,84.4 L54,67.5 L41.3,84.4 Z"/>
+
+    <!-- Bottom-right face (brightest cyan) -->
     <path
         android:fillColor="#00D9FF"
-        android:pathData="M54,18 m-4,0 a4,4 0,1 1,8 0 a4,4 0,1 1,-8 0"/>
+        android:pathData="M79.3,84.4 L54,67.5 L66.7,84.4 Z"/>
+
+    <!-- Bottom center face -->
+    <path
+        android:fillColor="#4A90D9"
+        android:pathData="M41.3,84.4 L54,67.5 L66.7,84.4 Z"/>
+
+    <!-- Top vertex glow point -->
+    <path
+        android:fillColor="#00D9FF"
+        android:pathData="M54,15.5 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0"/>
 </vector>

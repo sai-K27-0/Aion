@@ -5059,10 +5059,12 @@ body * {
   pointer-events: auto;
 }
 
-/* Hide orb when a panel (mind map, tasks, etc.) is open; show again when all panels are closed */
-.orb-container.orb-hidden-when-panel-open {
-  opacity: 0;
-  pointer-events: none;
+/* Orb is always visible - users can open multiple panels from it */
+
+/* ============ CLICK-THROUGH / GHOST MODE ============ */
+body.click-through-mode {
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
 }
 
 /* ============ PANEL OPEN ANIMATION ============ */

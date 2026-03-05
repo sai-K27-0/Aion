@@ -69,6 +69,20 @@ jobs:
       - name: Build Tauri app (Windows)
         working-directory: desktop
         run: npm run tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload Windows updater artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aion-Windows-updater
+          path: |
+            desktop/src-tauri/target/release/bundle/msi/*.msi.zip
+            desktop/src-tauri/target/release/bundle/msi/*.msi.zip.sig
+            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
+            desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
+          if-no-files-found: warn
 
       - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
@@ -138,6 +152,18 @@ jobs:
       - name: Build Tauri app (macOS ARM64)
         working-directory: desktop
         run: npm run tauri build -- --target aarch64-apple-darwin
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Upload macOS updater artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aion-macOS-updater
+          path: |
+            desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz
+            desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz.sig
+          if-no-files-found: warn
 
       - name: Ad-hoc sign the app bundle
         run: |
@@ -311,6 +337,56 @@ jobs:
       - name: List all artifacts
         run: find artifacts -type f
 
+      - name: Generate latest.json for Tauri updater
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          REPO="sai-K27-0/Aion"
+          BASE_URL="https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}"
+
+          # Find signature files
+          WIN_SIG=""
+          MAC_SIG=""
+          WIN_URL=""
+          MAC_URL=""
+
+          # Windows NSIS updater
+          NSIS_ZIP=$(find artifacts -name "*.nsis.zip" -type f | head -1)
+          NSIS_SIG=$(find artifacts -name "*.nsis.zip.sig" -type f | head -1)
+          if [ -n "$NSIS_SIG" ] && [ -n "$NSIS_ZIP" ]; then
+            WIN_SIG=$(cat "$NSIS_SIG")
+            WIN_URL="${BASE_URL}/$(basename "$NSIS_ZIP")"
+          fi
+
+          # macOS updater
+          MAC_TAR=$(find artifacts -name "*.app.tar.gz" -type f | head -1)
+          MAC_SIG_FILE=$(find artifacts -name "*.app.tar.gz.sig" -type f | head -1)
+          if [ -n "$MAC_SIG_FILE" ] && [ -n "$MAC_TAR" ]; then
+            MAC_SIG=$(cat "$MAC_SIG_FILE")
+            MAC_URL="${BASE_URL}/$(basename "$MAC_TAR")"
+          fi
+
+          # Build latest.json
+          cat > artifacts/latest.json << ENDJSON
+          {
+            "version": "${VERSION}",
+            "notes": "See release notes on GitHub",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "${WIN_SIG}",
+                "url": "${WIN_URL}"
+              },
+              "darwin-aarch64": {
+                "signature": "${MAC_SIG}",
+                "url": "${MAC_URL}"
+              }
+            }
+          }
+          ENDJSON
+
+          echo "Generated latest.json:"
+          cat artifacts/latest.json
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -341,5 +417,10 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.dmg
             artifacts/**/*.apk
+            artifacts/**/*.nsis.zip
+            artifacts/**/*.nsis.zip.sig
+            artifacts/**/*.app.tar.gz
+            artifacts/**/*.app.tar.gz.sig
+            artifacts/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
