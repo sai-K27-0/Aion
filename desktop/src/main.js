@@ -5322,32 +5322,59 @@ function handleOnlineStatusChange() {
   updateSyncStatusUI(isOnline ? 'synced' : 'offline', isOnline ? 'Online' : 'Offline');
 }
 
-function updateSyncStatusUI(status = 'synced', text = 'Synced') {
-  const statusEl = document.getElementById('sync-status');
-  if (!statusEl) return;
+function updateSyncStatus(status, message) {
+    const bar = document.getElementById('sync-status-bar');
+    const icon = document.getElementById('sync-icon');
+    const text = document.getElementById('sync-text');
+    if (!bar || !text) return;
 
-  statusEl.classList.remove('hidden', 'syncing', 'synced', 'error', 'offline');
-  statusEl.classList.add(status);
+    bar.classList.remove('online', 'offline', 'syncing');
 
-  const textEl = statusEl.querySelector('.sync-text');
-  if (textEl) textEl.textContent = text;
+    switch (status) {
+        case 'online':
+        case 'synced':
+            bar.classList.add('online');
+            if (icon) icon.textContent = '\u2713';
+            text.textContent = message || 'Synced';
+            break;
+        case 'syncing':
+            bar.classList.add('syncing');
+            if (icon) icon.textContent = '\u27F3';
+            text.textContent = message || 'Syncing...';
+            break;
+        case 'offline':
+            bar.classList.add('offline');
+            if (icon) icon.textContent = '\u2715';
+            text.textContent = message || 'Offline';
+            break;
+        case 'error':
+            bar.classList.add('offline');
+            if (icon) icon.textContent = '!';
+            text.textContent = message || 'Sync failed';
+            break;
+    }
 
-  // Show pending count if any
-  if (localDb) {
-    localDb.getPendingChanges().then(pending => {
-      let pendingEl = statusEl.querySelector('.sync-pending');
-      if (pending.length > 0) {
-        if (!pendingEl) {
-          pendingEl = document.createElement('span');
-          pendingEl.className = 'sync-pending';
-          statusEl.appendChild(pendingEl);
+    // Show pending count if any
+    if (localDb) {
+      localDb.getPendingChanges().then(pending => {
+        let pendingEl = bar.querySelector('.sync-pending');
+        if (pending.length > 0) {
+          if (!pendingEl) {
+            pendingEl = document.createElement('span');
+            pendingEl.className = 'sync-pending';
+            bar.appendChild(pendingEl);
+          }
+          pendingEl.textContent = pending.length;
+        } else if (pendingEl) {
+          pendingEl.remove();
         }
-        pendingEl.textContent = pending.length;
-      } else if (pendingEl) {
-        pendingEl.remove();
-      }
-    });
-  }
+      });
+    }
+}
+
+// Backward-compatible alias
+function updateSyncStatusUI(status, text) {
+    updateSyncStatus(status, text);
 }
 
 async function loadFromLocalDb() {

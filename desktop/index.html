@@ -46,6 +46,8 @@
     <symbol id="icon-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
     <symbol id="icon-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
     <symbol id="icon-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0112 4.5v15a2.5 2.5 0 01-4.96.44 2.5 2.5 0 01-2.96-3.08 3 3 0 01.34-5.58 2.5 2.5 0 010-4.72 2.5 2.5 0 010-4.72 3 3 0 01.34-5.58 2.5 2.5 0 012.96-3.08A2.5 2.5 0 019.5 2z"/><path d="M14.5 2A2.5 2.5 0 0012 4.5v15a2.5 2.5 0 004.96.44 2.5 2.5 0 002.96-3.08 3 3 0 00-.34-5.58 2.5 2.5 0 000-4.72 2.5 2.5 0 000-4.72 3 3 0 00-.34-5.58 2.5 2.5 0 00-2.96-3.08A2.5 2.5 0 0014.5 2z"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
   </svg>
   <div id="drag-handle" data-tauri-drag-region></div>
 
@@ -883,9 +885,17 @@
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
           <span>Updates</span>
         </button>
+        <button class="settings-nav-item" data-section="server">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-server"/></svg>
+          <span>Server</span>
+        </button>
         <button class="settings-nav-item" data-section="security">
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-brain"/></svg>
           <span>Security</span>
+        </button>
+        <button class="settings-nav-item" data-section="account">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-user"/></svg>
+          <span>Account</span>
         </button>
         <button class="settings-nav-item" data-section="data">
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-folder"/></svg>
@@ -1025,6 +1035,30 @@
             <div class="setting-row">
               <span>Sync Status</span>
               <span id="sync-status-indicator" class="status-indicator">--</span>
+            </div>
+          </div>
+        </div>
+        <div id="settings-pane-account" class="settings-pane">
+          <h3 class="pane-title">Account</h3>
+          <div class="settings-group">
+            <h4>Profile</h4>
+            <div class="setting-row">
+              <span>Signed in as</span>
+              <span id="account-username" class="status-indicator">-</span>
+            </div>
+            <div class="setting-row">
+              <span>Auth method</span>
+              <span id="account-provider" class="status-indicator">Local</span>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h4>Actions</h4>
+            <div class="setting-actions">
+              <button id="btn-change-password" class="setting-btn">Change Password</button>
+              <button id="btn-manage-devices" class="setting-btn">Manage Devices</button>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-logout" class="setting-btn danger">Sign Out</button>
             </div>
           </div>
         </div>
@@ -1353,16 +1387,10 @@
     </div>
   </div>
 
-  <!-- Sync Status Indicator -->
-  <div id="sync-status" class="sync-status hidden">
-    <div class="sync-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="23 4 23 10 17 10" />
-        <polyline points="1 20 1 14 7 14" />
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-      </svg>
-    </div>
-    <span class="sync-text">Synced</span>
+  <!-- Sync Status Bar -->
+  <div id="sync-status-bar" class="sync-status-bar">
+    <span id="sync-icon" class="sync-icon">&#x27F3;</span>
+    <span id="sync-text">Checking...</span>
   </div>
 
   <!-- Toast -->

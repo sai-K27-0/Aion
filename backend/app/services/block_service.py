@@ -132,14 +132,22 @@ class BlockService:
         Returns:
             Tuple of (blocks, total_count)
         """
-        # Base query
+        # Base query — always exclude soft-deleted blocks
         if parent_id is not None:
-            query = select(Block).where(Block.parent_id == parent_id)
-            count_query = select(func.count(Block.id)).where(Block.parent_id == parent_id)
+            query = select(Block).where(
+                and_(Block.parent_id == parent_id, Block.is_deleted == False)
+            )
+            count_query = select(func.count(Block.id)).where(
+                and_(Block.parent_id == parent_id, Block.is_deleted == False)
+            )
         else:
             # Root blocks (no parent)
-            query = select(Block).where(Block.parent_id.is_(None))
-            count_query = select(func.count(Block.id)).where(Block.parent_id.is_(None))
+            query = select(Block).where(
+                and_(Block.parent_id.is_(None), Block.is_deleted == False)
+            )
+            count_query = select(func.count(Block.id)).where(
+                and_(Block.parent_id.is_(None), Block.is_deleted == False)
+            )
         
         # Add ordering
         query = query.order_by(Block.position)
@@ -199,19 +207,22 @@ class BlockService:
         return block
     
     async def delete_block(self, block_id: str) -> bool:
-        """
-        Delete a Block and all its descendants.
-        
-        PostgreSQL CASCADE handles child deletion automatically.
-        """
+        """Soft-delete a block and all its descendants."""
         block = await self.get_block_by_id(block_id)
         if not block:
             return False
-        
-        # delete() is not async in SQLAlchemy
-        self.db.delete(block)
-        await self.db.flush()
-        
+
+        # Soft-delete descendants
+        path_prefix = f"{block.path}.{block.id}" if block.path else block.id
+        await self.db.execute(
+            update(Block)
+            .where(Block.path.like(f"{path_prefix}%"))
+            .values(is_deleted=True)
+        )
+
+        # Soft-delete the block itself
+        block.is_deleted = True
+        await self.db.commit()
         return True
     
     # ========================================================================
