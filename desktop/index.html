@@ -58,17 +58,24 @@
   <div id="orb-container" class="orb-container">
     <div id="orb" class="orb">
       <div class="orb-glow"></div>
-      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-        <!-- Aion spark – central core with radiating rays, theme-aware -->
-        <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95" />
-        <line x1="12" y1="12" x2="12" y2="3" />
-        <line x1="12" y1="12" x2="12" y2="21" />
-        <line x1="12" y1="12" x2="3" y2="12" />
-        <line x1="12" y1="12" x2="21" y2="12" />
-        <line x1="12" y1="12" x2="5.5" y2="5.5" />
-        <line x1="12" y1="12" x2="18.5" y2="18.5" />
-        <line x1="12" y1="12" x2="18.5" y2="5.5" />
-        <line x1="12" y1="12" x2="5.5" y2="18.5" />
+      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Aion faceted triangle logo – matches app icon -->
+        <defs>
+          <linearGradient id="orb-tri-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00D9FF"/>
+            <stop offset="100%" style="stop-color:#3A7BC8"/>
+          </linearGradient>
+          <linearGradient id="orb-tri-g2" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#5BA3E6"/>
+            <stop offset="100%" style="stop-color:#2A6BB8"/>
+          </linearGradient>
+        </defs>
+        <polygon points="12,2 22,20 2,20" fill="url(#orb-tri-g1)" opacity="0.9"/>
+        <polygon points="12,2 22,20 12,16" fill="url(#orb-tri-g2)" opacity="0.75"/>
+        <polygon points="12,2 2,20 12,16" fill="#00D9FF" opacity="0.5"/>
+        <line x1="12" y1="2" x2="22" y2="20" stroke="rgba(255,255,255,0.15)" stroke-width="0.3"/>
+        <line x1="12" y1="2" x2="2" y2="20" stroke="rgba(255,255,255,0.1)" stroke-width="0.3"/>
+        <line x1="12" y1="2" x2="12" y2="16" stroke="rgba(0,217,255,0.3)" stroke-width="0.3"/>
       </svg>
     </div>
   </div>
@@ -76,16 +83,9 @@
   <!-- AI Input Bar (appears when orb clicked) -->
   <div id="ai-input-bar" class="ai-input-bar hidden">
     <div class="ai-input-glow"></div>
-    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.9" />
-      <line x1="12" y1="12" x2="12" y2="3" />
-      <line x1="12" y1="12" x2="12" y2="21" />
-      <line x1="12" y1="12" x2="3" y2="12" />
-      <line x1="12" y1="12" x2="21" y2="12" />
-      <line x1="12" y1="12" x2="5.5" y2="5.5" />
-      <line x1="12" y1="12" x2="18.5" y2="18.5" />
-      <line x1="12" y1="12" x2="18.5" y2="5.5" />
-      <line x1="12" y1="12" x2="5.5" y2="18.5" />
+    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="12,3 20,19 4,19" fill="var(--accent-color, #00D9FF)" opacity="0.7"/>
+      <polygon points="12,3 20,19 12,15" fill="currentColor" opacity="0.5"/>
     </svg>
     <input type="text" id="ai-input" placeholder="Ask Aion anything..." autocomplete="off">
     <button id="ai-send-btn" class="ai-send-btn">
@@ -798,6 +798,53 @@
         </div>
         <div id="subblocks-list" class="subblocks-list"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Auth Overlay - shown on first launch -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="auth-tri-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF"/>
+              <stop offset="100%" style="stop-color:#3A7BC8"/>
+            </linearGradient>
+          </defs>
+          <polygon points="50,10 90,85 10,85" fill="url(#auth-tri-g1)" opacity="0.9"/>
+          <polygon points="50,10 90,85 50,70" fill="#5BA3E6" opacity="0.7"/>
+          <polygon points="50,10 10,85 50,70" fill="#00D9FF" opacity="0.5"/>
+        </svg>
+        <h1>Aion</h1>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="signin">Sign In</button>
+        <button class="auth-tab" data-tab="signup">Create Account</button>
+        <button class="auth-tab" data-tab="pair">Pair Device</button>
+      </div>
+      <div id="auth-signin" class="auth-pane">
+        <input type="text" id="auth-username" placeholder="Username or email" autocomplete="username">
+        <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+        <button id="auth-signin-btn" class="auth-btn primary">Sign In</button>
+        <div class="auth-divider"><span>or</span></div>
+        <button id="auth-google-btn" class="auth-btn social" disabled>Sign in with Google</button>
+        <button id="auth-github-btn" class="auth-btn social" disabled>Sign in with GitHub</button>
+      </div>
+      <div id="auth-signup" class="auth-pane hidden">
+        <input type="text" id="auth-new-username" placeholder="Username" autocomplete="username">
+        <input type="email" id="auth-new-email" placeholder="Email (optional)" autocomplete="email">
+        <input type="password" id="auth-new-password" placeholder="Password" autocomplete="new-password">
+        <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password">
+        <button id="auth-signup-btn" class="auth-btn primary">Create Account</button>
+      </div>
+      <div id="auth-pair" class="auth-pane hidden">
+        <p class="auth-hint">Enter the 6-character code from your other device:</p>
+        <input type="text" id="auth-pair-code" placeholder="ABC123" maxlength="6" class="auth-code-input">
+        <button id="auth-pair-btn" class="auth-btn primary">Pair Device</button>
+      </div>
+      <div id="auth-error" class="auth-error hidden"></div>
+      <div id="auth-loading" class="auth-loading hidden">Connecting...</div>
     </div>
   </div>
 
