@@ -85,3 +85,36 @@ class TokenPayload(BaseModel):
     exp: datetime
     type: str = "access"  # access or refresh
     device_id: Optional[str] = None
+
+
+# ============================================================================
+# Logout / OAuth / Password Reset Schemas
+# ============================================================================
+
+class LogoutRequest(BaseModel):
+    """Schema for logout request."""
+    refresh_token: Optional[str] = None
+
+
+class OAuthInitRequest(BaseModel):
+    """Schema for initiating an OAuth flow."""
+    provider: str  # "google" or "github"
+    redirect_uri: Optional[str] = None
+
+
+class OAuthCallbackRequest(BaseModel):
+    """Schema for handling an OAuth callback."""
+    provider: str
+    code: str
+    state: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Schema for requesting a password reset."""
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    """Schema for resetting a password with a token."""
+    token: str
+    new_password: str

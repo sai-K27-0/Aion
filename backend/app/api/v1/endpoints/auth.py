@@ -2,7 +2,8 @@
 Authentication API Endpoints - User registration, login, and token management.
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -160,3 +161,71 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid current password",
         )
+
+
+# ============================================================================
+# Logout
+# ============================================================================
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Logout",
+)
+async def logout(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Logout and blacklist the current token.
+
+    The access token in the Authorization header will be invalidated.
+    """
+    auth_header = request.headers.get("authorization", "")
+    token = auth_header.replace("Bearer ", "")
+    auth_service = AuthService(db)
+    await auth_service.logout(token)
+    return Response(status_code=204)
+
+
+# ============================================================================
+# OAuth Stubs
+# ============================================================================
+
+@router.post(
+    "/oauth/{provider}",
+    summary="Initiate OAuth flow",
+)
+async def oauth_init(
+    provider: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Initiate OAuth flow. Returns redirect URL.
+
+    Currently returns 501 until OAuth providers are configured.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=f"OAuth with {provider} not yet configured. Set GOOGLE_CLIENT_ID/GITHUB_CLIENT_ID in environment.",
+    )
+
+
+@router.post(
+    "/oauth/callback/{provider}",
+    summary="Handle OAuth callback",
+)
+async def oauth_callback(
+    provider: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Handle OAuth callback.
+
+    Currently returns 501 until OAuth providers are configured.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail=f"OAuth with {provider} not yet configured.",
+    )

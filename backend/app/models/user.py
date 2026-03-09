@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import String, Boolean, DateTime, func
+from sqlalchemy import String, Boolean, DateTime, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,7 +35,20 @@ class User(Base, UUIDMixin, TimestampMixin):
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    
+
+    # Auth provider: "local", "google", "github"
+    auth_provider: Mapped[str] = mapped_column(
+        String(20), default="local", server_default="local"
+    )
+    # Email verification
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false")
+    )
+    # OAuth provider user ID (for Google/GitHub)
+    oauth_provider_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+
     # Token management
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
