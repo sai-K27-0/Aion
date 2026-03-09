@@ -644,6 +644,23 @@ fn main() {
                 }
             }
 
+            // Apply native blur/vibrancy for transparent overlay
+            #[cfg(target_os = "macos")]
+            {
+                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+                if let Err(e) = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None) {
+                    eprintln!("Failed to apply macOS vibrancy: {}", e);
+                }
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                use window_vibrancy::apply_acrylic;
+                if let Err(e) = apply_acrylic(&window, Some((0, 0, 0, 1))) {
+                    eprintln!("Failed to apply Windows acrylic: {}", e);
+                }
+            }
+
             println!("Aion Desktop Client started");
 
             let args: Vec<String> = std::env::args().collect();

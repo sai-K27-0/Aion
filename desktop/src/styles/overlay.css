@@ -70,10 +70,23 @@
 }
 
 body[data-theme="crystallize"] {
-  --glass: rgba(220, 235, 255, 0.25);
-  --glass-light: rgba(240, 248, 255, 0.35);
-  --glass-dark: rgba(200, 220, 245, 0.2);
-  --border: rgba(255, 255, 255, 0.4);
+  --glass: rgba(15, 17, 32, 0.4);
+  --glass-light: rgba(25, 30, 55, 0.45);
+  --glass-dark: rgba(10, 12, 25, 0.35);
+  --border: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="crystallize"] .panel-view,
+[data-theme="crystallize"] .focus-panel,
+[data-theme="crystallize"] .floating-panel {
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="crystallize"] .orb {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 body[data-theme="black"] {
@@ -5207,3 +5220,71 @@ body.click-through-mode .ghost-exit-btn { display: block; }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* === Auth Overlay === */
+.auth-overlay {
+    position: fixed; inset: 0; z-index: 100000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    animation: authFadeIn 0.5s ease;
+}
+.auth-overlay.hidden { display: none; }
+.auth-overlay.fade-out { animation: authFadeOut 0.5s ease forwards; }
+@keyframes authFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes authFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+.auth-card {
+    width: 380px; padding: 40px; border-radius: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.auth-logo { text-align: center; margin-bottom: 32px; }
+.auth-logo h1 { color: #fff; font-size: 28px; margin-top: 12px; letter-spacing: 4px; font-weight: 300; }
+
+.auth-tabs {
+    display: flex; gap: 4px; margin-bottom: 24px;
+    background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 4px;
+}
+.auth-tab {
+    flex: 1; padding: 8px; border: none; background: transparent;
+    color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 6px; font-size: 13px; transition: all 0.2s;
+}
+.auth-tab.active { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.auth-tab:hover:not(.active) { color: rgba(255, 255, 255, 0.7); }
+
+.auth-pane.hidden { display: none; }
+.auth-pane input {
+    width: 100%; padding: 12px 16px; margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05); color: #fff; font-size: 14px;
+    outline: none; box-sizing: border-box; transition: border-color 0.2s;
+}
+.auth-pane input:focus { border-color: var(--accent-color, #00D9FF); }
+.auth-pane input::placeholder { color: rgba(255, 255, 255, 0.3); }
+
+.auth-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    font-size: 14px; cursor: pointer; margin-bottom: 8px; transition: all 0.2s;
+}
+.auth-btn.primary { background: var(--accent-color, #00D9FF); color: #000; font-weight: 600; }
+.auth-btn.primary:hover { opacity: 0.9; }
+.auth-btn.social { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); }
+.auth-btn.social:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); }
+.auth-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.auth-divider { text-align: center; margin: 16px 0; position: relative; }
+.auth-divider::before, .auth-divider::after {
+    content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: rgba(255, 255, 255, 0.1);
+}
+.auth-divider::before { left: 0; }
+.auth-divider::after { right: 0; }
+.auth-divider span { color: rgba(255, 255, 255, 0.3); font-size: 12px; }
+
+.auth-code-input { text-align: center; font-size: 24px !important; letter-spacing: 8px; text-transform: uppercase; }
+.auth-error { color: #ff6b6b; font-size: 13px; text-align: center; margin-top: 12px; }
+.auth-error.hidden { display: none; }
+.auth-loading { text-align: center; color: rgba(255, 255, 255, 0.5); margin-top: 12px; }
+.auth-loading.hidden { display: none; }
+.auth-hint { color: rgba(255, 255, 255, 0.6); font-size: 13px; margin-bottom: 16px; text-align: center; }
