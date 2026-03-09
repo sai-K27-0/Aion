@@ -1673,40 +1673,39 @@ function endPanelDrag() {
 
 let clickThroughEnabled = false;
 
-async function toggleClickThroughMode() {
-  clickThroughEnabled = !clickThroughEnabled;
-
+/**
+ * Apply ghost mode visual state (CSS classes, exit button, toast).
+ * Does NOT call any Tauri window API — Rust is the single source of truth.
+ */
+function applyGhostModeVisuals(enabled) {
+  clickThroughEnabled = enabled;
   const toggle = document.getElementById('click-through-toggle');
+  const exitBtn = document.getElementById('ghost-exit-btn');
 
-  if (clickThroughEnabled) {
-    // Enable click-through mode
+  if (enabled) {
     document.body.classList.add('click-through-mode');
     if (toggle) toggle.classList.add('active');
-    toast('Ghost mode enabled - click through to windows below');
-
-    // Tell Tauri to enable click-through and set window to ignore cursor (clicks pass through)
-    try {
-      const { invoke } = window.__TAURI__.core;
-      await invoke('set_click_through', { enabled: true });
-      const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
-      await w.setIgnoreCursorEvents(true);
-      toast('Ghost mode on — press Alt+G to turn off');
-    } catch (e) {
-      console.log('Tauri invoke not available:', e);
-    }
+    if (exitBtn) exitBtn.classList.remove('hidden');
+    toast('Ghost mode on — press Alt+G or click triangle to exit');
   } else {
-    // Disable click-through mode and re-enable cursor events on window
-    try {
-      const w = window.__TAURI__.webviewWindow?.getCurrentWebviewWindow?.();
-      if (w) await w.setIgnoreCursorEvents(false);
-      const { invoke } = window.__TAURI__.core;
-      await invoke('set_click_through', { enabled: false });
-    } catch (e) {
-      console.log('Tauri invoke not available:', e);
-    }
     document.body.classList.remove('click-through-mode');
     if (toggle) toggle.classList.remove('active');
+    if (exitBtn) exitBtn.classList.add('hidden');
     toast('Ghost mode disabled');
+  }
+}
+
+/**
+ * Toggle ghost / click-through mode by asking Rust to flip the state.
+ * Rust handles set_ignore_cursor_events; we only update visuals.
+ */
+async function toggleClickThroughMode() {
+  try {
+    const { invoke } = window.__TAURI__.core;
+    const newState = await invoke('toggle_click_through');
+    applyGhostModeVisuals(newState);
+  } catch (e) {
+    console.log('toggle_click_through invoke failed:', e);
   }
 }
 
@@ -5027,6 +5026,9 @@ async function init() {
     window.__TAURI__.event.listen('toggle-ghost', () => {
       toggleClickThroughMode();
     });
+    window.__TAURI__.event.listen('click-through-changed', (event) => {
+      applyGhostModeVisuals(event.payload);
+    });
     window.__TAURI__.event.listen('trigger-capture', async () => {
       try {
         const { invoke } = window.__TAURI__.core;
@@ -5036,6 +5038,14 @@ async function init() {
       } catch (e) {
         console.error('[Capture] Failed:', e);
       }
+    });
+  }
+
+  // Wire up ghost exit button
+  const ghostExitBtn = document.getElementById('ghost-exit-btn');
+  if (ghostExitBtn) {
+    ghostExitBtn.addEventListener('click', () => {
+      toggleClickThroughMode();
     });
   }
 

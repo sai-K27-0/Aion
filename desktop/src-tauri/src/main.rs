@@ -107,52 +107,45 @@ fn exit_app() {
 // Click-Through Mode Commands
 // =============================================================================
 
-/// Toggle click-through mode for overlay
+/// Toggle click-through mode for overlay (single source of truth)
 #[tauri::command]
 fn toggle_click_through(app_handle: tauri::AppHandle) -> Result<bool, String> {
     let window = app_handle.get_webview_window("main")
         .ok_or_else(|| "Window not found".to_string())?;
-    
+
     let current = CLICK_THROUGH_ENABLED.load(Ordering::SeqCst);
     let new_state = !current;
-    
-    // On Windows, we use web-based click-through via CSS pointer-events
-    // The actual window click-through is handled by the frontend
-    // This avoids Windows API version conflicts
-    #[cfg(target_os = "windows")]
-    {
-        // Just store the state - frontend handles CSS pointer-events
-        println!("Click-through mode set to: {}", new_state);
-    }
-    
-    #[cfg(target_os = "macos")]
-    {
-        // Tauri 2: native click-through would use raw window handle; frontend can use pointer-events
-        println!("Click-through mode set to: {} (macOS)", new_state);
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        // Linux X11 would need different handling through x11 crate
-        // For now, just store the state
-    }
-    
+
     CLICK_THROUGH_ENABLED.store(new_state, Ordering::SeqCst);
-    
-    // Emit event to frontend so it knows the state
-    let _ = window.emit("Click-through-changed", new_state);
-    
+
+    // Rust is the single source of truth: set ignore cursor events here
+    window.set_ignore_cursor_events(new_state)
+        .map_err(|e| format!("Failed to set ignore cursor events: {}", e))?;
+
+    // Emit event to frontend so it can update visuals
+    let _ = window.emit("click-through-changed", new_state);
+
+    println!("Click-through mode toggled to: {}", new_state);
     Ok(new_state)
 }
 
-/// Set click-through state (called by frontend with enabled: bool)
+/// Set click-through state explicitly (single source of truth)
 #[tauri::command]
-fn set_click_through(app_handle: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+fn set_click_through(app_handle: tauri::AppHandle, enabled: bool) -> Result<bool, String> {
+    let window = app_handle.get_webview_window("main")
+        .ok_or_else(|| "Window not found".to_string())?;
+
     CLICK_THROUGH_ENABLED.store(enabled, Ordering::SeqCst);
-    if let Some(w) = app_handle.get_webview_window("main") {
-        let _ = w.emit("Click-through-changed", enabled);
-    }
-    Ok(())
+
+    // Rust is the single source of truth: set ignore cursor events here
+    window.set_ignore_cursor_events(enabled)
+        .map_err(|e| format!("Failed to set ignore cursor events: {}", e))?;
+
+    // Emit event to frontend so it can update visuals
+    let _ = window.emit("click-through-changed", enabled);
+
+    println!("Click-through mode set to: {}", enabled);
+    Ok(enabled)
 }
 
 /// Get current click-through state
