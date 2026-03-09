@@ -6,6 +6,7 @@
 
 import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
+import { SecureStorage } from './services/secure_storage.js';
 
 const CONFIG = {
   // Default API URL - can be overridden by user settings
@@ -4964,6 +4965,164 @@ function initEvents() {
 }
 
 // ============================================================================
+// Auth System
+// ============================================================================
+
+async function checkAuth() {
+    try {
+        const token = await SecureStorage.getAccessToken();
+        if (!token) return false;
+        // Try to verify with server
+        try {
+            const resp = await fetch(`${CONFIG.API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return resp.ok;
+        } catch (e) {
+            // Server unreachable — allow offline mode if we have tokens
+            return true;
+        }
+    } catch (e) {
+        return false;
+    }
+}
+
+function showAuthOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+
+    // Tab switching
+    overlay.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            overlay.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            overlay.querySelectorAll('.auth-pane').forEach(p => p.classList.add('hidden'));
+            tab.classList.add('active');
+            const pane = document.getElementById(`auth-${tab.dataset.tab}`);
+            if (pane) pane.classList.remove('hidden');
+        });
+    });
+
+    document.getElementById('auth-signin-btn')?.addEventListener('click', handleSignIn);
+    document.getElementById('auth-password')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleSignIn();
+    });
+    document.getElementById('auth-signup-btn')?.addEventListener('click', handleSignUp);
+    document.getElementById('auth-pair-btn')?.addEventListener('click', handlePairDevice);
+}
+
+async function handleSignIn() {
+    const username = document.getElementById('auth-username')?.value?.trim();
+    const password = document.getElementById('auth-password')?.value;
+    const errorEl = document.getElementById('auth-error');
+    const loadingEl = document.getElementById('auth-loading');
+
+    if (!username || !password) {
+        if (errorEl) { errorEl.textContent = 'Please enter username and password'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (errorEl) errorEl.classList.add('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`${CONFIG.API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.detail || 'Login failed');
+        }
+        const data = await resp.json();
+        await SecureStorage.setAccessToken(data.access_token);
+        await SecureStorage.setRefreshToken(data.refresh_token);
+        if (data.user_id) await SecureStorage.setUserId(data.user_id);
+        dismissAuthOverlay();
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function handleSignUp() {
+    const username = document.getElementById('auth-new-username')?.value?.trim();
+    const email = document.getElementById('auth-new-email')?.value?.trim();
+    const password = document.getElementById('auth-new-password')?.value;
+    const confirm = document.getElementById('auth-confirm-password')?.value;
+    const errorEl = document.getElementById('auth-error');
+    const loadingEl = document.getElementById('auth-loading');
+
+    if (!username || !password) {
+        if (errorEl) { errorEl.textContent = 'Username and password required'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (password !== confirm) {
+        if (errorEl) { errorEl.textContent = 'Passwords do not match'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (errorEl) errorEl.classList.add('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`${CONFIG.API_BASE}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email: email || undefined, password })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.detail || 'Registration failed');
+        }
+        // Auto-login: fill in credentials and sign in
+        document.getElementById('auth-username').value = username;
+        document.getElementById('auth-password').value = password;
+        await handleSignIn();
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function handlePairDevice() {
+    const code = document.getElementById('auth-pair-code')?.value?.trim()?.toUpperCase();
+    const errorEl = document.getElementById('auth-error');
+    if (!code || code.length !== 6) {
+        if (errorEl) { errorEl.textContent = 'Please enter a 6-character code'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    try {
+        const deviceId = await SecureStorage.getOrCreateDeviceId();
+        const resp = await fetch(`${CONFIG.API_BASE}/sync/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: deviceId, approval_code: code })
+        });
+        if (!resp.ok) throw new Error('Invalid code or device not found');
+        const data = await resp.json();
+        if (data.access_token) {
+            await SecureStorage.setAccessToken(data.access_token);
+            if (data.refresh_token) await SecureStorage.setRefreshToken(data.refresh_token);
+            dismissAuthOverlay();
+        }
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message; errorEl.classList.remove('hidden'); }
+    }
+}
+
+function dismissAuthOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (!overlay) return;
+    overlay.classList.add('fade-out');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('fade-out');
+        initOfflineSync();
+    }, 500);
+}
+
+// ============================================================================
 // Init
 // ============================================================================
 
@@ -5018,8 +5177,13 @@ async function init() {
     });
   }
 
-  // Initialize offline-first sync system
-  await initOfflineSync();
+  // Check auth - show overlay if not authenticated
+  const authed = await checkAuth();
+  if (!authed) {
+    showAuthOverlay();
+  } else {
+    initOfflineSync();
+  }
 
   // Listen for Tauri events from Rust backend (global shortcuts)
   if (window.__TAURI__?.event?.listen) {
