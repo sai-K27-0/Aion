@@ -75,27 +75,26 @@ class BlockRepository {
         .uuidEqualTo(uuid)
         .findFirst();
     
-    final model = BlockModel(
-      id: existing?.id ?? Isar.autoIncrement,
-      uuid: uuid,
-      type: block['block_type'] ?? 'default',
-      properties: {
+    final model = BlockModel()
+      ..id = existing?.id ?? Isar.autoIncrement
+      ..uuid = uuid
+      ..type = block['block_type'] ?? 'default'
+      ..properties = {
         'name': block['name'],
         'description': block['description'],
         'icon': block['icon'],
         'color': block['color'],
-      },
-      content: [],
-      parentUuid: parentUuid,
-      order: block['position'] ?? 0,
-      isSynced: true,
-      createdAt: block['created_at'] != null 
-          ? DateTime.parse(block['created_at']) 
-          : null,
-      updatedAt: block['updated_at'] != null 
-          ? DateTime.parse(block['updated_at']) 
-          : null,
-    );
+      }
+      ..content = []
+      ..parentUuid = parentUuid
+      ..order = block['position'] ?? 0
+      ..isSynced = true
+      ..createdAt = block['created_at'] != null
+          ? DateTime.parse(block['created_at'])
+          : null
+      ..updatedAt = block['updated_at'] != null
+          ? DateTime.parse(block['updated_at'])
+          : null;
     
     await _db.blockModels.put(model);
     
@@ -117,21 +116,20 @@ class BlockRepository {
     final uuid = DateTime.now().millisecondsSinceEpoch.toString();
     
     // Create locally first
-    final model = BlockModel(
-      id: Isar.autoIncrement,
-      uuid: uuid,
-      type: 'default',
-      properties: {
+    final model = BlockModel()
+      ..id = Isar.autoIncrement
+      ..uuid = uuid
+      ..type = 'default'
+      ..properties = {
         'name': name,
         'description': description,
-      },
-      content: [],
-      parentUuid: parentUuid,
-      order: 0,
-      isSynced: false,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+      }
+      ..content = []
+      ..parentUuid = parentUuid
+      ..order = 0
+      ..isSynced = false
+      ..createdAt = DateTime.now()
+      ..updatedAt = DateTime.now();
     
     await _db.writeTxn(() async {
       await _db.blockModels.put(model);
