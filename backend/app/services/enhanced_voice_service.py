@@ -9,6 +9,7 @@ Features:
 """
 
 import asyncio
+import logging
 import wave
 import io
 from typing import Optional, Callable, Awaitable, List
@@ -17,6 +18,8 @@ from enum import Enum
 
 from app.services.voice_service import VoiceService, get_voice_service
 from app.services.stt_service import STTService, get_stt_service
+
+logger = logging.getLogger(__name__)
 
 
 class VoiceState(str, Enum):
@@ -128,7 +131,7 @@ class EnhancedVoiceService:
                 return True
                 
         except Exception as e:
-            print(f"Wake word detection error: {e}")
+            logger.error("Wake word detection error: %s", e)
         
         return False
     
@@ -174,7 +177,7 @@ class EnhancedVoiceService:
                 return transcript
                 
         except Exception as e:
-            print(f"Command processing error: {e}")
+            logger.error("Command processing error: %s", e)
         
         return None
     

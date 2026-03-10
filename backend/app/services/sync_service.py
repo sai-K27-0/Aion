@@ -10,11 +10,14 @@ This service handles:
 """
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional, Tuple, Type
 from dataclasses import dataclass, field
 from enum import Enum
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy import select, update, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -220,7 +223,7 @@ class SyncService:
                 
                 await session.commit()
         except Exception as e:
-            print(f"[Sync] Failed to persist device: {e}")
+            logger.error("Failed to persist device: %s", e)
     
     async def register_device_async(
         self,
@@ -342,7 +345,7 @@ class SyncService:
                 )
                 await session.commit()
         except Exception as e:
-            print(f"[Sync] Failed to update device sync time: {e}")
+            logger.error("Failed to update device sync time: %s", e)
     
     async def get_all_devices(self, user_id: Optional[str] = None) -> List[DeviceInfo]:
         """Get all registered devices from database."""
@@ -387,7 +390,7 @@ class SyncService:
             
             return True
         except Exception as e:
-            print(f"[Sync] Failed to deactivate device: {e}")
+            logger.error("Failed to deactivate device: %s", e)
             return False
     
     # =========================================================================

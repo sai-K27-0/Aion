@@ -9,6 +9,7 @@ Provides:
 """
 
 import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any, Callable, Awaitable
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from enum import Enum
 
 from app.services.ai_service import get_ai_service
 from app.services.prompt_service import get_prompt_service
+
+logger = logging.getLogger(__name__)
 
 
 class TriggerType(str, Enum):
@@ -131,7 +134,7 @@ class ProactiveService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Proactive service error: {e}")
+                logger.error("Proactive service error: %s", e)
                 await asyncio.sleep(60)
     
     async def _check_triggers(self):

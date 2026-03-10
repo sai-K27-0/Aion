@@ -11,6 +11,7 @@ Features:
 
 import asyncio
 import io
+import logging
 import os
 import tempfile
 import wave
@@ -21,6 +22,8 @@ import base64
 
 # TTS
 import edge_tts
+
+logger = logging.getLogger(__name__)
 
 # Note: These require additional installation
 # pip install faster-whisper openwakeword sounddevice webrtcvad
@@ -365,7 +368,7 @@ class VoiceAssistantService:
             
             return False
         except Exception as e:
-            print(f"Wake word detection error: {e}")
+            logger.error("Wake word detection error: %s", e)
             return False
     
     # ========================================================================

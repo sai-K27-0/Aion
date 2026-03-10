@@ -1,20 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 
-export interface ScreenAnalysisResult {
-    description: string;
-    extracted_text?: string;
-    suggestions: any[];
-}
-
 class ScreenCaptureService {
     /**
      * Capture the primary screen via Rust backend.
      * Returns base64 encoded PNG string.
      */
-    async captureScreen(): Promise<string> {
+    async captureScreen() {
         try {
-            // Call the Rust command 'capture_screen'
-            const base64Image = await invoke<string>('capture_screen');
+            const base64Image = await invoke('capture_screen');
             return base64Image;
         } catch (error) {
             console.error('Failed to capture screen:', error);
@@ -25,7 +18,7 @@ class ScreenCaptureService {
     /**
      * Send captured image to AI backend for analysis.
      */
-    async analyzeScreen(base64Image: string): Promise<ScreenAnalysisResult> {
+    async analyzeScreen(base64Image) {
         // Convert base64 to blob
         const byteCharacters = atob(base64Image);
         const byteNumbers = new Array(byteCharacters.length);

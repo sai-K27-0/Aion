@@ -188,29 +188,31 @@ class AuthService:
             refresh_token=refresh_token,
             token_type="bearer",
             expires_in=expires_in,
+            user_id=user.id,
         )
-    
+
     async def refresh_tokens(self, refresh_token: str, device_id: Optional[str] = None) -> Optional[TokenResponse]:
         """Refresh access token using refresh token."""
         payload = self.decode_token(refresh_token)
         if not payload or payload.type != "refresh":
             return None
-        
+
         user = await self.get_user_by_id(payload.sub)
         if not user or not user.is_active:
             return None
-        
+
         effective_device_id = device_id or payload.device_id
         access_token, access_exp = self.create_access_token(user.id, device_id=effective_device_id)
         new_refresh_token, _ = self.create_refresh_token(user.id, device_id=effective_device_id)
-        
+
         expires_in = int((access_exp - datetime.now(timezone.utc)).total_seconds())
-        
+
         return TokenResponse(
             access_token=access_token,
             refresh_token=new_refresh_token,
             token_type="bearer",
             expires_in=expires_in,
+            user_id=user.id,
         )
     
     async def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:

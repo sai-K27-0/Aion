@@ -77,6 +77,7 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds until access token expires
+    user_id: Optional[str] = None  # included so clients can persist identity
 
 
 class TokenPayload(BaseModel):

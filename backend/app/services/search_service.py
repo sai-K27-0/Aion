@@ -2,6 +2,7 @@
 Search Service - Performs web searches using DuckDuckGo.
 """
 
+import asyncio
 import logging
 from typing import Any, Optional
 from duckduckgo_search import DDGS
@@ -10,22 +11,26 @@ logger = logging.getLogger(__name__)
 
 class SearchService:
     """Service for searching the web."""
-    
+
     def __init__(self):
         self.ddgs = DDGS()
-    
+
+    def _search_sync(self, query: str, num_results: int) -> list[dict[str, Any]]:
+        """Synchronous search helper — runs in thread pool."""
+        results = []
+        for r in self.ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None):
+            results.append(r)
+            if len(results) >= num_results:
+                break
+        return results
+
     async def search(self, query: str, num_results: int = 5) -> list[dict[str, Any]]:
         """
         Perform a web search for a given query.
         """
         logger.info(f"Performing web search for: {query}")
         try:
-            results = []
-            for r in self.ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None):
-                results.append(r)
-                if len(results) >= num_results:
-                    break
-            return results
+            return await asyncio.to_thread(self._search_sync, query, num_results)
         except Exception as e:
             logger.error(f"Web search failed: {e}")
             return []

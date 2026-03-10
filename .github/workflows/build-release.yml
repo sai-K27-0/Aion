@@ -115,8 +115,11 @@ jobs:
           if [ -d "icon.iconset" ]; then
             iconutil -c icns icon.iconset
             echo "Generated icon.icns"
+          else
+            echo "ERROR: icon.iconset directory not found"
+            exit 1
           fi
-          ls -la *.icns 2>/dev/null || true
+          ls -la *.icns
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -340,7 +343,7 @@ jobs:
       - name: Generate latest.json for Tauri updater
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          REPO="sai-K27-0/Aion"
+          REPO="${{ github.repository }}"
           BASE_URL="https://github.com/${REPO}/releases/download/${GITHUB_REF_NAME}"
 
           # Find signature files
@@ -365,22 +368,22 @@ jobs:
             MAC_URL="${BASE_URL}/$(basename "$MAC_TAR")"
           fi
 
-          # Build latest.json
+          # Build latest.json — only include platforms that have valid signatures
+          PLATFORMS=""
+          if [ -n "$WIN_SIG" ] && [ -n "$WIN_URL" ]; then
+            PLATFORMS="${PLATFORMS}\"windows-x86_64\": { \"signature\": \"${WIN_SIG}\", \"url\": \"${WIN_URL}\" }"
+          fi
+          if [ -n "$MAC_SIG" ] && [ -n "$MAC_URL" ]; then
+            [ -n "$PLATFORMS" ] && PLATFORMS="${PLATFORMS}, "
+            PLATFORMS="${PLATFORMS}\"darwin-aarch64\": { \"signature\": \"${MAC_SIG}\", \"url\": \"${MAC_URL}\" }"
+          fi
+
           cat > artifacts/latest.json << ENDJSON
           {
             "version": "${VERSION}",
             "notes": "See release notes on GitHub",
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "${WIN_SIG}",
-                "url": "${WIN_URL}"
-              },
-              "darwin-aarch64": {
-                "signature": "${MAC_SIG}",
-                "url": "${MAC_URL}"
-              }
-            }
+            "platforms": { ${PLATFORMS} }
           }
           ENDJSON
 

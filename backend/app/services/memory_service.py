@@ -9,6 +9,7 @@ Handles:
 """
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from uuid import uuid4
@@ -19,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.conversation import Conversation, ConversationMessage, ExtractedFact
 from app.services.ai_service import AIService, get_ai_service
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # Token limits for context management
@@ -239,7 +242,7 @@ Summary (be concise but preserve important details):"""
             await self.db.commit()
             
         except Exception as e:
-            print(f"Summarization failed: {e}")
+            logger.error("Summarization failed: %s", e)
     
     # ========================================================================
     # Fact Extraction and Memory
@@ -308,7 +311,7 @@ Return ONLY the JSON array, no other text."""
             return facts
             
         except Exception as e:
-            print(f"Fact extraction failed: {e}")
+            logger.error("Fact extraction failed: %s", e)
             return []
     
     async def get_relevant_facts(

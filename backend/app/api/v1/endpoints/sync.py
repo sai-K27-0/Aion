@@ -985,6 +985,7 @@ async def websocket_sync(
                         "conflicts": [
                             {
                                 "entity_type": c.entity_type.value,
+                                "entity_id": c.entity_id,
                                 "sync_id": c.sync_id,
                                 "client_data": c.client_data,
                                 "server_data": c.server_data,

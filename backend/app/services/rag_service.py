@@ -9,6 +9,7 @@ Features:
 """
 
 import json
+import logging
 import re
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from dataclasses import dataclass
 from app.services.ai_service import AIService, get_ai_service
 from app.services.vector_service import VectorService, get_vector_service
 from app.services.prompt_service import get_prompt_service
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -142,7 +145,7 @@ class RAGService:
             return expansions[:3] if isinstance(expansions, list) else []
             
         except Exception as e:
-            print(f"Query expansion failed: {e}")
+            logger.error("Query expansion failed: %s", e)
             return []
     
     async def _retrieve(
@@ -176,7 +179,7 @@ class RAGService:
             return docs
             
         except Exception as e:
-            print(f"Retrieval failed: {e}")
+            logger.error("Retrieval failed: %s", e)
             return []
     
     async def _rerank(
@@ -244,7 +247,7 @@ Only return the JSON array of indices."""
             return reranked
             
         except Exception as e:
-            print(f"Reranking failed: {e}")
+            logger.error("Reranking failed: %s", e)
             # Fall back to original order
             return documents[:top_k]
     
