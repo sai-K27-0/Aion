@@ -1,6 +1,6 @@
 {
     "name": "aion-desktop",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "description": "Aion Desktop Client - Transparent AI Overlay with Offline Sync",
     "main": "index.html",
     "scripts": {
