@@ -5,6 +5,8 @@ part 'block_model.g.dart';
 
 @collection
 class BlockModel {
+  BlockModel();
+
   Id id = Isar.autoIncrement;
 
   @Index(unique: true)
