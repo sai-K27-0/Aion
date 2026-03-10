@@ -1,7 +1,7 @@
 name: aion_mobile
 description: Aion Mobile Client - AI-Powered Personal Life Management
 publish_to: 'none'
-version: 0.3.4+7
+version: 0.3.5+8
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

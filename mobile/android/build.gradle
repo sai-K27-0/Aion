@@ -24,6 +24,15 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(':app')
+
+    // Fix namespace for plugins that don't declare it (AGP 8+ requirement)
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            if (project.android.namespace == null) {
+                project.android.namespace = project.group.toString()
+            }
+        }
+    }
 }
 
 tasks.register("clean", Delete) {
