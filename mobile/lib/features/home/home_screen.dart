@@ -948,7 +948,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('Version'),
-                subtitle: const Text('0.3.6'),
+                subtitle: const Text('0.3.7'),
               ),
               ListTile(
                 leading: const Icon(Icons.code),
