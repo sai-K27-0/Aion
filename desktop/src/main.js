@@ -4173,6 +4173,43 @@ function clearData() {
   }
 }
 
+async function resetAllData() {
+  if (!confirm('This will delete ALL local data including blocks, settings, and auth. Continue?')) return;
+  if (typeof localDb !== 'undefined' && localDb.clearAll) await localDb.clearAll();
+  localStorage.clear();
+  await SecureStorage.clearAuthSession();
+  toast('All data cleared. Reloading...');
+  setTimeout(() => location.reload(), 1000);
+}
+
+// ============================================================================
+// Settings Enhancements — AI Provider Switching, Account, Logout
+// ============================================================================
+
+function initSettingsEnhancements() {
+  // AI Provider switching
+  const providerSelect = document.getElementById('ai-provider-select');
+  if (providerSelect) {
+    providerSelect.addEventListener('change', () => {
+      document.getElementById('ai-ollama-settings')?.classList.add('hidden');
+      document.getElementById('ai-openai-settings')?.classList.add('hidden');
+      document.getElementById('ai-anthropic-settings')?.classList.add('hidden');
+      const selected = `ai-${providerSelect.value}-settings`;
+      document.getElementById(selected)?.classList.remove('hidden');
+    });
+  }
+
+  // Logout button
+  document.getElementById('btn-logout')?.addEventListener('click', async () => {
+    if (!confirm('Sign out of Aion?')) return;
+    await SecureStorage.clearAuthSession();
+    location.reload();
+  });
+
+  // Reset all data (enhanced clear)
+  document.getElementById('btn-clear-data')?.addEventListener('click', resetAllData);
+}
+
 // ============================================================================
 // Security & Master Password
 // ============================================================================
@@ -5176,6 +5213,9 @@ async function init() {
       localStorage.setItem('aion_ollama_url', v);
     });
   }
+
+  // Settings enhancements (AI provider switching, account, logout)
+  initSettingsEnhancements();
 
   // Check auth - show overlay if not authenticated
   const authed = await checkAuth();
