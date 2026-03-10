@@ -66,6 +66,12 @@ jobs:
         working-directory: desktop
         run: npm run build
 
+      - name: Clean stale bundle artifacts from cache
+        shell: bash
+        run: |
+          rm -rf desktop/src-tauri/target/release/bundle/msi/*
+          rm -rf desktop/src-tauri/target/release/bundle/nsis/*
+
       - name: Build Tauri app (Windows)
         working-directory: desktop
         run: npm run tauri build
@@ -151,6 +157,11 @@ jobs:
       - name: Build frontend
         working-directory: desktop
         run: npm run build
+
+      - name: Clean stale bundle artifacts from cache
+        run: |
+          rm -rf desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*
+          rm -rf desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*
 
       - name: Build Tauri app (macOS ARM64)
         working-directory: desktop

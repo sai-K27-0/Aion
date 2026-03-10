@@ -1,6 +1,6 @@
 [package]
 name = "aion-desktop"
-version = "0.3.5"
+version = "0.3.6"
 description = "Aion Desktop Client - AI-Powered Life Management"
 authors = ["Aion Project"]
 license = "MIT"
