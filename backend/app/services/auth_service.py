@@ -21,6 +21,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
+# In-memory token blacklist (for logout). In production, use Redis.
+_token_blacklist: set[str] = set()
+
 
 class AuthService:
     """Service for authentication operations."""
@@ -44,9 +47,23 @@ class AuthService:
         return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
     
     # ========================================================================
+    # Token Blacklist (Logout Support)
+    # ========================================================================
+
+    @staticmethod
+    def blacklist_token(jti: str) -> None:
+        """Add a token's JTI to the blacklist."""
+        _token_blacklist.add(jti)
+
+    @staticmethod
+    def is_token_blacklisted(jti: str) -> bool:
+        """Check if a token's JTI has been blacklisted."""
+        return jti in _token_blacklist
+
+    # ========================================================================
     # Token Management
     # ========================================================================
-    
+
     @staticmethod
     def create_access_token(user_id: str, device_id: Optional[str] = None) -> tuple[str, datetime]:
         """Create a JWT access token."""
@@ -79,9 +96,15 @@ class AuthService:
     
     @staticmethod
     def decode_token(token: str) -> Optional[TokenPayload]:
-        """Decode and validate a JWT token."""
+        """Decode and validate a JWT token. Returns None if blacklisted or invalid."""
         try:
             payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+
+            # Check if the token has been blacklisted (logout)
+            jti = payload.get("jti")
+            if jti and AuthService.is_token_blacklisted(jti):
+                return None
+
             return TokenPayload(
                 sub=payload["sub"],
                 exp=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
@@ -220,14 +243,25 @@ class AuthService:
         user = await self.get_user_by_id(user_id)
         if not user:
             return False
-        
+
         if not self.verify_password(current_password, user.hashed_password):
             return False
-        
+
         user.hashed_password = self.hash_password(new_password)
         await self.db.commit()
-        
+
         return True
+
+    async def logout(self, token: str) -> None:
+        """Logout by blacklisting the token's JTI."""
+        try:
+            payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+            jti = payload.get("jti")
+            if jti:
+                self.blacklist_token(jti)
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+            # Even if the token is expired/invalid, nothing to blacklist
+            pass
 
 
 # Dependency provider

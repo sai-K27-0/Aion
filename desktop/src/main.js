@@ -6,6 +6,7 @@
 
 import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
+import { SecureStorage } from './services/secure_storage.js';
 
 const CONFIG = {
   // Default API URL - can be overridden by user settings
@@ -1673,40 +1674,39 @@ function endPanelDrag() {
 
 let clickThroughEnabled = false;
 
-async function toggleClickThroughMode() {
-  clickThroughEnabled = !clickThroughEnabled;
-
+/**
+ * Apply ghost mode visual state (CSS classes, exit button, toast).
+ * Does NOT call any Tauri window API — Rust is the single source of truth.
+ */
+function applyGhostModeVisuals(enabled) {
+  clickThroughEnabled = enabled;
   const toggle = document.getElementById('click-through-toggle');
+  const exitBtn = document.getElementById('ghost-exit-btn');
 
-  if (clickThroughEnabled) {
-    // Enable click-through mode
+  if (enabled) {
     document.body.classList.add('click-through-mode');
     if (toggle) toggle.classList.add('active');
-    toast('Ghost mode enabled - click through to windows below');
-
-    // Tell Tauri to enable click-through and set window to ignore cursor (clicks pass through)
-    try {
-      const { invoke } = window.__TAURI__.core;
-      await invoke('set_click_through', { enabled: true });
-      const w = window.__TAURI__.webviewWindow.getCurrentWebviewWindow();
-      await w.setIgnoreCursorEvents(true);
-      toast('Ghost mode on — press Alt+G to turn off');
-    } catch (e) {
-      console.log('Tauri invoke not available:', e);
-    }
+    if (exitBtn) exitBtn.classList.remove('hidden');
+    toast('Ghost mode on — press Alt+G or click triangle to exit');
   } else {
-    // Disable click-through mode and re-enable cursor events on window
-    try {
-      const w = window.__TAURI__.webviewWindow?.getCurrentWebviewWindow?.();
-      if (w) await w.setIgnoreCursorEvents(false);
-      const { invoke } = window.__TAURI__.core;
-      await invoke('set_click_through', { enabled: false });
-    } catch (e) {
-      console.log('Tauri invoke not available:', e);
-    }
     document.body.classList.remove('click-through-mode');
     if (toggle) toggle.classList.remove('active');
+    if (exitBtn) exitBtn.classList.add('hidden');
     toast('Ghost mode disabled');
+  }
+}
+
+/**
+ * Toggle ghost / click-through mode by asking Rust to flip the state.
+ * Rust handles set_ignore_cursor_events; we only update visuals.
+ */
+async function toggleClickThroughMode() {
+  try {
+    const { invoke } = window.__TAURI__.core;
+    const newState = await invoke('toggle_click_through');
+    applyGhostModeVisuals(newState);
+  } catch (e) {
+    console.log('toggle_click_through invoke failed:', e);
   }
 }
 
@@ -3682,7 +3682,12 @@ function executeAiActions(actions) {
 }
 
 // WebSocket Connection
+// Guard: only connect when user is authenticated and WS isn't already open.
+let _wsReconnectTimer = null;
+let _wsEnabled = false; // set true after successful auth
+
 function connectAiWebSocket() {
+  if (!_wsEnabled) return;                           // not authenticated yet
   if (aiWebSocket && aiWebSocket.readyState === WebSocket.OPEN) return;
 
   try {
@@ -3698,22 +3703,18 @@ function connectAiWebSocket() {
         const data = JSON.parse(event.data);
 
         if (data.type === 'chunk') {
-          // Streaming response
           const lastMsg = chatHistory[chatHistory.length - 1];
           if (lastMsg && lastMsg.role === 'assistant' && lastMsg.streaming) {
             lastMsg.content += data.content;
             renderChat();
           }
         } else if (data.type === 'complete') {
-          // Response complete
           const lastMsg = chatHistory[chatHistory.length - 1];
           if (lastMsg && lastMsg.streaming) {
             lastMsg.content = data.response;
             lastMsg.streaming = false;
           }
           renderChat();
-
-          // Execute any actions
           if (data.actions) {
             executeAiActions(data.actions);
           }
@@ -3729,8 +3730,11 @@ function connectAiWebSocket() {
 
     aiWebSocket.onclose = () => {
       console.log('AI WebSocket closed');
-      // Reconnect after delay
-      setTimeout(connectAiWebSocket, 5000);
+      // Reconnect after delay (only if still enabled)
+      if (_wsEnabled) {
+        clearTimeout(_wsReconnectTimer);
+        _wsReconnectTimer = setTimeout(connectAiWebSocket, 5000);
+      }
     };
 
     aiWebSocket.onerror = (e) => {
@@ -3739,6 +3743,12 @@ function connectAiWebSocket() {
   } catch (e) {
     console.error('WebSocket connection failed:', e);
   }
+}
+
+/** Enable the WebSocket system (called after successful auth). */
+function enableAiWebSocket() {
+  _wsEnabled = true;
+  connectAiWebSocket();
 }
 
 // Send via WebSocket if available, fallback to HTTP
@@ -4171,6 +4181,43 @@ function clearData() {
     localStorage.removeItem(CONFIG.STORAGE_KEY);
     location.reload();
   }
+}
+
+async function resetAllData() {
+  if (!confirm('This will delete ALL local data including blocks, settings, and auth. Continue?')) return;
+  if (typeof localDb !== 'undefined' && localDb.clearAll) await localDb.clearAll();
+  localStorage.clear();
+  await SecureStorage.clearAuthSession();
+  toast('All data cleared. Reloading...');
+  setTimeout(() => location.reload(), 1000);
+}
+
+// ============================================================================
+// Settings Enhancements — AI Provider Switching, Account, Logout
+// ============================================================================
+
+function initSettingsEnhancements() {
+  // AI Provider switching
+  const providerSelect = document.getElementById('ai-provider-select');
+  if (providerSelect) {
+    providerSelect.addEventListener('change', () => {
+      document.getElementById('ai-ollama-settings')?.classList.add('hidden');
+      document.getElementById('ai-openai-settings')?.classList.add('hidden');
+      document.getElementById('ai-anthropic-settings')?.classList.add('hidden');
+      const selected = `ai-${providerSelect.value}-settings`;
+      document.getElementById(selected)?.classList.remove('hidden');
+    });
+  }
+
+  // Logout button
+  document.getElementById('btn-logout')?.addEventListener('click', async () => {
+    if (!confirm('Sign out of Aion?')) return;
+    await SecureStorage.clearAuthSession();
+    location.reload();
+  });
+
+  // Reset all data (enhanced clear)
+  document.getElementById('btn-clear-data')?.addEventListener('click', resetAllData);
 }
 
 // ============================================================================
@@ -4965,6 +5012,166 @@ function initEvents() {
 }
 
 // ============================================================================
+// Auth System
+// ============================================================================
+
+async function checkAuth() {
+    try {
+        const token = await SecureStorage.getAccessToken();
+        if (!token) return false;
+        // Try to verify with server
+        try {
+            const resp = await fetch(`${CONFIG.API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return resp.ok;
+        } catch (e) {
+            // Server unreachable — allow offline mode if we have tokens
+            return true;
+        }
+    } catch (e) {
+        return false;
+    }
+}
+
+function showAuthOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+
+    // Tab switching
+    overlay.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            overlay.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            overlay.querySelectorAll('.auth-pane').forEach(p => p.classList.add('hidden'));
+            tab.classList.add('active');
+            const pane = document.getElementById(`auth-${tab.dataset.tab}`);
+            if (pane) pane.classList.remove('hidden');
+        });
+    });
+
+    document.getElementById('auth-signin-btn')?.addEventListener('click', handleSignIn);
+    document.getElementById('auth-password')?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') handleSignIn();
+    });
+    document.getElementById('auth-signup-btn')?.addEventListener('click', handleSignUp);
+    document.getElementById('auth-pair-btn')?.addEventListener('click', handlePairDevice);
+}
+
+async function handleSignIn() {
+    const username = document.getElementById('auth-username')?.value?.trim();
+    const password = document.getElementById('auth-password')?.value;
+    const errorEl = document.getElementById('auth-error');
+    const loadingEl = document.getElementById('auth-loading');
+
+    if (!username || !password) {
+        if (errorEl) { errorEl.textContent = 'Please enter username and password'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (errorEl) errorEl.classList.add('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`${CONFIG.API_BASE}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.detail || 'Login failed');
+        }
+        const data = await resp.json();
+        await SecureStorage.setAccessToken(data.access_token);
+        await SecureStorage.setRefreshToken(data.refresh_token);
+        if (data.user_id) await SecureStorage.setUserId(data.user_id);
+        dismissAuthOverlay();
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function handleSignUp() {
+    const username = document.getElementById('auth-new-username')?.value?.trim();
+    const email = document.getElementById('auth-new-email')?.value?.trim();
+    const password = document.getElementById('auth-new-password')?.value;
+    const confirm = document.getElementById('auth-confirm-password')?.value;
+    const errorEl = document.getElementById('auth-error');
+    const loadingEl = document.getElementById('auth-loading');
+
+    if (!username || !password) {
+        if (errorEl) { errorEl.textContent = 'Username and password required'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (password !== confirm) {
+        if (errorEl) { errorEl.textContent = 'Passwords do not match'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    if (errorEl) errorEl.classList.add('hidden');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+
+    try {
+        const resp = await fetch(`${CONFIG.API_BASE}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email: email || undefined, password })
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.detail || 'Registration failed');
+        }
+        // Auto-login: fill in credentials and sign in
+        document.getElementById('auth-username').value = username;
+        document.getElementById('auth-password').value = password;
+        await handleSignIn();
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+        if (loadingEl) loadingEl.classList.add('hidden');
+    }
+}
+
+async function handlePairDevice() {
+    const code = document.getElementById('auth-pair-code')?.value?.trim()?.toUpperCase();
+    const errorEl = document.getElementById('auth-error');
+    if (!code || code.length !== 6) {
+        if (errorEl) { errorEl.textContent = 'Please enter a 6-character code'; errorEl.classList.remove('hidden'); }
+        return;
+    }
+    try {
+        const deviceId = await SecureStorage.getOrCreateDeviceId();
+        const resp = await fetch(`${CONFIG.API_BASE}/sync/approve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: deviceId, approval_code: code })
+        });
+        if (!resp.ok) throw new Error('Invalid code or device not found');
+        const data = await resp.json();
+        if (data.access_token) {
+            await SecureStorage.setAccessToken(data.access_token);
+            if (data.refresh_token) await SecureStorage.setRefreshToken(data.refresh_token);
+            dismissAuthOverlay();
+        }
+    } catch (e) {
+        if (errorEl) { errorEl.textContent = e.message; errorEl.classList.remove('hidden'); }
+    }
+}
+
+function dismissAuthOverlay() {
+    const overlay = document.getElementById('auth-overlay');
+    if (!overlay) return;
+    overlay.classList.add('fade-out');
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('fade-out');
+        // Now that user is authenticated, start services
+        enableAiWebSocket();
+        initOfflineSync();
+    }, 400);
+}
+
+// ============================================================================
 // Init
 // ============================================================================
 
@@ -4991,9 +5198,8 @@ async function init() {
   initBlockEventDelegation(); // Event delegation for mindmap blocks (attach once)
   renderMiniTodos();
 
-  // Initialize AI system
+  // Initialize AI system (model list only — WebSocket deferred until authed)
   loadAiModels();
-  connectAiWebSocket();
 
   // Model selector event
   const modelSelect = document.getElementById('ai-model-select');
@@ -5019,13 +5225,16 @@ async function init() {
     });
   }
 
-  // Initialize offline-first sync system
-  await initOfflineSync();
+  // Settings enhancements (AI provider switching, account, logout)
+  initSettingsEnhancements();
 
   // Listen for Tauri events from Rust backend (global shortcuts)
   if (window.__TAURI__?.event?.listen) {
     window.__TAURI__.event.listen('toggle-ghost', () => {
       toggleClickThroughMode();
+    });
+    window.__TAURI__.event.listen('click-through-changed', (event) => {
+      applyGhostModeVisuals(event.payload);
     });
     window.__TAURI__.event.listen('trigger-capture', async () => {
       try {
@@ -5039,10 +5248,31 @@ async function init() {
     });
   }
 
-  // Smooth overlay fade-in when app is ready
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
-  });
+  // Wire up ghost exit button
+  const ghostExitBtn = document.getElementById('ghost-exit-btn');
+  if (ghostExitBtn) {
+    ghostExitBtn.addEventListener('click', () => {
+      toggleClickThroughMode();
+    });
+  }
+
+  // ── Auth gate ─────────────────────────────────────────────────────
+  // Check auth BEFORE making the body visible.  If not authenticated,
+  // show the auth overlay instantly (no body fade-in — the overlay has
+  // its own fade animation).  If authenticated, proceed to full init.
+  const authed = await checkAuth();
+  if (!authed) {
+    showAuthOverlay();
+    // Make body visible immediately so the auth overlay is seen
+    document.body.classList.add('overlay-ready');
+  } else {
+    // Authenticated — start services & smooth fade-in
+    enableAiWebSocket();
+    initOfflineSync();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
+    });
+  }
 
   updateOrbVisibility();
   console.log('Aion Complete v2 with AI and Offline Sync ready');
@@ -5148,32 +5378,59 @@ function handleOnlineStatusChange() {
   updateSyncStatusUI(isOnline ? 'synced' : 'offline', isOnline ? 'Online' : 'Offline');
 }
 
-function updateSyncStatusUI(status = 'synced', text = 'Synced') {
-  const statusEl = document.getElementById('sync-status');
-  if (!statusEl) return;
+function updateSyncStatus(status, message) {
+    const bar = document.getElementById('sync-status-bar');
+    const icon = document.getElementById('sync-icon');
+    const text = document.getElementById('sync-text');
+    if (!bar || !text) return;
 
-  statusEl.classList.remove('hidden', 'syncing', 'synced', 'error', 'offline');
-  statusEl.classList.add(status);
+    bar.classList.remove('online', 'offline', 'syncing');
 
-  const textEl = statusEl.querySelector('.sync-text');
-  if (textEl) textEl.textContent = text;
+    switch (status) {
+        case 'online':
+        case 'synced':
+            bar.classList.add('online');
+            if (icon) icon.textContent = '\u2713';
+            text.textContent = message || 'Synced';
+            break;
+        case 'syncing':
+            bar.classList.add('syncing');
+            if (icon) icon.textContent = '\u27F3';
+            text.textContent = message || 'Syncing...';
+            break;
+        case 'offline':
+            bar.classList.add('offline');
+            if (icon) icon.textContent = '\u2715';
+            text.textContent = message || 'Offline';
+            break;
+        case 'error':
+            bar.classList.add('offline');
+            if (icon) icon.textContent = '!';
+            text.textContent = message || 'Sync failed';
+            break;
+    }
 
-  // Show pending count if any
-  if (localDb) {
-    localDb.getPendingChanges().then(pending => {
-      let pendingEl = statusEl.querySelector('.sync-pending');
-      if (pending.length > 0) {
-        if (!pendingEl) {
-          pendingEl = document.createElement('span');
-          pendingEl.className = 'sync-pending';
-          statusEl.appendChild(pendingEl);
+    // Show pending count if any
+    if (localDb) {
+      localDb.getPendingChanges().then(pending => {
+        let pendingEl = bar.querySelector('.sync-pending');
+        if (pending.length > 0) {
+          if (!pendingEl) {
+            pendingEl = document.createElement('span');
+            pendingEl.className = 'sync-pending';
+            bar.appendChild(pendingEl);
+          }
+          pendingEl.textContent = pending.length;
+        } else if (pendingEl) {
+          pendingEl.remove();
         }
-        pendingEl.textContent = pending.length;
-      } else if (pendingEl) {
-        pendingEl.remove();
-      }
-    });
-  }
+      });
+    }
+}
+
+// Backward-compatible alias
+function updateSyncStatusUI(status, text) {
+    updateSyncStatus(status, text);
 }
 
 async function loadFromLocalDb() {

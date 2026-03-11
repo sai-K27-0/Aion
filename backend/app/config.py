@@ -28,9 +28,10 @@ class Settings(BaseSettings):
     # API
     api_v1_prefix: str = "/api/v1"
     cors_origins: list[str] = [
+        "http://localhost:1420",
+        "http://localhost:1421",
         "http://localhost:3000",
         "http://localhost:5173",
-        "http://localhost:1421",
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "tauri://localhost",
@@ -90,7 +91,17 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
     # Preferred provider when multiple keys exist: ollama | openai | anthropic
     ai_provider: str = "ollama"
-    
+
+    # OAuth
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    oauth_redirect_base_url: str = "http://localhost:8000"
+
+    # Optional cloud relay for cross-network sync
+    relay_url: Optional[str] = None
+
     # Security
     secret_key: str = "change-this-in-production-to-a-secure-random-key"
     access_token_expire_minutes: int = 30  # 30 minutes for access tokens

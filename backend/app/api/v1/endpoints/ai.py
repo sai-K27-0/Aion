@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.websockets import WebSocketState
 
 # Rate limiter (shared with main app)
@@ -46,17 +47,20 @@ from app.services.action_executor import get_action_executor, ACTION_REGISTRY
 from app.services.study_service import get_study_service
 from app.services.user_profile_service import get_profile_service
 from app.services.smart_model_router import get_smart_router, TaskType
+from app.services.ai_block_service import AIBlockService
 from app.api.deps import (
-    VoiceServiceDep, 
-    ActionServiceDep, 
-    get_planning_service, 
+    VoiceServiceDep,
+    ActionServiceDep,
+    get_planning_service,
     PlanningService,
     get_vector_service,
     RealtimeVoiceServiceDep,
     STTServiceDep,
     CurrentUser,
 )
+from app.db.session import get_db
 from app.schemas.ai import PlanCreate, PlanExecute, Plan
+from app.schemas.ai_block import SmartActionRequest, SmartActionResponse
 
 router = APIRouter()
 
@@ -1259,6 +1263,24 @@ async def get_neural_graph(limit: int = 50):
         )
     
     return await vector_service.get_semantic_graph(limit=limit)
+
+# ============================================================================
+# Smart Action — AI autonomous block creation
+# ============================================================================
+
+@router.post("/smart-action", response_model=SmartActionResponse)
+async def smart_action(
+    body: SmartActionRequest,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """AI autonomous action — creates blocks from natural language."""
+    service = AIBlockService(db)
+    return await service.smart_action(
+        user_id=current_user.id,
+        message=body.message,
+        context_block_id=body.context_block_id,
+    )
 
 # ============================================================================
 # Persona / Adaptive Memory Endpoints

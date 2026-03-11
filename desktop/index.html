@@ -46,6 +46,8 @@
     <symbol id="icon-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
     <symbol id="icon-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></symbol>
     <symbol id="icon-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0112 4.5v15a2.5 2.5 0 01-4.96.44 2.5 2.5 0 01-2.96-3.08 3 3 0 01.34-5.58 2.5 2.5 0 010-4.72 2.5 2.5 0 010-4.72 3 3 0 01.34-5.58 2.5 2.5 0 012.96-3.08A2.5 2.5 0 019.5 2z"/><path d="M14.5 2A2.5 2.5 0 0012 4.5v15a2.5 2.5 0 004.96.44 2.5 2.5 0 002.96-3.08 3 3 0 00-.34-5.58 2.5 2.5 0 000-4.72 2.5 2.5 0 000-4.72 3 3 0 00-.34-5.58 2.5 2.5 0 00-2.96-3.08A2.5 2.5 0 0014.5 2z"/></symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></symbol>
   </svg>
   <div id="drag-handle" data-tauri-drag-region></div>
 
@@ -58,17 +60,24 @@
   <div id="orb-container" class="orb-container">
     <div id="orb" class="orb">
       <div class="orb-glow"></div>
-      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-        <!-- Aion spark – central core with radiating rays, theme-aware -->
-        <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.95" />
-        <line x1="12" y1="12" x2="12" y2="3" />
-        <line x1="12" y1="12" x2="12" y2="21" />
-        <line x1="12" y1="12" x2="3" y2="12" />
-        <line x1="12" y1="12" x2="21" y2="12" />
-        <line x1="12" y1="12" x2="5.5" y2="5.5" />
-        <line x1="12" y1="12" x2="18.5" y2="18.5" />
-        <line x1="12" y1="12" x2="18.5" y2="5.5" />
-        <line x1="12" y1="12" x2="5.5" y2="18.5" />
+      <svg class="orb-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Aion faceted triangle logo – matches app icon -->
+        <defs>
+          <linearGradient id="orb-tri-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00D9FF"/>
+            <stop offset="100%" style="stop-color:#3A7BC8"/>
+          </linearGradient>
+          <linearGradient id="orb-tri-g2" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#5BA3E6"/>
+            <stop offset="100%" style="stop-color:#2A6BB8"/>
+          </linearGradient>
+        </defs>
+        <polygon points="12,2 22,20 2,20" fill="url(#orb-tri-g1)" opacity="0.9"/>
+        <polygon points="12,2 22,20 12,16" fill="url(#orb-tri-g2)" opacity="0.75"/>
+        <polygon points="12,2 2,20 12,16" fill="#00D9FF" opacity="0.5"/>
+        <line x1="12" y1="2" x2="22" y2="20" stroke="rgba(255,255,255,0.15)" stroke-width="0.3"/>
+        <line x1="12" y1="2" x2="2" y2="20" stroke="rgba(255,255,255,0.1)" stroke-width="0.3"/>
+        <line x1="12" y1="2" x2="12" y2="16" stroke="rgba(0,217,255,0.3)" stroke-width="0.3"/>
       </svg>
     </div>
   </div>
@@ -76,16 +85,9 @@
   <!-- AI Input Bar (appears when orb clicked) -->
   <div id="ai-input-bar" class="ai-input-bar hidden">
     <div class="ai-input-glow"></div>
-    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <circle cx="12" cy="12" r="2.5" fill="currentColor" opacity="0.9" />
-      <line x1="12" y1="12" x2="12" y2="3" />
-      <line x1="12" y1="12" x2="12" y2="21" />
-      <line x1="12" y1="12" x2="3" y2="12" />
-      <line x1="12" y1="12" x2="21" y2="12" />
-      <line x1="12" y1="12" x2="5.5" y2="5.5" />
-      <line x1="12" y1="12" x2="18.5" y2="18.5" />
-      <line x1="12" y1="12" x2="18.5" y2="5.5" />
-      <line x1="12" y1="12" x2="5.5" y2="18.5" />
+    <svg class="ai-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="12,3 20,19 4,19" fill="var(--accent-color, #00D9FF)" opacity="0.7"/>
+      <polygon points="12,3 20,19 12,15" fill="currentColor" opacity="0.5"/>
     </svg>
     <input type="text" id="ai-input" placeholder="Ask Aion anything..." autocomplete="off">
     <button id="ai-send-btn" class="ai-send-btn">
@@ -801,6 +803,53 @@
     </div>
   </div>
 
+  <!-- Auth Overlay - shown on first launch -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <svg width="64" height="64" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="auth-tri-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#00D9FF"/>
+              <stop offset="100%" style="stop-color:#3A7BC8"/>
+            </linearGradient>
+          </defs>
+          <polygon points="50,10 90,85 10,85" fill="url(#auth-tri-g1)" opacity="0.9"/>
+          <polygon points="50,10 90,85 50,70" fill="#5BA3E6" opacity="0.7"/>
+          <polygon points="50,10 10,85 50,70" fill="#00D9FF" opacity="0.5"/>
+        </svg>
+        <h1>Aion</h1>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="signin">Sign In</button>
+        <button class="auth-tab" data-tab="signup">Create Account</button>
+        <button class="auth-tab" data-tab="pair">Pair Device</button>
+      </div>
+      <div id="auth-signin" class="auth-pane">
+        <input type="text" id="auth-username" placeholder="Username or email" autocomplete="username">
+        <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+        <button id="auth-signin-btn" class="auth-btn primary">Sign In</button>
+        <div class="auth-divider"><span>or</span></div>
+        <button id="auth-google-btn" class="auth-btn social" disabled>Sign in with Google</button>
+        <button id="auth-github-btn" class="auth-btn social" disabled>Sign in with GitHub</button>
+      </div>
+      <div id="auth-signup" class="auth-pane hidden">
+        <input type="text" id="auth-new-username" placeholder="Username" autocomplete="username">
+        <input type="email" id="auth-new-email" placeholder="Email (optional)" autocomplete="email">
+        <input type="password" id="auth-new-password" placeholder="Password" autocomplete="new-password">
+        <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password">
+        <button id="auth-signup-btn" class="auth-btn primary">Create Account</button>
+      </div>
+      <div id="auth-pair" class="auth-pane hidden">
+        <p class="auth-hint">Enter the 6-character code from your other device:</p>
+        <input type="text" id="auth-pair-code" placeholder="ABC123" maxlength="6" class="auth-code-input">
+        <button id="auth-pair-btn" class="auth-btn primary">Pair Device</button>
+      </div>
+      <div id="auth-error" class="auth-error hidden"></div>
+      <div id="auth-loading" class="auth-loading hidden">Connecting...</div>
+    </div>
+  </div>
+
   <!-- ================================================
        SETTINGS PANEL - Hierarchical, glassmorphism
        ================================================ -->
@@ -836,9 +885,17 @@
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-refresh"/></svg>
           <span>Updates</span>
         </button>
+        <button class="settings-nav-item" data-section="server">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-server"/></svg>
+          <span>Server</span>
+        </button>
         <button class="settings-nav-item" data-section="security">
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-brain"/></svg>
           <span>Security</span>
+        </button>
+        <button class="settings-nav-item" data-section="account">
+          <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-user"/></svg>
+          <span>Account</span>
         </button>
         <button class="settings-nav-item" data-section="data">
           <svg class="nav-icon" viewBox="0 0 24 24"><use href="#icon-folder"/></svg>
@@ -909,9 +966,21 @@
           </div>
         </div>
         <div id="settings-pane-ai" class="settings-pane">
-          <h3 class="pane-title">AI</h3>
+          <h3 class="pane-title">AI Configuration</h3>
           <div class="settings-group">
-            <p class="settings-hint">Backend for RAG & web search, or local Ollama</p>
+            <h4>Provider</h4>
+            <p class="settings-hint">Choose your AI backend</p>
+            <div class="setting-row">
+              <span>AI Provider</span>
+              <select id="ai-provider-select" class="setting-select">
+                <option value="ollama">Ollama (Local / Free)</option>
+                <option value="openai">OpenAI (API Key)</option>
+                <option value="anthropic">Anthropic (API Key)</option>
+              </select>
+            </div>
+          </div>
+          <div id="ai-ollama-settings" class="settings-group">
+            <h4>Ollama Settings</h4>
             <div class="setting-row">
               <span>Use backend for AI</span>
               <label class="toggle-wrap">
@@ -921,17 +990,48 @@
             </div>
             <div class="setting-row">
               <span>Ollama URL</span>
-              <input type="text" id="ollama-url-input" class="setting-input" placeholder="127.0.0.1:11434" />
+              <input type="text" id="ollama-url-input" class="setting-input" placeholder="http://localhost:11434" />
             </div>
             <div class="setting-row">
               <span>Model</span>
               <select id="ai-model-select" class="setting-select">
                 <option value="llama3.2">llama3.2 (default)</option>
+                <option value="mistral">mistral</option>
               </select>
             </div>
+          </div>
+          <div id="ai-openai-settings" class="settings-group hidden">
+            <h4>OpenAI Settings</h4>
+            <div class="setting-row">
+              <span>API Key</span>
+              <input type="password" id="openai-key-input" class="setting-input" placeholder="sk-..." />
+            </div>
+            <div class="setting-row">
+              <span>Model</span>
+              <select id="openai-model-select" class="setting-select">
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+              </select>
+            </div>
+          </div>
+          <div id="ai-anthropic-settings" class="settings-group hidden">
+            <h4>Anthropic Settings</h4>
+            <div class="setting-row">
+              <span>API Key</span>
+              <input type="password" id="anthropic-key-input" class="setting-input" placeholder="sk-ant-..." />
+            </div>
+            <div class="setting-row">
+              <span>Model</span>
+              <select id="anthropic-model-select" class="setting-select">
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+              </select>
+            </div>
+          </div>
+          <div class="settings-group">
             <div class="setting-row">
               <span>Status</span>
-              <span id="ai-status-indicator" class="status-indicator">Checking...</span>
+              <span id="ai-status-indicator" class="status-indicator">Not connected</span>
             </div>
           </div>
         </div>
@@ -978,6 +1078,30 @@
             <div class="setting-row">
               <span>Sync Status</span>
               <span id="sync-status-indicator" class="status-indicator">--</span>
+            </div>
+          </div>
+        </div>
+        <div id="settings-pane-account" class="settings-pane">
+          <h3 class="pane-title">Account</h3>
+          <div class="settings-group">
+            <h4>Profile</h4>
+            <div class="setting-row">
+              <span>Signed in as</span>
+              <span id="account-username" class="status-indicator">-</span>
+            </div>
+            <div class="setting-row">
+              <span>Auth method</span>
+              <span id="account-provider" class="status-indicator">Local</span>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h4>Actions</h4>
+            <div class="setting-actions">
+              <button id="btn-change-password" class="setting-btn">Change Password</button>
+              <button id="btn-manage-devices" class="setting-btn">Manage Devices</button>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-logout" class="setting-btn danger">Sign Out</button>
             </div>
           </div>
         </div>
@@ -1306,16 +1430,10 @@
     </div>
   </div>
 
-  <!-- Sync Status Indicator -->
-  <div id="sync-status" class="sync-status hidden">
-    <div class="sync-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="23 4 23 10 17 10" />
-        <polyline points="1 20 1 14 7 14" />
-        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-      </svg>
-    </div>
-    <span class="sync-text">Synced</span>
+  <!-- Sync Status Bar -->
+  <div id="sync-status-bar" class="sync-status-bar">
+    <span id="sync-icon" class="sync-icon">&#x27F3;</span>
+    <span id="sync-text">Checking...</span>
   </div>
 
   <!-- Toast -->
@@ -1332,6 +1450,13 @@
   </div>
 
   <input type="file" id="import-file" accept=".json" style="display:none">
+
+  <!-- Ghost mode exit button (visible only during click-through mode) -->
+  <div id="ghost-exit-btn" class="ghost-exit-btn hidden" style="pointer-events: auto !important;">
+    <svg width="24" height="24" viewBox="0 0 24 24">
+      <polygon points="12,2 22,20 2,20" fill="var(--accent-color, #00D9FF)" opacity="0.8"/>
+    </svg>
+  </div>
 
   <script type="module" src="/src/main.js"></script>
 </body>
