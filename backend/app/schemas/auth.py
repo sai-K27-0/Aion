@@ -61,7 +61,7 @@ class PasswordChange(BaseModel):
 class UserResponse(BaseModel):
     """Schema for user data in responses."""
     id: str
-    email: str
+    email: Optional[str] = None
     username: Optional[str] = None
     full_name: Optional[str] = None
     is_active: bool

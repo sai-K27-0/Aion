@@ -3682,7 +3682,12 @@ function executeAiActions(actions) {
 }
 
 // WebSocket Connection
+// Guard: only connect when user is authenticated and WS isn't already open.
+let _wsReconnectTimer = null;
+let _wsEnabled = false; // set true after successful auth
+
 function connectAiWebSocket() {
+  if (!_wsEnabled) return;                           // not authenticated yet
   if (aiWebSocket && aiWebSocket.readyState === WebSocket.OPEN) return;
 
   try {
@@ -3698,22 +3703,18 @@ function connectAiWebSocket() {
         const data = JSON.parse(event.data);
 
         if (data.type === 'chunk') {
-          // Streaming response
           const lastMsg = chatHistory[chatHistory.length - 1];
           if (lastMsg && lastMsg.role === 'assistant' && lastMsg.streaming) {
             lastMsg.content += data.content;
             renderChat();
           }
         } else if (data.type === 'complete') {
-          // Response complete
           const lastMsg = chatHistory[chatHistory.length - 1];
           if (lastMsg && lastMsg.streaming) {
             lastMsg.content = data.response;
             lastMsg.streaming = false;
           }
           renderChat();
-
-          // Execute any actions
           if (data.actions) {
             executeAiActions(data.actions);
           }
@@ -3729,8 +3730,11 @@ function connectAiWebSocket() {
 
     aiWebSocket.onclose = () => {
       console.log('AI WebSocket closed');
-      // Reconnect after delay
-      setTimeout(connectAiWebSocket, 5000);
+      // Reconnect after delay (only if still enabled)
+      if (_wsEnabled) {
+        clearTimeout(_wsReconnectTimer);
+        _wsReconnectTimer = setTimeout(connectAiWebSocket, 5000);
+      }
     };
 
     aiWebSocket.onerror = (e) => {
@@ -3739,6 +3743,12 @@ function connectAiWebSocket() {
   } catch (e) {
     console.error('WebSocket connection failed:', e);
   }
+}
+
+/** Enable the WebSocket system (called after successful auth). */
+function enableAiWebSocket() {
+  _wsEnabled = true;
+  connectAiWebSocket();
 }
 
 // Send via WebSocket if available, fallback to HTTP
@@ -5155,8 +5165,10 @@ function dismissAuthOverlay() {
     setTimeout(() => {
         overlay.classList.add('hidden');
         overlay.classList.remove('fade-out');
+        // Now that user is authenticated, start services
+        enableAiWebSocket();
         initOfflineSync();
-    }, 500);
+    }, 400);
 }
 
 // ============================================================================
@@ -5186,9 +5198,8 @@ async function init() {
   initBlockEventDelegation(); // Event delegation for mindmap blocks (attach once)
   renderMiniTodos();
 
-  // Initialize AI system
+  // Initialize AI system (model list only — WebSocket deferred until authed)
   loadAiModels();
-  connectAiWebSocket();
 
   // Model selector event
   const modelSelect = document.getElementById('ai-model-select');
@@ -5216,14 +5227,6 @@ async function init() {
 
   // Settings enhancements (AI provider switching, account, logout)
   initSettingsEnhancements();
-
-  // Check auth - show overlay if not authenticated
-  const authed = await checkAuth();
-  if (!authed) {
-    showAuthOverlay();
-  } else {
-    initOfflineSync();
-  }
 
   // Listen for Tauri events from Rust backend (global shortcuts)
   if (window.__TAURI__?.event?.listen) {
@@ -5253,10 +5256,23 @@ async function init() {
     });
   }
 
-  // Smooth overlay fade-in when app is ready
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
-  });
+  // ── Auth gate ─────────────────────────────────────────────────────
+  // Check auth BEFORE making the body visible.  If not authenticated,
+  // show the auth overlay instantly (no body fade-in — the overlay has
+  // its own fade animation).  If authenticated, proceed to full init.
+  const authed = await checkAuth();
+  if (!authed) {
+    showAuthOverlay();
+    // Make body visible immediately so the auth overlay is seen
+    document.body.classList.add('overlay-ready');
+  } else {
+    // Authenticated — start services & smooth fade-in
+    enableAiWebSocket();
+    initOfflineSync();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => document.body.classList.add('overlay-ready'));
+    });
+  }
 
   updateOrbVisibility();
   console.log('Aion Complete v2 with AI and Offline Sync ready');
