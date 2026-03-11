@@ -43,7 +43,7 @@ class DiscoveryService:
     SERVICE_TYPE = "_aion._tcp.local."
     SERVICE_NAME = "Aion Server._aion._tcp.local."
     
-    def __init__(self, port: int = 8000, version: str = "0.3.7"):
+    def __init__(self, port: int = 8000, version: str = "0.3.8"):
         self.port = port
         self.version = version
         self.zeroconf: Optional[AsyncZeroconf] = None

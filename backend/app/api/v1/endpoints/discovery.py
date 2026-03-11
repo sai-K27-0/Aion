@@ -45,7 +45,7 @@ async def get_server_info():
     
     return {
         "name": "Aion Server",
-        "version": "0.3.7",
+        "version": "0.3.8",
         "api_path": "/api/v1",
         "endpoints": {
             "sync": "/api/v1/sync",
@@ -95,7 +95,7 @@ async def get_status():
     
     return {
         "server": "running",
-        "version": "0.3.7",
+        "version": "0.3.8",
         "services": {
             "api": "online",
             "sync": "online",

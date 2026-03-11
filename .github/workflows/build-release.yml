@@ -45,7 +45,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
@@ -53,10 +53,15 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            desktop/src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Clean stale build artifacts
+        shell: bash
+        run: |
+          rm -rf desktop/src-tauri/target/release/bundle/
+          rm -f desktop/src-tauri/target/release/aion-desktop*
 
       - name: Install dependencies
         working-directory: desktop
@@ -65,12 +70,6 @@ jobs:
       - name: Build frontend
         working-directory: desktop
         run: npm run build
-
-      - name: Clean stale bundle artifacts from cache
-        shell: bash
-        run: |
-          rm -rf desktop/src-tauri/target/release/bundle/msi/*
-          rm -rf desktop/src-tauri/target/release/bundle/nsis/*
 
       - name: Build Tauri app (Windows)
         working-directory: desktop
@@ -137,7 +136,7 @@ jobs:
         with:
           targets: aarch64-apple-darwin
 
-      - name: Cache Cargo
+      - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
           path: |
@@ -145,10 +144,14 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            desktop/src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Clean stale build artifacts
+        run: |
+          rm -rf desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/
+          rm -f desktop/src-tauri/target/aarch64-apple-darwin/release/aion-desktop*
 
       - name: Install dependencies
         working-directory: desktop
@@ -157,11 +160,6 @@ jobs:
       - name: Build frontend
         working-directory: desktop
         run: npm run build
-
-      - name: Clean stale bundle artifacts from cache
-        run: |
-          rm -rf desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*
-          rm -rf desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*
 
       - name: Build Tauri app (macOS ARM64)
         working-directory: desktop
@@ -343,6 +341,12 @@ jobs:
       contents: write
 
     steps:
+      - name: Delete existing release (if re-tagging)
+        run: gh release delete ${{ github.ref_name }} --yes 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:

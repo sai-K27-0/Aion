@@ -1008,7 +1008,7 @@ class _TabletSettingsView extends ConsumerWidget {
                       minVerticalPadding: 16,
                       leading: Icon(Icons.info, size: 26),
                       title: Text('Version'),
-                      subtitle: Text('0.3.7 (Tablet)'),
+                      subtitle: Text('0.3.8 (Tablet)'),
                     ),
                   ],
                 ),

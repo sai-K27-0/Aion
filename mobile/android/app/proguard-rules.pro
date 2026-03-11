@@ -1,3 +1,7 @@
+# Suppress Play Core missing class warnings (Flutter engine references
+# deferred components API but Aion doesn't use it)
+-dontwarn com.google.android.play.core.**
+
 # Flutter specific rules
 -keep class io.flutter.app.** { *; }
 -keep class io.flutter.plugin.** { *; }
