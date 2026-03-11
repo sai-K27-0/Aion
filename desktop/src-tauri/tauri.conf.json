@@ -65,7 +65,7 @@
       "open": true
     },
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGMkQ3NzlFQ0VBQjA1OTUKUldTVkJhdk9ubmN0VC9wU21iMkZMcmpyNER6bGloOFYyUXBwZm9rUm42bVUweTJ3aHNlZHhqUTQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgyM0ZENjFCMTJGQjBBQjcKUldTM0N2c1NHOVkvZ2dhanV0QU9Hb2RsRERleGR5SUlydy9EOXExS29ndmJsc0Q1RTd1VG5ISWQK",
       "endpoints": [
         "https://github.com/sai-K27-0/Aion/releases/latest/download/latest.json"
       ]
