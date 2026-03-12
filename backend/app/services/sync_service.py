@@ -19,7 +19,7 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
-from sqlalchemy import select, update, and_, or_
+from sqlalchemy import func, select, update, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -165,7 +165,7 @@ class SyncService:
         
         self._cache_initialized = True
     
-    def register_device(
+    async def register_device(
         self,
         device_id: str,
         device_name: str,
@@ -174,8 +174,7 @@ class SyncService:
         user_id: Optional[str] = None,
     ) -> DeviceInfo:
         """
-        Register a new device for syncing (sync version - updates cache).
-        Use register_device_async for database persistence.
+        Register a new device for syncing with database persistence.
         """
         device = DeviceInfo(
             device_id=device_id,
@@ -184,10 +183,9 @@ class SyncService:
             platform=platform,
         )
         self._device_cache[device_id] = device
-        
-        # Schedule async database write (fire and forget)
-        asyncio.create_task(self._persist_device(device, user_id))
-        
+
+        await self._persist_device(device, user_id)
+
         return device
     
     async def _persist_device(self, device_info: DeviceInfo, user_id: Optional[str] = None):
@@ -324,13 +322,12 @@ class SyncService:
 
             return None
     
-    def update_device_sync_time(self, device_id: str, sync_time: datetime):
-        """Update the last sync time for a device (updates cache and schedules DB write)."""
+    async def update_device_sync_time(self, device_id: str, sync_time: datetime):
+        """Update the last sync time for a device (updates cache and DB)."""
         if device_id in self._device_cache:
             self._device_cache[device_id].last_sync = sync_time
-        
-        # Schedule async database write
-        asyncio.create_task(self._update_device_sync_time_db(device_id, sync_time))
+
+        await self._update_device_sync_time_db(device_id, sync_time)
     
     async def _update_device_sync_time_db(self, device_id: str, sync_time: datetime):
         """Update device sync time in database."""
@@ -497,9 +494,9 @@ class SyncService:
         
         result.conflicts = conflicts
         result.last_sync_time = datetime.now(timezone.utc)
-        
+
         # Update device sync time
-        self.update_device_sync_time(device_id, result.last_sync_time)
+        await self.update_device_sync_time(device_id, result.last_sync_time)
         
         return result
     
@@ -747,13 +744,13 @@ class SyncService:
         async with async_session_maker() as session:
             for entity_type in SyncEntityType:
                 model_class = ENTITY_MODEL_MAP[entity_type]
-                
-                query = select(model_class)
+
+                count_query = select(func.count(model_class.id))
                 if last_sync:
-                    query = query.where(model_class.updated_at > last_sync)
-                
-                result = await session.execute(query)
-                pending_counts[entity_type.value] = len(result.scalars().all())
+                    count_query = count_query.where(model_class.updated_at > last_sync)
+
+                result = await session.execute(count_query)
+                pending_counts[entity_type.value] = result.scalar() or 0
         
         return {
             "device_id": device_id,
