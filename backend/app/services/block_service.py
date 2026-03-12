@@ -276,31 +276,68 @@ class BlockService:
     ) -> Sequence[Block]:
         """
         Get a block tree structure with nested children.
-        
-        Returns blocks with children eager-loaded up to max_depth.
+
+        Uses a single query with materialized path to fetch all descendants,
+        then assembles the tree in-memory to avoid N+1 queries.
         """
-        # Start from root or specified parent
         if parent_id:
-            parent = await self.get_block_by_id(parent_id, include_children=True)
-            if not parent:
+            root = await self.get_block_by_id(parent_id)
+            if not root:
                 return []
-            blocks = [parent]
+            # Fetch all descendants within max_depth in one query
+            path_prefix = f"{root.path}.{root.id}" if root.path else root.id
+            query = (
+                select(Block)
+                .where(
+                    and_(
+                        Block.path.like(f"{path_prefix}%"),
+                        Block.depth <= root.depth + max_depth,
+                        Block.is_deleted == False,
+                    )
+                )
+                .order_by(Block.depth, Block.position)
+            )
+            result = await self.db.execute(query)
+            descendants = list(result.scalars().all())
+            # Build lookup and assemble children lists
+            all_blocks = [root] + descendants
+            block_map = {b.id: b for b in all_blocks}
+            # Clear lazy-loaded children and rebuild from fetched data
+            for b in all_blocks:
+                b.children = []
+            for b in descendants:
+                parent_block = block_map.get(b.parent_id)
+                if parent_block is not None:
+                    parent_block.children.append(b)
+            return [root]
         else:
-            blocks, _ = await self.get_blocks(parent_id=None, include_children=True)
-        
-        # Recursively load children up to max_depth
-        async def load_children(block: Block, current_depth: int):
-            if current_depth >= max_depth:
-                return
-            
-            for child in block.children:
-                await self.db.refresh(child, ["children"])
-                await load_children(child, current_depth + 1)
-        
-        for block in blocks:
-            await load_children(block, 0)
-        
-        return blocks
+            # Root blocks
+            roots, _ = await self.get_blocks(parent_id=None, include_children=False)
+            if not roots or max_depth == 0:
+                return roots
+            # Fetch all blocks up to max_depth from root
+            query = (
+                select(Block)
+                .where(
+                    and_(
+                        Block.depth <= max_depth,
+                        Block.depth > 0,
+                        Block.is_deleted == False,
+                    )
+                )
+                .order_by(Block.depth, Block.position)
+            )
+            result = await self.db.execute(query)
+            descendants = list(result.scalars().all())
+            all_blocks = list(roots) + descendants
+            block_map = {b.id: b for b in all_blocks}
+            for b in all_blocks:
+                b.children = []
+            for b in descendants:
+                parent_block = block_map.get(b.parent_id)
+                if parent_block is not None:
+                    parent_block.children.append(b)
+            return list(roots)
     
     async def _move_block(
         self,

@@ -12,15 +12,43 @@ from typing import Any, Dict, Optional
 from app.config import get_settings
 
 
+_fernet_cache = None
+_fernet_checked = False
+
+
 def _get_fernet():
-    """Return Fernet instance if encryption key is configured, else None."""
+    """Return Fernet instance if encryption key is configured, else None.
+
+    Validates the key on first use and caches the result. Logs an error
+    if the key is set but invalid so operators can fix it before data
+    is silently written in plaintext.
+    """
+    global _fernet_cache, _fernet_checked
+    if _fernet_checked:
+        return _fernet_cache
+
     key = get_settings().data_encryption_key
     if not key or not key.strip():
+        _fernet_checked = True
+        _fernet_cache = None
         return None
     try:
-        from cryptography.fernet import Fernet, InvalidToken
-        return Fernet(key.strip().encode() if isinstance(key, str) else key)
-    except Exception:
+        from cryptography.fernet import Fernet
+        fernet = Fernet(key.strip().encode() if isinstance(key, str) else key)
+        # Validate by performing a round-trip encrypt/decrypt
+        fernet.decrypt(fernet.encrypt(b"validation_test"))
+        _fernet_cache = fernet
+        _fernet_checked = True
+        return fernet
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(
+            "DATA_ENCRYPTION_KEY is set but invalid (%s). "
+            "Encrypted fields will NOT be encrypted. Fix the key or remove it.",
+            exc,
+        )
+        _fernet_cache = None
+        _fernet_checked = True
         return None
 
 
