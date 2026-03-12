@@ -10,12 +10,21 @@ Dio dio(DioRef ref) {
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.defaultBaseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 3),
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
+    ),
+  );
+
+  // Separate Dio instance for token refresh to prevent interceptor loop
+  final refreshDio = Dio(
+    BaseOptions(
+      baseUrl: AppConfig.defaultBaseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 10),
     ),
   );
 
@@ -32,12 +41,18 @@ Dio dio(DioRef ref) {
       if (error.response?.statusCode != 401) {
         return handler.next(error);
       }
+      // Skip refresh for auth endpoints to prevent infinite loops
+      if (error.requestOptions.path.contains('/auth/')) {
+        return handler.next(error);
+      }
       final refreshToken = await SecureStorageService.instance.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
         return handler.next(error);
       }
       try {
-        final res = await dio.post(
+        // Use separate Dio instance to avoid triggering this interceptor again
+        refreshDio.options.baseUrl = dio.options.baseUrl;
+        final res = await refreshDio.post(
           '/auth/refresh',
           data: {'refresh_token': refreshToken},
         );

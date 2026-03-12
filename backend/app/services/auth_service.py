@@ -2,6 +2,7 @@
 Authentication Service - JWT token management and user authentication.
 """
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
@@ -36,15 +37,18 @@ class AuthService:
     # ========================================================================
     
     @staticmethod
-    def hash_password(password: str) -> str:
-        """Hash a password using bcrypt."""
-        salt = bcrypt.gensalt()
-        return bcrypt.hashpw(password.encode(), salt).decode()
-    
+    async def hash_password(password: str) -> str:
+        """Hash a password using bcrypt (runs in thread pool to avoid blocking event loop)."""
+        return await asyncio.to_thread(
+            lambda: bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        )
+
     @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash."""
-        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    async def verify_password(plain_password: str, hashed_password: str) -> bool:
+        """Verify a password against its hash (runs in thread pool to avoid blocking event loop)."""
+        return await asyncio.to_thread(
+            bcrypt.checkpw, plain_password.encode(), hashed_password.encode()
+        )
     
     # ========================================================================
     # Token Blacklist (Logout Support)
@@ -157,7 +161,7 @@ class AuthService:
         # Create user
         user = User(
             email=data.email,
-            hashed_password=self.hash_password(data.password),
+            hashed_password=await self.hash_password(data.password),
             username=data.username,
             full_name=data.full_name,
         )
@@ -177,7 +181,7 @@ class AuthService:
             user = await self.get_user_by_username(username)
         if not user:
             return None
-        if not self.verify_password(password, user.hashed_password):
+        if not await self.verify_password(password, user.hashed_password):
             return None
         if not user.is_active:
             return None
@@ -244,10 +248,10 @@ class AuthService:
         if not user:
             return False
 
-        if not self.verify_password(current_password, user.hashed_password):
+        if not await self.verify_password(current_password, user.hashed_password):
             return False
 
-        user.hashed_password = self.hash_password(new_password)
+        user.hashed_password = await self.hash_password(new_password)
         await self.db.commit()
 
         return True

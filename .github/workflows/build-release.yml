@@ -195,7 +195,9 @@ jobs:
           if [ -n "$APP_PATH" ]; then
             APP_NAME=$(basename "$APP_PATH" .app)
             VERSION=${{ github.ref_name || '0.2.0' }}
-            DMG_NAME="${APP_NAME}_${VERSION}_aarch64.dmg"
+            # Sanitize version: replace slashes with dashes (branch names like fix/foo)
+            SAFE_VERSION="${VERSION//\//-}"
+            DMG_NAME="${APP_NAME}_${SAFE_VERSION}_aarch64.dmg"
             DMG_DIR="desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
             mkdir -p "$DMG_DIR"
 

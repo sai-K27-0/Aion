@@ -5072,11 +5072,15 @@ async function handleSignIn() {
     if (loadingEl) loadingEl.classList.remove('hidden');
 
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
         const resp = await fetch(`${CONFIG.API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal,
         });
+        clearTimeout(timeout);
         if (!resp.ok) {
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.detail || 'Login failed');
@@ -5087,7 +5091,10 @@ async function handleSignIn() {
         if (data.user_id) await SecureStorage.setUserId(data.user_id);
         dismissAuthOverlay();
     } catch (e) {
-        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+        const msg = e.name === 'AbortError'
+            ? 'Connection timed out. Is the server running?'
+            : (e.message || 'Connection failed');
+        if (errorEl) { errorEl.textContent = msg; errorEl.classList.remove('hidden'); }
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
     }

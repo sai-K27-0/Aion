@@ -42,20 +42,20 @@ class BrowserService:
     async def execute_browser_task(self, task: str) -> str:
         """
         Execute an autonomous browsing task using browser-use.
+        Ensures browser contexts are properly closed to prevent zombie processes.
         """
+        agent = None
         try:
             from browser_use import Agent
             from langchain_ollama import ChatOllama
-            
-            # Using local Ollama for the browser agent
-            # We assume Ollama is running correctly as verified by AIService
-            llm = ChatOllama(model="llama3") # Or another capable model
-            
+
+            llm = ChatOllama(model="llama3")
+
             agent = Agent(
                 task=task,
                 llm=llm,
             )
-            
+
             result = await agent.run()
             return str(result)
         except ImportError:
@@ -63,6 +63,14 @@ class BrowserService:
         except Exception as e:
             logger.error(f"Browser task failed: {e}")
             return f"Error executing browser task: {str(e)}"
+        finally:
+            # Close the browser-use agent's browser to prevent zombie Chromium processes
+            if agent:
+                try:
+                    if hasattr(agent, 'browser') and agent.browser:
+                        await agent.browser.close()
+                except Exception as cleanup_err:
+                    logger.warning(f"Browser cleanup error: {cleanup_err}")
 
 # Singleton
 _browser_service: Optional[BrowserService] = None
