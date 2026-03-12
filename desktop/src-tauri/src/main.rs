@@ -623,6 +623,14 @@ fn main() {
             let window = app.get_webview_window("main").unwrap();
             let _ = window.maximize();
 
+            // Explicitly start in interactive mode (not click-through).
+            // Without this call the OS default may leave cursor events ignored,
+            // making the overlay unresponsive until the user presses Alt+G twice.
+            CLICK_THROUGH_ENABLED.store(false, Ordering::SeqCst);
+            if let Err(e) = window.set_ignore_cursor_events(false) {
+                eprintln!("Warning: could not initialise cursor-event handling: {}", e);
+            }
+
             // macOS: make overlay visible on all Spaces/desktops
             #[cfg(target_os = "macos")]
             {
@@ -640,7 +648,7 @@ fn main() {
                             msg_send![windows, objectAtIndex: i];
                         let _: () = msg_send![ns_win, setCollectionBehavior: behavior];
                     }
-                    println!("macOS: Set all {} windows to appear on all Spaces", count);
+                    eprintln!("macOS: Set all {} windows to appear on all Spaces", count);
                 }
             }
 
@@ -661,12 +669,12 @@ fn main() {
                 }
             }
 
-            println!("Aion Desktop Client started");
+            eprintln!("Aion Desktop Client started");
 
             let args: Vec<String> = std::env::args().collect();
             if args.contains(&"--minimized".to_string()) || args.contains(&"--tray".to_string()) {
                 window.hide().expect("Failed to hide window on startup");
-                println!("Started minimized to system tray");
+                eprintln!("Started minimized to system tray");
             }
 
             Ok(())

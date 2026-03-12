@@ -8,12 +8,15 @@ This service handles all Block operations including:
 - Batch operations
 """
 
+import logging
 from typing import Optional, Sequence
 from uuid import uuid4
 
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.models.block import Block, BlockField, BlockEntry, BlockContent
 from app.schemas.block import (
@@ -214,15 +217,20 @@ class BlockService:
 
         # Soft-delete descendants
         path_prefix = f"{block.path}.{block.id}" if block.path else block.id
-        await self.db.execute(
-            update(Block)
-            .where(Block.path.like(f"{path_prefix}%"))
-            .values(is_deleted=True)
-        )
+        try:
+            await self.db.execute(
+                update(Block)
+                .where(Block.path.like(f"{path_prefix}%"))
+                .values(is_deleted=True)
+            )
 
-        # Soft-delete the block itself
-        block.is_deleted = True
-        await self.db.commit()
+            # Soft-delete the block itself
+            block.is_deleted = True
+            await self.db.commit()
+        except Exception:
+            logger.exception("Failed to delete block %s; rolling back", block.id)
+            await self.db.rollback()
+            raise
         return True
     
     # ========================================================================
@@ -313,6 +321,10 @@ class BlockService:
         
         Updates the path of the block and all its descendants.
         """
+        # Prevent moving a block to itself
+        if new_parent_id == block.id:
+            raise ValueError(f"Cannot move block {block.id} to itself")
+
         old_path_prefix = f"{block.path}.{block.id}" if block.path else block.id
         
         # Compute new path

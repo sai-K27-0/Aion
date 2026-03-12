@@ -58,6 +58,7 @@ def get_planning_service(
     ai: AIService = Depends(get_ai_service),
     actions: ActionService = Depends(get_action_service)
 ) -> PlanningService:
+    global _planning_service
     if _planning_service is None:
         _planning_service = PlanningService(ai, actions)
     return _planning_service

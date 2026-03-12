@@ -5026,6 +5026,7 @@ body.click-through-mode .orb,
 body.click-through-mode .ai-input-bar,
 body.click-through-mode .ai-output-box {
   opacity: 0.25;
+  pointer-events: none;
   transition: opacity 0.3s ease;
 }
 
