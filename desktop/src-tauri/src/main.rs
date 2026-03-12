@@ -647,8 +647,13 @@ fn main() {
             // Apply native blur/vibrancy for transparent overlay
             #[cfg(target_os = "macos")]
             {
-                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-                if let Err(e) = apply_vibrancy(&window, NSVisualEffectMaterial::UnderWindowBackground, None, None) {
+                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+                if let Err(e) = apply_vibrancy(
+                    &window,
+                    NSVisualEffectMaterial::UnderWindowBackground,
+                    Some(NSVisualEffectState::Active),
+                    None,
+                ) {
                     eprintln!("Failed to apply macOS vibrancy: {}", e);
                 }
             }
