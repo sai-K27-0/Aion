@@ -4381,6 +4381,16 @@ body.overlay-ready {
   color: white;
 }
 
+.setting-btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.setting-btn.primary:hover {
+  background: var(--accent);
+  color: #000;
+}
+
 /* ============ POPUPS ============ */
 .popup {
   position: fixed;
@@ -5298,12 +5308,23 @@ body.click-through-mode .ghost-exit-btn { display: block; }
     font-size: 12px;
 }
 .auth-btn.social:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.auth-btn.offline {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    margin-top: 2px;
+}
+.auth-btn.offline:hover { background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7); }
 .auth-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .auth-divider {
     text-align: center;
     margin: 8px 0;
     position: relative;
+}
+.auth-divider-slim {
+    margin: 6px 0;
 }
 .auth-divider::before, .auth-divider::after {
     content: '';
