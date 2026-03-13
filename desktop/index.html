@@ -1121,7 +1121,65 @@
         </div>
         <div id="settings-pane-data" class="settings-pane">
           <h3 class="pane-title">Data</h3>
+          <!-- Storage info (auto-populated by refreshStorageInfo()) -->
           <div class="settings-group">
+            <h4>Storage</h4>
+            <p class="settings-hint">Local data is stored in your browser's IndexedDB (<code>aion_local</code>). When a server is configured, changes sync to PostgreSQL on that server.</p>
+            <div class="setting-row">
+              <span>Local database</span>
+              <span class="status-indicator">IndexedDB — aion_local</span>
+            </div>
+            <div class="setting-row">
+              <span>Server database</span>
+              <span id="storage-server-url" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Estimated size</span>
+              <span id="storage-size" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Last sync</span>
+              <span id="storage-last-sync" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Pending changes</span>
+              <span id="storage-pending" class="status-indicator">--</span>
+            </div>
+          </div>
+          <!-- Per-entity record counts -->
+          <div class="settings-group">
+            <h4>Records</h4>
+            <div class="setting-row">
+              <span>Blocks</span>
+              <span id="storage-count-blocks" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block fields</span>
+              <span id="storage-count-block_fields" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block entries</span>
+              <span id="storage-count-block_entries" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block contents</span>
+              <span id="storage-count-block_contents" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Triggers</span>
+              <span id="storage-count-triggers" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Device ID</span>
+              <span id="storage-device-id" class="status-indicator storage-device-id">--</span>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-refresh-storage-info" class="setting-btn">Refresh</button>
+            </div>
+          </div>
+          <!-- Import / Export / Clear -->
+          <div class="settings-group">
+            <h4>Backup</h4>
             <div class="setting-actions">
               <button id="btn-export" class="setting-btn">Export</button>
               <button id="btn-import" class="setting-btn">Import</button>

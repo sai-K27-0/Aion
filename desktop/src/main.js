@@ -4192,6 +4192,80 @@ async function resetAllData() {
   setTimeout(() => location.reload(), 1000);
 }
 
+/**
+ * Populate the Storage Info section in Settings → Data with live statistics
+ * from IndexedDB (via localDb.getStats()) and the browser StorageManager API.
+ */
+async function refreshStorageInfo() {
+  // Server URL display
+  const serverUrlEl = document.getElementById('storage-server-url');
+  if (serverUrlEl) {
+    serverUrlEl.textContent = CONFIG.API_BASE || 'Not configured';
+  }
+
+  // Browser storage estimate
+  const sizeEl = document.getElementById('storage-size');
+  if (sizeEl && navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const usedMB = ((est.usage || 0) / 1024 / 1024).toFixed(2);
+      const quotaMB = ((est.quota || 0) / 1024 / 1024).toFixed(0);
+      sizeEl.textContent = `${usedMB} MB used of ${quotaMB} MB`;
+    } catch (_) {
+      sizeEl.textContent = 'Unavailable';
+    }
+  }
+
+  if (typeof localDb === 'undefined' || !localDb || !localDb.isInitialized) {
+    ['storage-last-sync', 'storage-pending', 'storage-device-id',
+     'storage-count-blocks', 'storage-count-block_fields', 'storage-count-block_entries',
+     'storage-count-block_contents', 'storage-count-triggers'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = 'Not initialised';
+    });
+    return;
+  }
+
+  try {
+    const stats = await localDb.getStats();
+
+    // Last sync time
+    const lastSyncEl = document.getElementById('storage-last-sync');
+    if (lastSyncEl) {
+      lastSyncEl.textContent = stats.lastSync
+        ? new Date(stats.lastSync).toLocaleString()
+        : 'Never';
+    }
+
+    // Pending sync queue
+    const pendingEl = document.getElementById('storage-pending');
+    if (pendingEl) {
+      pendingEl.textContent = stats.pendingSync === 0 ? 'None' : `${stats.pendingSync} item(s)`;
+      pendingEl.style.color = stats.pendingSync > 0 ? 'var(--accent)' : '';
+    }
+
+    // Device ID
+    const deviceIdEl = document.getElementById('storage-device-id');
+    if (deviceIdEl) {
+      deviceIdEl.textContent = stats.deviceId
+        ? stats.deviceId.slice(0, 8) + '...'
+        : '--';
+      deviceIdEl.title = stats.deviceId || '';
+    }
+
+    // Per-store counts
+    const storeNames = ['blocks', 'block_fields', 'block_entries', 'block_contents', 'triggers'];
+    storeNames.forEach(name => {
+      const el = document.getElementById(`storage-count-${name}`);
+      if (!el) return;
+      const s = stats.stores[name];
+      el.textContent = s ? `${s.active} active` + (s.deleted > 0 ? `, ${s.deleted} deleted` : '') : '--';
+    });
+  } catch (err) {
+    console.warn('[StorageInfo] Failed to load stats:', err);
+  }
+}
+
 // ============================================================================
 // Settings Enhancements — AI Provider Switching, Account, Logout
 // ============================================================================
@@ -4226,6 +4300,9 @@ function initSettingsEnhancements() {
 
   // Reset all data (enhanced clear)
   document.getElementById('btn-clear-data')?.addEventListener('click', resetAllData);
+
+  // Storage info refresh button
+  document.getElementById('btn-refresh-storage-info')?.addEventListener('click', refreshStorageInfo);
 
   // Reflect current auth state in Account settings pane
   updateAccountSettingsUI();
@@ -4847,6 +4924,8 @@ function initEvents() {
       btn.classList.add('active');
       const pane = document.getElementById('settings-pane-' + section);
       if (pane) pane.classList.add('active');
+      // Auto-refresh storage info when navigating to the Data pane
+      if (section === 'data') refreshStorageInfo();
     });
   });
   document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => applyTheme(o.dataset.theme)));

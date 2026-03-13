@@ -4297,6 +4297,13 @@ body.overlay-ready {
   color: var(--text-dim);
 }
 
+.storage-device-id {
+  font-family: 'Courier New', monospace;
+  font-size: 11px !important;
+  letter-spacing: 0.5px;
+  cursor: help;
+}
+
 .setting-select {
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
