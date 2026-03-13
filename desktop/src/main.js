@@ -4325,7 +4325,7 @@ async function updateAccountSettingsUI() {
   if (signedInSection) signedInSection.classList.toggle('hidden', offline);
   if (actionsSection) actionsSection.classList.toggle('hidden', offline);
 
-  if (!offline && usernameEl && usernameEl.textContent.trim().replace('-', '').length === 0) {
+  if (!offline && usernameEl && usernameEl.textContent.trim().replaceAll('-', '').length === 0) {
     // Populate username from stored token payload if not already set
     try {
       if (token) {
