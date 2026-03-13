@@ -13,6 +13,7 @@ It sets up the FastAPI application with:
 """
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,6 +25,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.router import api_router
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -88,30 +91,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     and cleanup code after the app shuts down.
     """
     # Startup
-    print(f"Starting {settings.app_name} v{settings.app_version}")
-    print(f"Database: {settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}")
-    print(f"Vector DB: {settings.qdrant_url}")
-    print(f"Ollama: {settings.ollama_url}")
+    logger.info(f"Starting {settings.app_name} v{settings.app_version}")
+    logger.info(f"Database: {settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}")
+    logger.info(f"Vector DB: {settings.qdrant_url}")
+    logger.info(f"Ollama: {settings.ollama_url}")
     
     # Start mDNS service discovery
     try:
         from app.services.discovery_service import get_discovery_service
         discovery_service = get_discovery_service(port=8000)
         await discovery_service.start()
+        logger.info("mDNS service discovery started")
     except Exception as e:
-        print(f"Warning: mDNS service discovery not available: {e}")
+        logger.warning(f"mDNS service discovery not available: {e}")
     yield
     
     # Shutdown
-    print(f"Shutting down {settings.app_name}")
+    logger.info(f"Shutting down {settings.app_name}")
     
     # Stop mDNS service discovery
     try:
         from app.services.discovery_service import get_discovery_service
         discovery_service = get_discovery_service()
         await discovery_service.stop()
-    except Exception:
-        pass
+        logger.info("mDNS service discovery stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping mDNS service discovery: {e}")
 
 
 # Create FastAPI application

@@ -241,7 +241,7 @@ class AuthService:
     async def change_password(self, user_id: str, current_password: str, new_password: str) -> bool:
         """Change a user's password."""
         user = await self.get_user_by_id(user_id)
-        if not user:
+        if not user or not user.is_active:
             return False
 
         if not self.verify_password(current_password, user.hashed_password):

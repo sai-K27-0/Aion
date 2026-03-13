@@ -122,7 +122,6 @@ class AIService:
         
         # Inject user persona rules
         persona_rules = ""
-        from app.services.persona_service import get_persona_service
         try:
             persona = get_persona_service()
             persona_rules = await persona.get_system_prompt_addition()

@@ -546,8 +546,12 @@ class SyncService:
                     return await self._handle_conflict(
                         session, device_id, change, existing
                     )
+                else:
+                    # Same device sent a stale/duplicate version — server already
+                    # has the same or a newer version, so skip the update.
+                    return None
             
-            # Apply update
+            # Apply update (client has a newer version)
             await self._update_record(session, device_id, change, existing)
             return None
         

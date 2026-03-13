@@ -4192,6 +4192,80 @@ async function resetAllData() {
   setTimeout(() => location.reload(), 1000);
 }
 
+/**
+ * Populate the Storage Info section in Settings → Data with live statistics
+ * from IndexedDB (via localDb.getStats()) and the browser StorageManager API.
+ */
+async function refreshStorageInfo() {
+  // Server URL display
+  const serverUrlEl = document.getElementById('storage-server-url');
+  if (serverUrlEl) {
+    serverUrlEl.textContent = CONFIG.API_BASE || 'Not configured';
+  }
+
+  // Browser storage estimate
+  const sizeEl = document.getElementById('storage-size');
+  if (sizeEl && navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const usedMB = ((est.usage || 0) / 1024 / 1024).toFixed(2);
+      const quotaMB = ((est.quota || 0) / 1024 / 1024).toFixed(0);
+      sizeEl.textContent = `${usedMB} MB used of ${quotaMB} MB`;
+    } catch (_) {
+      sizeEl.textContent = 'Unavailable';
+    }
+  }
+
+  if (typeof localDb === 'undefined' || !localDb || !localDb.isInitialized) {
+    ['storage-last-sync', 'storage-pending', 'storage-device-id',
+     'storage-count-blocks', 'storage-count-block_fields', 'storage-count-block_entries',
+     'storage-count-block_contents', 'storage-count-triggers'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = 'Not initialised';
+    });
+    return;
+  }
+
+  try {
+    const stats = await localDb.getStats();
+
+    // Last sync time
+    const lastSyncEl = document.getElementById('storage-last-sync');
+    if (lastSyncEl) {
+      lastSyncEl.textContent = stats.lastSync
+        ? new Date(stats.lastSync).toLocaleString()
+        : 'Never';
+    }
+
+    // Pending sync queue
+    const pendingEl = document.getElementById('storage-pending');
+    if (pendingEl) {
+      pendingEl.textContent = stats.pendingSync === 0 ? 'None' : `${stats.pendingSync} item(s)`;
+      pendingEl.style.color = stats.pendingSync > 0 ? 'var(--accent)' : '';
+    }
+
+    // Device ID
+    const deviceIdEl = document.getElementById('storage-device-id');
+    if (deviceIdEl) {
+      deviceIdEl.textContent = stats.deviceId
+        ? stats.deviceId.slice(0, 8) + '...'
+        : '--';
+      deviceIdEl.title = stats.deviceId || '';
+    }
+
+    // Per-store counts
+    const storeNames = ['blocks', 'block_fields', 'block_entries', 'block_contents', 'triggers'];
+    storeNames.forEach(name => {
+      const el = document.getElementById(`storage-count-${name}`);
+      if (!el) return;
+      const s = stats.stores[name];
+      el.textContent = s ? `${s.active} active` + (s.deleted > 0 ? `, ${s.deleted} deleted` : '') : '--';
+    });
+  } catch (err) {
+    console.warn('[StorageInfo] Failed to load stats:', err);
+  }
+}
+
 // ============================================================================
 // Settings Enhancements — AI Provider Switching, Account, Logout
 // ============================================================================
@@ -4213,11 +4287,56 @@ function initSettingsEnhancements() {
   document.getElementById('btn-logout')?.addEventListener('click', async () => {
     if (!confirm('Sign out of Aion?')) return;
     await SecureStorage.clearAuthSession();
+    localStorage.removeItem(OFFLINE_MODE_KEY);
     location.reload();
+  });
+
+  // "Sign In / Create Account" button shown in settings when in offline mode
+  document.getElementById('btn-signin-from-settings')?.addEventListener('click', () => {
+    // Close the settings panel and show the auth overlay
+    document.getElementById('settings-panel')?.classList.add('hidden');
+    showAuthOverlay();
   });
 
   // Reset all data (enhanced clear)
   document.getElementById('btn-clear-data')?.addEventListener('click', resetAllData);
+
+  // Storage info refresh button
+  document.getElementById('btn-refresh-storage-info')?.addEventListener('click', refreshStorageInfo);
+
+  // Reflect current auth state in Account settings pane
+  updateAccountSettingsUI();
+}
+
+/**
+ * Show/hide the offline notice and signed-in sections in Settings > Account
+ * based on the current authentication state.
+ */
+async function updateAccountSettingsUI() {
+  const offlineNotice = document.getElementById('account-offline-notice');
+  const signedInSection = document.getElementById('account-signedin-section');
+  const actionsSection = document.getElementById('account-actions-section');
+  const usernameEl = document.getElementById('account-username');
+
+  const token = await SecureStorage.getAccessToken().catch(() => null);
+  const offline = isOfflineMode() || !token;
+
+  if (offlineNotice) offlineNotice.classList.toggle('hidden', !offline);
+  if (signedInSection) signedInSection.classList.toggle('hidden', offline);
+  if (actionsSection) actionsSection.classList.toggle('hidden', offline);
+
+  if (!offline && usernameEl && usernameEl.textContent.trim().replaceAll('-', '').length === 0) {
+    // Populate username from stored token payload if not already set
+    try {
+      if (token) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          usernameEl.textContent = payload.sub || payload.username || '-';
+        }
+      }
+    } catch (_) { /* ignore decode errors */ }
+  }
 }
 
 // ============================================================================
@@ -4805,6 +4924,8 @@ function initEvents() {
       btn.classList.add('active');
       const pane = document.getElementById('settings-pane-' + section);
       if (pane) pane.classList.add('active');
+      // Auto-refresh storage info when navigating to the Data pane
+      if (section === 'data') refreshStorageInfo();
     });
   });
   document.querySelectorAll('.theme-option').forEach(o => o.addEventListener('click', () => applyTheme(o.dataset.theme)));
@@ -5015,18 +5136,33 @@ function initEvents() {
 // Auth System
 // ============================================================================
 
+/** Key used to persist offline/guest mode choice across page loads. */
+const OFFLINE_MODE_KEY = 'aion_offline_mode';
+
+/** Returns true when the user chose to use Aion without an account. */
+function isOfflineMode() {
+    return localStorage.getItem(OFFLINE_MODE_KEY) === 'true';
+}
+
 async function checkAuth() {
+    // User explicitly opted into offline mode — skip server auth check.
+    if (isOfflineMode()) return true;
+
     try {
         const token = await SecureStorage.getAccessToken();
         if (!token) return false;
-        // Try to verify with server
+        // Try to verify with server (5 s timeout so the screen never hangs)
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
             const resp = await fetch(`${CONFIG.API_BASE}/auth/me`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal,
             });
+            clearTimeout(timeoutId);
             return resp.ok;
         } catch (e) {
-            // Server unreachable — allow offline mode if we have tokens
+            // Server unreachable or timed-out — allow offline mode if we have tokens
             return true;
         }
     } catch (e) {
@@ -5039,23 +5175,43 @@ function showAuthOverlay() {
     if (!overlay) return;
     overlay.classList.remove('hidden');
 
-    // Tab switching
-    overlay.querySelectorAll('.auth-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            overlay.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-            overlay.querySelectorAll('.auth-pane').forEach(p => p.classList.add('hidden'));
-            tab.classList.add('active');
-            const pane = document.getElementById(`auth-${tab.dataset.tab}`);
-            if (pane) pane.classList.remove('hidden');
-        });
-    });
+    // Tab switching — use a flag to avoid attaching duplicate listeners
+    if (!overlay._listenersAttached) {
+        overlay._listenersAttached = true;
 
-    document.getElementById('auth-signin-btn')?.addEventListener('click', handleSignIn);
-    document.getElementById('auth-password')?.addEventListener('keydown', e => {
-        if (e.key === 'Enter') handleSignIn();
-    });
-    document.getElementById('auth-signup-btn')?.addEventListener('click', handleSignUp);
-    document.getElementById('auth-pair-btn')?.addEventListener('click', handlePairDevice);
+        overlay.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                overlay.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                overlay.querySelectorAll('.auth-pane').forEach(p => p.classList.add('hidden'));
+                tab.classList.add('active');
+                const pane = document.getElementById(`auth-${tab.dataset.tab}`);
+                if (pane) pane.classList.remove('hidden');
+            });
+        });
+
+        document.getElementById('auth-signin-btn')?.addEventListener('click', handleSignIn);
+        document.getElementById('auth-password')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') handleSignIn();
+        });
+        document.getElementById('auth-signup-btn')?.addEventListener('click', handleSignUp);
+        document.getElementById('auth-pair-btn')?.addEventListener('click', handlePairDevice);
+
+        // "Continue without account" — available on every tab
+        ['auth-offline-btn', 'auth-offline-btn-signup', 'auth-offline-btn-pair'].forEach(id => {
+            document.getElementById(id)?.addEventListener('click', handleOfflineMode);
+        });
+    }
+}
+
+/**
+ * Let the user skip authentication and use Aion in offline / local-only mode.
+ * The choice is persisted so the overlay isn't shown again on subsequent loads.
+ * The user can sign in later from Settings > Account.
+ */
+function handleOfflineMode() {
+    localStorage.setItem(OFFLINE_MODE_KEY, 'true');
+    dismissAuthOverlay();
+    updateAccountSettingsUI();
 }
 
 async function handleSignIn() {
@@ -5072,11 +5228,15 @@ async function handleSignIn() {
     if (loadingEl) loadingEl.classList.remove('hidden');
 
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         const resp = await fetch(`${CONFIG.API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         if (!resp.ok) {
             const data = await resp.json().catch(() => ({}));
             throw new Error(data.detail || 'Login failed');
@@ -5085,9 +5245,13 @@ async function handleSignIn() {
         await SecureStorage.setAccessToken(data.access_token);
         await SecureStorage.setRefreshToken(data.refresh_token);
         if (data.user_id) await SecureStorage.setUserId(data.user_id);
+        // Clear offline mode flag if the user just signed in
+        localStorage.removeItem(OFFLINE_MODE_KEY);
         dismissAuthOverlay();
+        updateAccountSettingsUI();
     } catch (e) {
-        if (errorEl) { errorEl.textContent = e.message || 'Connection failed'; errorEl.classList.remove('hidden'); }
+        const msg = e.name === 'AbortError' ? 'Connection timed out' : (e.message || 'Connection failed');
+        if (errorEl) { errorEl.textContent = msg; errorEl.classList.remove('hidden'); }
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
     }

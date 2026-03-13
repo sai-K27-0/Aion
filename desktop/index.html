@@ -832,6 +832,8 @@
         <div class="auth-divider"><span>or</span></div>
         <button id="auth-google-btn" class="auth-btn social" disabled>Sign in with Google</button>
         <button id="auth-github-btn" class="auth-btn social" disabled>Sign in with GitHub</button>
+        <div class="auth-divider auth-divider-slim"><span>or</span></div>
+        <button id="auth-offline-btn" class="auth-btn offline">Continue without account</button>
       </div>
       <div id="auth-signup" class="auth-pane hidden">
         <input type="text" id="auth-new-username" placeholder="Username" autocomplete="username">
@@ -839,11 +841,15 @@
         <input type="password" id="auth-new-password" placeholder="Password" autocomplete="new-password">
         <input type="password" id="auth-confirm-password" placeholder="Confirm password" autocomplete="new-password">
         <button id="auth-signup-btn" class="auth-btn primary">Create Account</button>
+        <div class="auth-divider auth-divider-slim"><span>or</span></div>
+        <button id="auth-offline-btn-signup" class="auth-btn offline">Continue without account</button>
       </div>
       <div id="auth-pair" class="auth-pane hidden">
         <p class="auth-hint">Enter the 6-character code from your other device:</p>
         <input type="text" id="auth-pair-code" placeholder="ABC123" maxlength="6" class="auth-code-input">
         <button id="auth-pair-btn" class="auth-btn primary">Pair Device</button>
+        <div class="auth-divider auth-divider-slim"><span>or</span></div>
+        <button id="auth-offline-btn-pair" class="auth-btn offline">Continue without account</button>
       </div>
       <div id="auth-error" class="auth-error hidden"></div>
       <div id="auth-loading" class="auth-loading hidden">Connecting...</div>
@@ -1083,7 +1089,15 @@
         </div>
         <div id="settings-pane-account" class="settings-pane">
           <h3 class="pane-title">Account</h3>
-          <div class="settings-group">
+          <!-- Offline/guest mode notice (shown when not signed in) -->
+          <div id="account-offline-notice" class="settings-group hidden">
+            <p class="settings-hint">You are using Aion in offline mode. Sign in to sync your data across devices.</p>
+            <div class="setting-actions">
+              <button id="btn-signin-from-settings" class="setting-btn primary">Sign In / Create Account</button>
+            </div>
+          </div>
+          <!-- Signed-in state -->
+          <div id="account-signedin-section" class="settings-group">
             <h4>Profile</h4>
             <div class="setting-row">
               <span>Signed in as</span>
@@ -1094,7 +1108,7 @@
               <span id="account-provider" class="status-indicator">Local</span>
             </div>
           </div>
-          <div class="settings-group">
+          <div id="account-actions-section" class="settings-group">
             <h4>Actions</h4>
             <div class="setting-actions">
               <button id="btn-change-password" class="setting-btn">Change Password</button>
@@ -1107,7 +1121,65 @@
         </div>
         <div id="settings-pane-data" class="settings-pane">
           <h3 class="pane-title">Data</h3>
+          <!-- Storage info (auto-populated by refreshStorageInfo()) -->
           <div class="settings-group">
+            <h4>Storage</h4>
+            <p class="settings-hint">Local data is stored in your browser's IndexedDB (<code>aion_local</code>). When a server is configured, changes sync to PostgreSQL on that server.</p>
+            <div class="setting-row">
+              <span>Local database</span>
+              <span class="status-indicator">IndexedDB — aion_local</span>
+            </div>
+            <div class="setting-row">
+              <span>Server database</span>
+              <span id="storage-server-url" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Estimated size</span>
+              <span id="storage-size" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Last sync</span>
+              <span id="storage-last-sync" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Pending changes</span>
+              <span id="storage-pending" class="status-indicator">--</span>
+            </div>
+          </div>
+          <!-- Per-entity record counts -->
+          <div class="settings-group">
+            <h4>Records</h4>
+            <div class="setting-row">
+              <span>Blocks</span>
+              <span id="storage-count-blocks" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block fields</span>
+              <span id="storage-count-block_fields" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block entries</span>
+              <span id="storage-count-block_entries" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Block contents</span>
+              <span id="storage-count-block_contents" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Triggers</span>
+              <span id="storage-count-triggers" class="status-indicator">--</span>
+            </div>
+            <div class="setting-row">
+              <span>Device ID</span>
+              <span id="storage-device-id" class="status-indicator storage-device-id">--</span>
+            </div>
+            <div class="setting-actions">
+              <button id="btn-refresh-storage-info" class="setting-btn">Refresh</button>
+            </div>
+          </div>
+          <!-- Import / Export / Clear -->
+          <div class="settings-group">
+            <h4>Backup</h4>
             <div class="setting-actions">
               <button id="btn-export" class="setting-btn">Export</button>
               <button id="btn-import" class="setting-btn">Import</button>
