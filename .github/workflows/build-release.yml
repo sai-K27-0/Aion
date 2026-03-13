@@ -67,7 +67,7 @@ jobs:
         working-directory: desktop
         run: npm install
 
-      - name: Generate all icons (creates icon.icns required by Tauri bundle)
+      - name: Generate all icons (creates platform-specific icon formats for bundling)
         working-directory: desktop
         run: npx tauri icon src-tauri/icons/icon.iconset/icon_512x512@2x.png --output src-tauri/icons
 
@@ -91,7 +91,7 @@ jobs:
             desktop/src-tauri/target/release/bundle/msi/*.msi.zip.sig
             desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip
             desktop/src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
       - name: Upload Windows MSI
         uses: actions/upload-artifact@v4
@@ -179,7 +179,7 @@ jobs:
           path: |
             desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz
             desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.tar.gz.sig
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
       - name: Ad-hoc sign the app bundle
         run: |
