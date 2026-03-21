@@ -51,6 +51,7 @@ langchain-ollama>=0.2.0
 pytest>=8.3.0
 pytest-asyncio>=0.23.5
 pytest-cov>=4.1.0
+aiosqlite>=0.20.0
 
 # Speech & Voice
 SpeechRecognition>=3.10.0

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     
     # Application
     app_name: str = "Aion"
-    app_version: str = "0.4.2"
+    app_version: str = "0.4.3"
     debug: bool = False
     
     # API

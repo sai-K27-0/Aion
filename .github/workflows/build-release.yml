@@ -419,7 +419,7 @@ jobs:
           cat artifacts/latest.json
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           generate_release_notes: true

@@ -973,71 +973,222 @@
         </div>
         <div id="settings-pane-ai" class="settings-pane">
           <h3 class="pane-title">AI Configuration</h3>
-          <div class="settings-group">
-            <h4>Provider</h4>
-            <p class="settings-hint">Choose your AI backend</p>
-            <div class="setting-row">
-              <span>AI Provider</span>
-              <select id="ai-provider-select" class="setting-select">
-                <option value="ollama">Ollama (Local / Free)</option>
-                <option value="openai">OpenAI (API Key)</option>
-                <option value="anthropic">Anthropic (API Key)</option>
-              </select>
+
+          <!-- ── AI Setup Wizard ────────────────────────────────── -->
+          <div id="ai-wizard" class="ai-wizard">
+            <!-- Step indicators -->
+            <div class="wizard-steps-bar">
+              <div class="wizard-dot active" data-step="1"><span class="wizard-dot-num">1</span></div>
+              <div class="wizard-dot-line"></div>
+              <div class="wizard-dot" data-step="2"><span class="wizard-dot-num">2</span></div>
+              <div class="wizard-dot-line"></div>
+              <div class="wizard-dot" data-step="3"><span class="wizard-dot-num">3</span></div>
+              <div class="wizard-dot-line"></div>
+              <div class="wizard-dot" data-step="4"><span class="wizard-dot-num">4</span></div>
+              <div class="wizard-dot-line"></div>
+              <div class="wizard-dot" data-step="5"><span class="wizard-dot-num">5</span></div>
+            </div>
+
+            <!-- Step 1: Hardware Detection -->
+            <div class="wizard-step active" data-wizard-step="1">
+              <h4>Hardware Detection</h4>
+              <p class="settings-hint">Let's see what your machine can handle.</p>
+              <div id="hw-detecting" class="wizard-status-box">
+                <div class="wizard-spinner"></div>
+                <span>Detecting hardware...</span>
+              </div>
+              <div id="hw-results" class="settings-group hidden">
+                <div id="hw-tier-badge" class="wizard-tier-badge"></div>
+                <div class="setting-row"><span>CPU</span><span id="hw-cpu">--</span></div>
+                <div class="setting-row"><span>RAM</span><span id="hw-ram">--</span></div>
+                <div class="setting-row"><span>GPU</span><span id="hw-gpu">--</span></div>
+                <div class="setting-row"><span>Free Disk</span><span id="hw-disk">--</span></div>
+                <div class="setting-row"><span>OS</span><span id="hw-os">--</span></div>
+              </div>
+            </div>
+
+            <!-- Step 2: Ollama Check -->
+            <div class="wizard-step" data-wizard-step="2">
+              <h4>Ollama Status</h4>
+              <p class="settings-hint">Ollama runs AI models locally on your machine.</p>
+              <div id="ollama-checking" class="wizard-status-box">
+                <div class="wizard-spinner"></div>
+                <span>Checking Ollama...</span>
+              </div>
+              <div id="ollama-not-installed" class="settings-group hidden">
+                <div class="wizard-status-box wizard-status-warn">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>Ollama is not installed</span>
+                </div>
+                <button id="btn-install-ollama" class="setting-btn primary" style="margin-top:12px; width:100%;">Download Ollama</button>
+                <div id="ollama-install-instructions" class="wizard-instructions" style="margin-top:12px;"></div>
+                <button id="btn-recheck-ollama" class="setting-btn" style="margin-top:8px; width:100%;">Re-check</button>
+              </div>
+              <div id="ollama-not-running" class="settings-group hidden">
+                <div class="wizard-status-box wizard-status-warn">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>Ollama is installed but not running</span>
+                </div>
+                <p class="settings-hint" style="margin-top:8px;">Start Ollama from your system tray or run <code>ollama serve</code> in a terminal.</p>
+                <button id="btn-recheck-ollama-2" class="setting-btn" style="margin-top:8px; width:100%;">Re-check</button>
+              </div>
+              <div id="ollama-running" class="settings-group hidden">
+                <div class="wizard-status-box wizard-status-ok">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>Ollama is running</span>
+                  <span id="ollama-version" class="wizard-version-tag"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Model Recommendations -->
+            <div class="wizard-step" data-wizard-step="3">
+              <h4>Choose Models</h4>
+              <p class="settings-hint">Select AI models based on your hardware capabilities.</p>
+              <div id="models-loading" class="wizard-status-box">
+                <div class="wizard-spinner"></div>
+                <span>Loading recommendations...</span>
+              </div>
+              <div id="models-list" class="hidden">
+                <h4 style="margin-top:0;">Chat Model</h4>
+                <div id="chat-models-list" class="wizard-model-list"></div>
+                <h4 style="margin-top:16px;">Embedding Model</h4>
+                <div id="embedding-models-list" class="wizard-model-list"></div>
+                <div class="wizard-cloud-option" style="margin-top:16px;">
+                  <label class="wizard-model-card">
+                    <input type="radio" name="wizard-chat-model" value="__cloud__" />
+                    <div class="wizard-model-info">
+                      <span class="wizard-model-name">Use cloud API instead</span>
+                      <span class="wizard-model-desc">Skip local models and use OpenAI or Anthropic</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: Install Models -->
+            <div class="wizard-step" data-wizard-step="4">
+              <h4>Install Models</h4>
+              <p class="settings-hint">Downloading and verifying your selected models.</p>
+              <div id="install-progress" class="wizard-install-progress">
+                <div id="install-model-name" class="wizard-install-label">Preparing...</div>
+                <div class="wizard-progress-bar-track">
+                  <div id="install-progress-bar" class="wizard-progress-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="wizard-progress-stats">
+                  <span id="install-percent">0%</span>
+                  <span id="install-speed"></span>
+                  <span id="install-eta"></span>
+                </div>
+                <div id="install-status-label" class="wizard-install-status">Waiting...</div>
+              </div>
+            </div>
+
+            <!-- Step 5: Complete -->
+            <div class="wizard-step" data-wizard-step="5">
+              <h4>Setup Complete</h4>
+              <div class="wizard-status-box wizard-status-ok" style="margin-bottom:16px;">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>AI is ready to use!</span>
+              </div>
+              <div id="setup-summary" class="settings-group">
+                <div class="setting-row"><span>Chat Model</span><span id="summary-chat-model">--</span></div>
+                <div class="setting-row"><span>Embedding Model</span><span id="summary-embed-model">--</span></div>
+                <div class="setting-row"><span>Device Tier</span><span id="summary-tier">--</span></div>
+              </div>
+              <button id="btn-start-using-ai" class="setting-btn primary" style="width:100%; padding:12px; font-size:14px; margin-top:8px;">Start Using AI</button>
+            </div>
+
+            <!-- Navigation -->
+            <div class="wizard-nav">
+              <button id="wizard-btn-back" class="setting-btn" disabled>Back</button>
+              <a id="wizard-skip-link" href="#" class="wizard-skip-link">Skip wizard</a>
+              <button id="wizard-btn-next" class="setting-btn primary">Next</button>
             </div>
           </div>
-          <div id="ai-ollama-settings" class="settings-group">
-            <h4>Ollama Settings</h4>
-            <div class="setting-row">
-              <span>Use backend for AI</span>
-              <label class="toggle-wrap">
-                <input type="checkbox" id="use-backend-ai" />
-                <span class="toggle-slider"></span>
-              </label>
+
+          <!-- ── Already Configured Banner ──────────────────────── -->
+          <div id="ai-wizard-configured" class="settings-group hidden" style="margin-top:8px;">
+            <div class="wizard-status-box wizard-status-ok">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>AI is configured and ready</span>
             </div>
-            <div class="setting-row">
-              <span>Ollama URL</span>
-              <input type="text" id="ollama-url-input" class="setting-input" placeholder="http://localhost:11434" />
-            </div>
-            <div class="setting-row">
-              <span>Model</span>
-              <select id="ai-model-select" class="setting-select">
-                <option value="llama3.2">llama3.2 (default)</option>
-                <option value="mistral">mistral</option>
-              </select>
-            </div>
+            <button id="btn-rerun-wizard" class="setting-btn" style="margin-top:8px; width:100%;">Re-run Setup Wizard</button>
           </div>
-          <div id="ai-openai-settings" class="settings-group hidden">
-            <h4>OpenAI Settings</h4>
-            <div class="setting-row">
-              <span>API Key</span>
-              <input type="password" id="openai-key-input" class="setting-input" placeholder="sk-..." />
-            </div>
-            <div class="setting-row">
-              <span>Model</span>
-              <select id="openai-model-select" class="setting-select">
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-              </select>
-            </div>
+
+          <!-- ── Advanced Settings Toggle ───────────────────────── -->
+          <div class="settings-group" style="margin-top:16px;">
+            <button id="btn-toggle-advanced-ai" class="setting-btn" style="width:100%;">Advanced Settings</button>
           </div>
-          <div id="ai-anthropic-settings" class="settings-group hidden">
-            <h4>Anthropic Settings</h4>
-            <div class="setting-row">
-              <span>API Key</span>
-              <input type="password" id="anthropic-key-input" class="setting-input" placeholder="sk-ant-..." />
+
+          <!-- ── Advanced / Manual AI Config (hidden by default) ── -->
+          <div id="ai-advanced-settings" class="hidden">
+            <div class="settings-group">
+              <h4>Provider</h4>
+              <p class="settings-hint">Choose your AI backend</p>
+              <div class="setting-row">
+                <span>AI Provider</span>
+                <select id="ai-provider-select" class="setting-select">
+                  <option value="ollama">Ollama (Local / Free)</option>
+                  <option value="openai">OpenAI (API Key)</option>
+                  <option value="anthropic">Anthropic (API Key)</option>
+                </select>
+              </div>
             </div>
-            <div class="setting-row">
-              <span>Model</span>
-              <select id="anthropic-model-select" class="setting-select">
-                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-                <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-              </select>
+            <div id="ai-ollama-settings" class="settings-group">
+              <h4>Ollama Settings</h4>
+              <div class="setting-row">
+                <span>Use backend for AI</span>
+                <label class="toggle-wrap">
+                  <input type="checkbox" id="use-backend-ai" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <span>Ollama URL</span>
+                <input type="text" id="ollama-url-input" class="setting-input" placeholder="http://localhost:11434" />
+              </div>
+              <div class="setting-row">
+                <span>Model</span>
+                <select id="ai-model-select" class="setting-select">
+                  <option value="llama3.2">llama3.2 (default)</option>
+                  <option value="mistral">mistral</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div class="settings-group">
-            <div class="setting-row">
-              <span>Status</span>
-              <span id="ai-status-indicator" class="status-indicator">Not connected</span>
+            <div id="ai-openai-settings" class="settings-group hidden">
+              <h4>OpenAI Settings</h4>
+              <div class="setting-row">
+                <span>API Key</span>
+                <input type="password" id="openai-key-input" class="setting-input" placeholder="sk-..." />
+              </div>
+              <div class="setting-row">
+                <span>Model</span>
+                <select id="openai-model-select" class="setting-select">
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                </select>
+              </div>
+            </div>
+            <div id="ai-anthropic-settings" class="settings-group hidden">
+              <h4>Anthropic Settings</h4>
+              <div class="setting-row">
+                <span>API Key</span>
+                <input type="password" id="anthropic-key-input" class="setting-input" placeholder="sk-ant-..." />
+              </div>
+              <div class="setting-row">
+                <span>Model</span>
+                <select id="anthropic-model-select" class="setting-select">
+                  <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                  <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
+                </select>
+              </div>
+            </div>
+            <div class="settings-group">
+              <div class="setting-row">
+                <span>Status</span>
+                <span id="ai-status-indicator" class="status-indicator">Not connected</span>
+              </div>
             </div>
           </div>
         </div>

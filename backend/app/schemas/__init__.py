@@ -10,6 +10,15 @@ from app.schemas.block import (
     BlockEntryCreate,
     BlockEntryResponse,
 )
+from app.schemas.device import (
+    DeviceAIConfigCreate,
+    DeviceAIConfigUpdate,
+    DeviceAIConfigResponse,
+    DeviceHardwareInfo,
+    ModelRecommendationsResponse,
+    OllamaHealthResponse,
+    OllamaInstallInstructions,
+)
 
 __all__ = [
     "BlockCreate",
@@ -20,4 +29,11 @@ __all__ = [
     "BlockFieldResponse",
     "BlockEntryCreate",
     "BlockEntryResponse",
+    "DeviceAIConfigCreate",
+    "DeviceAIConfigUpdate",
+    "DeviceAIConfigResponse",
+    "DeviceHardwareInfo",
+    "ModelRecommendationsResponse",
+    "OllamaHealthResponse",
+    "OllamaInstallInstructions",
 ]

@@ -1,0 +1,162 @@
+# Aion Backend — Production Docker Compose
+# ==========================================
+# Deploys on DigitalOcean / any Linux VPS with:
+# - PostgreSQL 16 (data storage)
+# - Qdrant 1.7 (vector search)
+# - Redis 7 (caching + rate limiting)
+# - FastAPI backend (Aion API)
+# - Caddy 2 (auto-HTTPS reverse proxy)
+#
+# Usage:
+#   cp .env.example .env   # edit with production values
+#   docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml exec api alembic upgrade head
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aion-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aion}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aion} -d ${POSTGRES_DB:-aion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - aion-internal
+
+  # ── Qdrant Vector DB ────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: aion-qdrant
+    restart: always
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__LOG_LEVEL: WARN
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - aion-internal
+
+  # ── Redis ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aion-redis
+    restart: always
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+    networks:
+      - aion-internal
+
+  # ── Aion Backend API ────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aion-api
+    restart: always
+    environment:
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-aion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aion}
+      # Vector DB
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Ollama — not running on VPS, devices use their own
+      # Set OLLAMA_HOST to a device IP if you want server-side AI
+      OLLAMA_HOST: ${OLLAMA_HOST:-disabled}
+      OLLAMA_PORT: ${OLLAMA_PORT:-11434}
+      # Security
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
+      PRODUCTION: "true"
+      REQUIRE_HTTPS: "true"
+      # CORS — include your domain
+      CORS_ORIGINS: '["https://${DOMAIN:-localhost}", "tauri://localhost", "http://localhost:1420"]'
+      # Optional cloud AI providers
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      - aion-internal
+
+  # ── Caddy (Auto-HTTPS Reverse Proxy) ────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: aion-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - api
+    networks:
+      - aion-internal
+      - aion-external
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  aion-internal:
+    name: aion-internal
+    internal: true  # No internet access for DB containers
+  aion-external:
+    name: aion-external

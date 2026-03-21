@@ -7,6 +7,7 @@
 import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
 import { SecureStorage } from './services/secure_storage.js';
+import { AISetupWizard } from './services/ai_setup.js';
 
 const CONFIG = {
   // Default API URL - can be overridden by user settings
@@ -639,17 +640,12 @@ async function processAiCommand(input) {
     };
   }
 
-  // Study/Exam related commands
-  if (lower.includes('study') || lower.includes('exam') || lower.includes('learn') || lower.includes('prepare')) {
-    return handleStudyRequest(input);
-  }
-
-  // Create block commands
+  // Create block commands (before study/open to avoid "create block to study" misfire)
   if (lower.includes('create block') || lower.includes('new block') || lower.includes('make block') || lower.includes('add block')) {
     return handleCreateBlock(input);
   }
 
-  // Create task commands
+  // Create task commands (before study/open to avoid "create task to study" misfire)
   if (lower.includes('create task') || lower.includes('new task') || lower.includes('add task') || lower.includes('remind me')) {
     return handleCreateTask(input);
   }
@@ -657,6 +653,11 @@ async function processAiCommand(input) {
   // Timer commands
   if (lower.includes('start timer') || lower.includes('set timer') || lower.includes('pomodoro') || lower.includes('focus for')) {
     return handleTimerCommand(input);
+  }
+
+  // Study/Exam related commands (after create block/task so specific intents win)
+  if (lower.includes('study') || lower.includes('exam') || lower.includes('learn') || lower.includes('prepare')) {
+    return handleStudyRequest(input);
   }
 
   // Open panel commands
@@ -4267,6 +4268,445 @@ async function refreshStorageInfo() {
 }
 
 // ============================================================================
+// AI Setup Wizard
+// ============================================================================
+
+let aiWizard = null;
+
+function initAISetupWizard() {
+  aiWizard = new AISetupWizard(CONFIG.API_BASE);
+
+  const wizardEl = document.getElementById('ai-wizard');
+  const configuredEl = document.getElementById('ai-wizard-configured');
+  if (!wizardEl) return;
+
+  // Check if setup is already complete
+  if (aiWizard.isSetupComplete()) {
+    wizardEl.classList.add('hidden');
+    if (configuredEl) configuredEl.classList.remove('hidden');
+  } else {
+    // Restore wizard state if partially completed
+    aiWizard.loadState();
+    wizardGoToStep(aiWizard.currentStep);
+  }
+
+  // Wire up nav buttons
+  const btnBack = document.getElementById('wizard-btn-back');
+  const btnNext = document.getElementById('wizard-btn-next');
+  const skipLink = document.getElementById('wizard-skip-link');
+
+  if (btnBack) btnBack.addEventListener('click', wizardPrevStep);
+  if (btnNext) btnNext.addEventListener('click', wizardNextStep);
+  if (skipLink) {
+    skipLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      wizardSkip();
+    });
+  }
+
+  // Re-run wizard button
+  document.getElementById('btn-rerun-wizard')?.addEventListener('click', () => {
+    localStorage.removeItem('aion_ai_setup');
+    aiWizard = new AISetupWizard(CONFIG.API_BASE);
+    if (configuredEl) configuredEl.classList.add('hidden');
+    wizardEl.classList.remove('hidden');
+    wizardGoToStep(1);
+  });
+
+  // Advanced settings toggle
+  document.getElementById('btn-toggle-advanced-ai')?.addEventListener('click', () => {
+    const advanced = document.getElementById('ai-advanced-settings');
+    if (advanced) {
+      advanced.classList.toggle('hidden');
+      const btn = document.getElementById('btn-toggle-advanced-ai');
+      if (btn) btn.textContent = advanced.classList.contains('hidden') ? 'Advanced Settings' : 'Hide Advanced Settings';
+    }
+  });
+
+  // Ollama action buttons
+  document.getElementById('btn-install-ollama')?.addEventListener('click', async () => {
+    await aiWizard.installOllama();
+    const instrEl = document.getElementById('ollama-install-instructions');
+    if (instrEl) {
+      const instr = await aiWizard.getInstallInstructions();
+      const steps = instr.steps || [];
+      instrEl.innerHTML = '<ol>' + steps.map(s => `<li>${s}</li>`).join('') + '</ol>';
+    }
+  });
+
+  document.getElementById('btn-recheck-ollama')?.addEventListener('click', () => wizardRunStep2());
+  document.getElementById('btn-recheck-ollama-2')?.addEventListener('click', () => wizardRunStep2());
+
+  // Complete button
+  document.getElementById('btn-start-using-ai')?.addEventListener('click', () => {
+    wizardEl.classList.add('hidden');
+    if (configuredEl) configuredEl.classList.remove('hidden');
+  });
+}
+
+function wizardGoToStep(step) {
+  if (!aiWizard) return;
+  step = Math.max(1, Math.min(step, aiWizard.totalSteps));
+  aiWizard.currentStep = step;
+
+  // Update step visibility
+  document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+  const stepEl = document.querySelector(`.wizard-step[data-wizard-step="${step}"]`);
+  if (stepEl) stepEl.classList.add('active');
+
+  // Update dots
+  document.querySelectorAll('.wizard-dot').forEach(dot => {
+    const dotStep = parseInt(dot.dataset.step);
+    dot.classList.remove('active', 'done');
+    if (dotStep === step) dot.classList.add('active');
+    else if (dotStep < step) dot.classList.add('done');
+  });
+
+  // Update connecting lines
+  const lines = document.querySelectorAll('.wizard-dot-line');
+  lines.forEach((line, i) => {
+    line.classList.toggle('done', i + 1 < step);
+  });
+
+  // Update nav buttons
+  const btnBack = document.getElementById('wizard-btn-back');
+  const btnNext = document.getElementById('wizard-btn-next');
+  if (btnBack) btnBack.disabled = step <= 1;
+  if (btnNext) {
+    if (step === aiWizard.totalSteps) {
+      btnNext.classList.add('hidden');
+    } else {
+      btnNext.classList.remove('hidden');
+      btnNext.textContent = step === 4 ? 'Install' : 'Next';
+    }
+  }
+
+  // Run step-specific logic
+  if (step === 1) wizardRunStep1();
+  else if (step === 2) wizardRunStep2();
+  else if (step === 3) wizardRunStep3();
+  else if (step === 4) wizardRunStep4();
+  else if (step === 5) wizardRunStep5();
+
+  aiWizard.saveState();
+}
+
+function wizardNextStep() {
+  if (!aiWizard) return;
+
+  if (aiWizard.currentStep === 2) {
+    if (!aiWizard.ollamaStatus?.running) {
+      toast('Ollama must be running to continue. Install and start it, or skip the wizard.');
+      return;
+    }
+  }
+  if (aiWizard.currentStep === 3) {
+    const selected = document.querySelector('input[name="wizard-chat-model"]:checked');
+    if (!selected) {
+      toast('Please select a chat model');
+      return;
+    }
+    aiWizard.selectedModels.chat = selected.value;
+    const embedSel = document.querySelector('input[name="wizard-embed-model"]:checked');
+    if (embedSel) aiWizard.selectedModels.embedding = embedSel.value;
+
+    if (aiWizard.selectedModels.chat === '__cloud__') {
+      wizardSkip();
+      return;
+    }
+  }
+
+  wizardGoToStep(aiWizard.currentStep + 1);
+}
+
+function wizardPrevStep() {
+  if (!aiWizard) return;
+  wizardGoToStep(aiWizard.currentStep - 1);
+}
+
+function wizardSkip() {
+  if (!aiWizard) return;
+  aiWizard.markComplete();
+  aiWizard.saveState();
+
+  const wizardEl = document.getElementById('ai-wizard');
+  const configuredEl = document.getElementById('ai-wizard-configured');
+  if (wizardEl) wizardEl.classList.add('hidden');
+  if (configuredEl) configuredEl.classList.remove('hidden');
+
+  const advanced = document.getElementById('ai-advanced-settings');
+  if (advanced) advanced.classList.remove('hidden');
+  const btn = document.getElementById('btn-toggle-advanced-ai');
+  if (btn) btn.textContent = 'Hide Advanced Settings';
+}
+
+// ── Step runners ───────────────────────────────────────────────────────
+
+async function wizardRunStep1() {
+  const detectingEl = document.getElementById('hw-detecting');
+  const resultsEl = document.getElementById('hw-results');
+  if (!detectingEl || !resultsEl) return;
+
+  if (aiWizard.hardware) {
+    wizardShowHardware();
+    return;
+  }
+
+  detectingEl.classList.remove('hidden');
+  resultsEl.classList.add('hidden');
+
+  try {
+    await aiWizard.detectHardware();
+  } catch (err) {
+    console.error('[AISetup] Hardware detection error:', err);
+  }
+
+  wizardShowHardware();
+}
+
+function wizardShowHardware() {
+  const detectingEl = document.getElementById('hw-detecting');
+  const resultsEl = document.getElementById('hw-results');
+  if (!detectingEl || !resultsEl) return;
+
+  const hw = aiWizard.hardware;
+  if (!hw) return;
+
+  detectingEl.classList.add('hidden');
+  resultsEl.classList.remove('hidden');
+
+  const tier = aiWizard.getDeviceTier();
+  const tierBadge = document.getElementById('hw-tier-badge');
+  if (tierBadge) {
+    tierBadge.textContent = tier.label + ' for AI';
+    tierBadge.className = 'wizard-tier-badge ' + tier.class;
+  }
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('hw-cpu', `${hw.cpu_name || 'Unknown'} (${hw.cpu_cores || '?'} cores)`);
+  set('hw-ram', `${hw.ram_gb || '?'} GB total, ${hw.available_ram_gb || '?'} GB available`);
+  set('hw-gpu', hw.gpu_name ? `${hw.gpu_name}${hw.gpu_vram_gb ? ' (' + hw.gpu_vram_gb + ' GB VRAM)' : ''}` : 'None detected');
+  set('hw-disk', `${hw.free_disk_gb || '?'} GB free`);
+  set('hw-os', hw.os_name || 'Unknown');
+}
+
+async function wizardRunStep2() {
+  const checkingEl = document.getElementById('ollama-checking');
+  const notInstalledEl = document.getElementById('ollama-not-installed');
+  const notRunningEl = document.getElementById('ollama-not-running');
+  const runningEl = document.getElementById('ollama-running');
+
+  [checkingEl, notInstalledEl, notRunningEl, runningEl].forEach(el => {
+    if (el) el.classList.add('hidden');
+  });
+
+  if (checkingEl) checkingEl.classList.remove('hidden');
+
+  const ollamaUrl = document.getElementById('ollama-url-input')?.value || 'http://localhost:11434';
+  await aiWizard.checkOllama(ollamaUrl);
+
+  if (checkingEl) checkingEl.classList.add('hidden');
+
+  const status = aiWizard.ollamaStatus;
+  if (status?.running) {
+    if (runningEl) runningEl.classList.remove('hidden');
+    const versionEl = document.getElementById('ollama-version');
+    if (versionEl && status.version) versionEl.textContent = 'v' + status.version;
+  } else if (status?.installed) {
+    if (notRunningEl) notRunningEl.classList.remove('hidden');
+  } else {
+    if (notInstalledEl) notInstalledEl.classList.remove('hidden');
+  }
+}
+
+async function wizardRunStep3() {
+  const loadingEl = document.getElementById('models-loading');
+  const listEl = document.getElementById('models-list');
+  if (!loadingEl || !listEl) return;
+
+  if (aiWizard.recommendations) {
+    wizardRenderModels();
+    return;
+  }
+
+  loadingEl.classList.remove('hidden');
+  listEl.classList.add('hidden');
+
+  await aiWizard.getRecommendations();
+  wizardRenderModels();
+}
+
+function wizardRenderModels() {
+  const loadingEl = document.getElementById('models-loading');
+  const listEl = document.getElementById('models-list');
+  const chatListEl = document.getElementById('chat-models-list');
+  const embedListEl = document.getElementById('embedding-models-list');
+  if (!loadingEl || !listEl || !chatListEl || !embedListEl) return;
+
+  loadingEl.classList.add('hidden');
+  listEl.classList.remove('hidden');
+
+  const recs = aiWizard.recommendations;
+  if (!recs) return;
+
+  const chatModels = recs.chat_models || [];
+  chatListEl.innerHTML = chatModels.map((m) => `
+    <label class="wizard-model-card">
+      <input type="radio" name="wizard-chat-model" value="${m.name}" ${m.recommended ? 'checked' : ''} />
+      <div class="wizard-model-info">
+        <span class="wizard-model-name">
+          ${m.name}
+          ${m.recommended ? '<span class="wizard-recommended-badge">Recommended</span>' : ''}
+        </span>
+        <span class="wizard-model-desc">${m.description || ''}</span>
+        <div class="wizard-model-meta">
+          <span>${m.size || '?'}</span>
+          <span>${m.speed || '?'}</span>
+          <span>RAM: ${m.ram_needed || '?'}</span>
+        </div>
+      </div>
+    </label>
+  `).join('');
+
+  const embedModels = recs.embedding_models || [];
+  embedListEl.innerHTML = embedModels.map(m => `
+    <label class="wizard-model-card">
+      <input type="radio" name="wizard-embed-model" value="${m.name}" ${m.recommended ? 'checked' : ''} />
+      <div class="wizard-model-info">
+        <span class="wizard-model-name">
+          ${m.name}
+          ${m.recommended ? '<span class="wizard-recommended-badge">Recommended</span>' : ''}
+        </span>
+        <span class="wizard-model-desc">${m.description || ''}</span>
+        <div class="wizard-model-meta">
+          <span>${m.size || '?'}</span>
+          <span>RAM: ${m.ram_needed || '?'}</span>
+        </div>
+      </div>
+    </label>
+  `).join('');
+}
+
+async function wizardRunStep4() {
+  const labelEl = document.getElementById('install-model-name');
+  const barEl = document.getElementById('install-progress-bar');
+  const percentEl = document.getElementById('install-percent');
+  const speedEl = document.getElementById('install-speed');
+  const etaEl = document.getElementById('install-eta');
+  const statusEl = document.getElementById('install-status-label');
+
+  if (!labelEl || !barEl) return;
+
+  const ollamaUrl = document.getElementById('ollama-url-input')?.value || 'http://localhost:11434';
+  const chatModel = aiWizard.selectedModels.chat;
+  const embedModel = aiWizard.selectedModels.embedding;
+  const modelsToInstall = [];
+
+  if (chatModel && chatModel !== '__cloud__') modelsToInstall.push({ name: chatModel, type: 'chat' });
+  if (embedModel) modelsToInstall.push({ name: embedModel, type: 'embedding' });
+
+  if (modelsToInstall.length === 0) {
+    if (statusEl) statusEl.textContent = 'No models to install';
+    setTimeout(() => wizardGoToStep(5), 500);
+    return;
+  }
+
+  let lastCompleted = 0;
+  let lastTime = Date.now();
+
+  for (let i = 0; i < modelsToInstall.length; i++) {
+    const model = modelsToInstall[i];
+    if (labelEl) labelEl.textContent = `Installing ${model.name}... (${i + 1}/${modelsToInstall.length})`;
+    if (statusEl) statusEl.textContent = 'Downloading...';
+
+    lastCompleted = 0;
+    lastTime = Date.now();
+
+    try {
+      await aiWizard.pullModel(model.name, ollamaUrl, (progress) => {
+        const pct = progress.percent || 0;
+        if (barEl) barEl.style.width = pct + '%';
+        if (percentEl) percentEl.textContent = pct + '%';
+
+        const now = Date.now();
+        const elapsed = (now - lastTime) / 1000;
+        if (elapsed > 0.5 && progress.completed > lastCompleted) {
+          const bytesPerSec = (progress.completed - lastCompleted) / elapsed;
+          const mbPerSec = bytesPerSec / (1024 * 1024);
+          if (speedEl) speedEl.textContent = mbPerSec.toFixed(1) + ' MB/s';
+
+          if (progress.total > 0 && bytesPerSec > 0) {
+            const remaining = progress.total - progress.completed;
+            const etaSec = remaining / bytesPerSec;
+            if (etaEl) {
+              if (etaSec < 60) etaEl.textContent = Math.round(etaSec) + 's left';
+              else etaEl.textContent = Math.round(etaSec / 60) + 'm left';
+            }
+          }
+
+          lastCompleted = progress.completed;
+          lastTime = now;
+        }
+
+        if (progress.status) {
+          if (statusEl) statusEl.textContent = progress.status.charAt(0).toUpperCase() + progress.status.slice(1) + '...';
+        }
+      });
+
+      if (statusEl) statusEl.textContent = 'Verifying...';
+      if (barEl) barEl.style.width = '100%';
+      if (percentEl) percentEl.textContent = '100%';
+
+      if (model.type === 'embedding') {
+        await aiWizard.verifyEmbeddingModel(model.name);
+      } else {
+        await aiWizard.verifyModel(model.name);
+      }
+
+      if (statusEl) statusEl.textContent = 'Done!';
+    } catch (err) {
+      console.error(`[AISetup] Failed to install ${model.name}:`, err);
+      if (statusEl) statusEl.textContent = 'Error: ' + (err.message || 'Installation failed');
+      toast('Model installation failed: ' + (err.message || 'Unknown error'));
+      return;
+    }
+  }
+
+  if (chatModel && chatModel !== '__cloud__') {
+    localStorage.setItem('aion_ai_model', chatModel);
+  }
+
+  setTimeout(() => wizardGoToStep(5), 800);
+}
+
+function wizardRunStep5() {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('summary-chat-model', aiWizard.selectedModels.chat || 'Not set');
+  set('summary-embed-model', aiWizard.selectedModels.embedding || 'Not set');
+
+  const tier = aiWizard.getDeviceTier();
+  set('summary-tier', tier.label);
+
+  aiWizard.markComplete();
+  aiWizard.saveState();
+
+  if (aiWizard.selectedModels.chat && aiWizard.selectedModels.chat !== '__cloud__') {
+    localStorage.setItem('aion_use_backend_ai', 'true');
+    const modelSelect = document.getElementById('ai-model-select');
+    if (modelSelect) {
+      let opt = modelSelect.querySelector(`option[value="${aiWizard.selectedModels.chat}"]`);
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = aiWizard.selectedModels.chat;
+        opt.textContent = aiWizard.selectedModels.chat;
+        modelSelect.appendChild(opt);
+      }
+      modelSelect.value = aiWizard.selectedModels.chat;
+    }
+  }
+}
+
+// ============================================================================
 // Settings Enhancements — AI Provider Switching, Account, Logout
 // ============================================================================
 
@@ -5391,6 +5831,9 @@ async function init() {
 
   // Settings enhancements (AI provider switching, account, logout)
   initSettingsEnhancements();
+
+  // AI Setup Wizard
+  initAISetupWizard();
 
   // Listen for Tauri events from Rust backend (global shortcuts)
   if (window.__TAURI__?.event?.listen) {

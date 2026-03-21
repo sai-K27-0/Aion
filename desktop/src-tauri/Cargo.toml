@@ -1,6 +1,6 @@
 [package]
 name = "aion-desktop"
-version = "0.4.2"
+version = "0.4.3"
 description = "Aion Desktop Client - AI-Powered Life Management"
 authors = ["Aion Project"]
 license = "MIT"
@@ -19,8 +19,6 @@ tauri-plugin-process = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# SQLite for offline storage
-rusqlite = { version = "0.31", features = ["bundled"] }
 
 # Screen capture
 screenshots = "0.8"
@@ -31,10 +29,13 @@ base64 = "0.21"
 tokio = { version = "1", features = ["full"] }
 
 # HTTP client for Ollama proxy (avoids CORS in webview)
-reqwest = { version = "0.12", default-features = false, features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Secure storage (OS keychain)
 keyring = "2"
+
+# Hardware detection (RAM, CPU, GPU, disk)
+sysinfo = "0.32"
 
 # Native window blur/vibrancy effects
 window-vibrancy = "0.5"

@@ -194,9 +194,6 @@ async def get_neural_graph_direct(limit: int = 50):
     
     return await vector_service.get_semantic_graph(limit=limit)
 
-@app.get("/test-graph", tags=["debug"])
-async def debug_graph(limit: int = 50):
-    return {"message": "Debug endpoint working"}
 
 @app.get("/api/v1/ai/graph-direct", tags=["ai"])
 async def get_neural_graph_direct_unique(limit: int = 50):

@@ -1,0 +1,38 @@
+# Aion Caddy Configuration
+# ========================
+# Auto-HTTPS reverse proxy for the Aion backend API
+#
+# Caddy automatically:
+# - Obtains Let's Encrypt TLS certificates
+# - Redirects HTTP → HTTPS
+# - Renews certificates before expiry
+# - Handles WebSocket upgrade for /api/v1/sync/ws/*
+
+{$DOMAIN:localhost} {
+    # Reverse proxy to FastAPI backend
+    reverse_proxy api:8000
+
+    # WebSocket support (for real-time sync)
+    # Caddy handles this automatically via reverse_proxy
+
+    # Security headers (Caddy adds many by default)
+    header {
+        # Prevent embedding in iframes
+        X-Frame-Options "DENY"
+        # Prevent MIME sniffing
+        X-Content-Type-Options "nosniff"
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server header
+        -Server
+    }
+
+    # Compress responses
+    encode gzip zstd
+
+    # Access log
+    log {
+        output stdout
+        format json
+    }
+}

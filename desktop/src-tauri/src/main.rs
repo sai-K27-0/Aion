@@ -298,6 +298,157 @@ async fn ollama_generate(
 }
 
 // =============================================================================
+// Hardware Detection Commands
+// =============================================================================
+
+/// Detect device hardware capabilities for AI model recommendations
+#[tauri::command]
+fn detect_hardware() -> Result<serde_json::Value, String> {
+    use sysinfo::System;
+
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    let total_ram_gb = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+    let available_ram_gb = sys.available_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+    let cpu_cores = sys.cpus().len();
+    let cpu_name = sys.cpus().first()
+        .map(|c| c.brand().to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    // Detect GPU (platform-specific)
+    let gpu_name = detect_gpu_name();
+
+    // Get disk space for the main drive
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let free_disk_gb = disks.list().iter()
+        .map(|d| d.available_space() as f64 / (1024.0 * 1024.0 * 1024.0))
+        .fold(0.0_f64, f64::max); // Largest free space across drives
+
+    let os_name = System::name().unwrap_or_else(|| "Unknown".to_string());
+    let os_version = System::os_version().unwrap_or_else(|| "Unknown".to_string());
+
+    Ok(serde_json::json!({
+        "ram_gb": (total_ram_gb * 10.0).round() / 10.0,
+        "available_ram_gb": (available_ram_gb * 10.0).round() / 10.0,
+        "cpu_cores": cpu_cores,
+        "cpu_name": cpu_name,
+        "gpu_name": gpu_name,
+        "gpu_vram_gb": null,
+        "free_disk_gb": (free_disk_gb * 10.0).round() / 10.0,
+        "os_name": format!("{} {}", os_name, os_version),
+        "device_model": System::host_name().unwrap_or_else(|| "Unknown".to_string()),
+    }))
+}
+
+fn detect_gpu_name() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        // Try reading GPU via WMIC (works without admin)
+        match std::process::Command::new("wmic")
+            .args(["path", "win32_VideoController", "get", "name"])
+            .output()
+        {
+            Ok(output) => {
+                let text = String::from_utf8_lossy(&output.stdout);
+                let gpu = text.lines()
+                    .skip(1) // Skip header "Name"
+                    .find(|l| !l.trim().is_empty())
+                    .unwrap_or("Unknown")
+                    .trim()
+                    .to_string();
+                if gpu.is_empty() { "Unknown".to_string() } else { gpu }
+            }
+            Err(_) => "Unknown".to_string(),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // On Apple Silicon, the GPU is the M-series chip itself
+        match std::process::Command::new("system_profiler")
+            .args(["SPDisplaysDataType", "-detailLevel", "mini"])
+            .output()
+        {
+            Ok(output) => {
+                let text = String::from_utf8_lossy(&output.stdout);
+                text.lines()
+                    .find(|l| l.contains("Chipset Model:") || l.contains("Chip:"))
+                    .map(|l| l.split(':').nth(1).unwrap_or("Apple GPU").trim().to_string())
+                    .unwrap_or_else(|| "Apple Silicon".to_string())
+            }
+            Err(_) => "Apple Silicon".to_string(),
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        match std::process::Command::new("lspci")
+            .output()
+        {
+            Ok(output) => {
+                let text = String::from_utf8_lossy(&output.stdout);
+                text.lines()
+                    .find(|l| l.contains("VGA") || l.contains("3D"))
+                    .map(|l| {
+                        l.split(':').last().unwrap_or("Unknown GPU").trim().to_string()
+                    })
+                    .unwrap_or_else(|| "Unknown".to_string())
+            }
+            Err(_) => "Unknown".to_string(),
+        }
+    }
+}
+
+/// Check if Ollama is running locally and return its status
+#[tauri::command]
+async fn check_ollama_local() -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    // Check version
+    let version = match client.get("http://127.0.0.1:11434/api/version").send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let data: serde_json::Value = resp.json().await.unwrap_or_default();
+            data.get("version").and_then(|v| v.as_str()).unwrap_or("unknown").to_string()
+        }
+        _ => {
+            return Ok(serde_json::json!({
+                "installed": false,
+                "running": false,
+                "version": null,
+                "url": "http://127.0.0.1:11434",
+                "models_installed": [],
+            }));
+        }
+    };
+
+    // List models
+    let models: Vec<String> = match client.get("http://127.0.0.1:11434/api/tags").send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let data: serde_json::Value = resp.json().await.unwrap_or_default();
+            data.get("models")
+                .and_then(|m| m.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|m| m.get("name").and_then(|n| n.as_str()).map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default()
+        }
+        _ => vec![],
+    };
+
+    Ok(serde_json::json!({
+        "installed": true,
+        "running": true,
+        "version": version,
+        "url": "http://127.0.0.1:11434",
+        "models_installed": models,
+    }))
+}
+
+// =============================================================================
 // Screen Capture Commands
 // =============================================================================
 
@@ -566,6 +717,8 @@ fn main() {
             minimize_to_tray,
             show_from_tray,
             is_window_visible,
+            detect_hardware,
+            check_ollama_local,
         ])
         .setup(|app| {
             // Tray menu (Tauri 2 API)
