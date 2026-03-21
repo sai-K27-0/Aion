@@ -1,9 +1,12 @@
 """Tests for hub setup, registration lock, and token blacklist."""
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.system_settings import SystemSettings
+from app.models.user import User
+from app.schemas.auth import UserCreate
 
 
 class TestSystemSettings:
@@ -51,3 +54,66 @@ class TestTokenBlacklistService:
 
         service = TokenBlacklistService()
         assert await service.is_blacklisted("unknown-jti") is False
+
+
+class TestRegistrationLock:
+    @pytest.mark.asyncio
+    async def test_first_user_becomes_superuser(self, db_session: AsyncSession):
+        from app.services.auth_service import register_user_with_lock
+
+        user = await register_user_with_lock(
+            db=db_session,
+            data=UserCreate(username="admin", password="securepass123"),
+        )
+        assert user.is_superuser is True
+        assert user.username == "admin"
+
+    @pytest.mark.asyncio
+    async def test_auto_creates_settings_after_first_user(self, db_session: AsyncSession):
+        from app.services.auth_service import register_user_with_lock
+
+        await register_user_with_lock(
+            db=db_session,
+            data=UserCreate(username="admin", password="securepass123"),
+        )
+        result = await db_session.execute(select(SystemSettings).limit(1))
+        settings = result.scalar_one_or_none()
+        assert settings is not None
+        assert settings.registration_locked is True
+
+    @pytest.mark.asyncio
+    async def test_registration_locked_after_first_user(self, db_session: AsyncSession):
+        from app.services.auth_service import register_user_with_lock
+
+        await register_user_with_lock(
+            db=db_session,
+            data=UserCreate(username="admin", password="securepass123"),
+        )
+
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            await register_user_with_lock(
+                db=db_session,
+                data=UserCreate(username="user2", password="securepass123"),
+            )
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_registration_allowed_when_unlocked(self, db_session: AsyncSession):
+        from app.services.auth_service import register_user_with_lock
+
+        await register_user_with_lock(
+            db=db_session,
+            data=UserCreate(username="admin", password="securepass123"),
+        )
+
+        result = await db_session.execute(select(SystemSettings).limit(1))
+        settings = result.scalar_one()
+        settings.registration_locked = False
+        await db_session.commit()
+
+        user2 = await register_user_with_lock(
+            db=db_session,
+            data=UserCreate(username="user2", password="securepass123"),
+        )
+        assert user2.is_superuser is False

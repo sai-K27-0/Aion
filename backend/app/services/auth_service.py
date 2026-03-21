@@ -8,10 +8,11 @@ from uuid import uuid4
 
 import bcrypt
 import jwt
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.system_settings import SystemSettings
 from app.models.user import User
 from app.schemas.auth import UserCreate, TokenResponse, TokenPayload
 
@@ -268,3 +269,31 @@ class AuthService:
 async def get_auth_service(db: AsyncSession) -> AuthService:
     """Get an AuthService instance."""
     return AuthService(db)
+
+
+async def register_user_with_lock(db: AsyncSession, data: UserCreate) -> User:
+    """Register a user with registration lock enforcement.
+    First user becomes admin and auto-locks registration."""
+    from fastapi import HTTPException
+
+    user_count = await db.scalar(select(func.count(User.id)))
+
+    if user_count > 0:
+        result = await db.execute(select(SystemSettings).limit(1))
+        settings = result.scalar_one_or_none()
+        if settings is None or settings.registration_locked:
+            raise HTTPException(status_code=403, detail="Registration is locked")
+
+    auth = AuthService(db=db)
+    user = await auth.create_user(data)
+
+    if user_count == 0:
+        user.is_superuser = True
+        await db.commit()
+        await db.refresh(user)
+
+        settings = SystemSettings(registration_locked=True)
+        db.add(settings)
+        await db.commit()
+
+    return user
