@@ -19,8 +19,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+from app.utils.request import get_real_ip
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.router import api_router
@@ -79,7 +80,7 @@ class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 # Rate limiter configuration
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+limiter = Limiter(key_func=get_real_ip, default_limits=["100/minute"])
 
 
 @asynccontextmanager
@@ -158,9 +159,14 @@ if settings.production and settings.require_https:
     app.add_middleware(HTTPSRedirectMiddleware)
 
 # Configure CORS
+# Build CORS origins list with optional tunnel domain
+cors_origins = list(settings.cors_origins)
+if settings.tunnel_domain:
+    cors_origins.append(f"https://{settings.tunnel_domain}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Device-ID", "X-Request-ID"],

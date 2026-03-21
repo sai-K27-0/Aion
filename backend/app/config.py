@@ -102,6 +102,9 @@ class Settings(BaseSettings):
     # Optional cloud relay for cross-network sync
     relay_url: Optional[str] = None
 
+    # Tunnel
+    tunnel_domain: Optional[str] = None
+
     # Security
     secret_key: str = "change-this-in-production-to-a-secure-random-key"
     access_token_expire_minutes: int = 30  # 30 minutes for access tokens
