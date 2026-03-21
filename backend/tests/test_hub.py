@@ -4,6 +4,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.device import Device, ApprovalStatus
 from app.models.system_settings import SystemSettings
 from app.models.user import User
 from app.schemas.auth import UserCreate
@@ -146,3 +147,64 @@ class TestHubEndpoints:
         from app.api.v1.endpoints.hub import _get_registration_status
         result = await _get_registration_status(db_session)
         assert result.open is True
+
+
+class TestDeviceServiceDB:
+    @pytest.mark.asyncio
+    async def test_register_first_device_auto_approved(self, db_session: AsyncSession):
+        """First device for a user should be auto-approved."""
+        user = User(
+            id="test-user-id",
+            username="testuser",
+            hashed_password="fakehash",
+            is_active=True,
+        )
+        db_session.add(user)
+        await db_session.commit()
+
+        from app.services.device_service import get_device_service
+        service = get_device_service()
+        result = await service.register_device(
+            db=db_session,
+            device_id="device-001",
+            device_name="My PC",
+            device_type="desktop",
+            platform="windows",
+            user_id="test-user-id",
+        )
+        assert result["approval_status"] == ApprovalStatus.APPROVED
+
+    @pytest.mark.asyncio
+    async def test_register_second_device_pending(self, db_session: AsyncSession):
+        """Second device should be pending approval."""
+        user = User(
+            id="test-user-id",
+            username="testuser",
+            hashed_password="fakehash",
+            is_active=True,
+        )
+        db_session.add(user)
+        first_device = Device(
+            id="device-001",
+            device_name="First PC",
+            device_type="desktop",
+            platform="windows",
+            user_id="test-user-id",
+            approval_status=ApprovalStatus.APPROVED,
+        )
+        db_session.add(first_device)
+        await db_session.commit()
+
+        from app.services.device_service import get_device_service
+        service = get_device_service()
+        result = await service.register_device(
+            db=db_session,
+            device_id="device-002",
+            device_name="Phone",
+            device_type="phone",
+            platform="android",
+            user_id="test-user-id",
+        )
+        assert result["approval_status"] == ApprovalStatus.PENDING
+        assert result.get("approval_code") is not None
+        assert len(result["approval_code"]) == 6
