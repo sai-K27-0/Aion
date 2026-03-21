@@ -117,3 +117,32 @@ class TestRegistrationLock:
             data=UserCreate(username="user2", password="securepass123"),
         )
         assert user2.is_superuser is False
+
+
+class TestHubEndpoints:
+    @pytest.mark.asyncio
+    async def test_hub_status_public_no_setup(self, db_session: AsyncSession):
+        """When no SystemSettings exists, setup_complete=False, registration_open=True."""
+        from app.api.v1.endpoints.hub import _get_hub_status_public
+        result = await _get_hub_status_public(db_session)
+        assert result.setup_complete is False
+        assert result.registration_open is True
+
+    @pytest.mark.asyncio
+    async def test_hub_status_public_after_setup(self, db_session: AsyncSession):
+        """After setup, reflects actual state."""
+        from app.api.v1.endpoints.hub import _get_hub_status_public
+        settings = SystemSettings(setup_complete=True, registration_locked=True)
+        db_session.add(settings)
+        await db_session.commit()
+
+        result = await _get_hub_status_public(db_session)
+        assert result.setup_complete is True
+        assert result.registration_open is False
+
+    @pytest.mark.asyncio
+    async def test_registration_status(self, db_session: AsyncSession):
+        """Registration is open when no users exist."""
+        from app.api.v1.endpoints.hub import _get_registration_status
+        result = await _get_registration_status(db_session)
+        assert result.open is True

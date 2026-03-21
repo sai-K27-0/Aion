@@ -4,7 +4,7 @@ API v1 Router - Aggregates all v1 endpoint routers.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import blocks, ai, sync, auth, ai_enhanced, voice, discovery, devices, ai_setup
+from app.api.v1.endpoints import blocks, ai, sync, auth, ai_enhanced, voice, discovery, devices, ai_setup, hub
 
 api_router = APIRouter()
 
@@ -61,4 +61,10 @@ api_router.include_router(
     ai_setup.router,
     prefix="/ai/setup",
     tags=["ai-setup"],
+)
+
+api_router.include_router(
+    hub.router,
+    prefix="/hub",
+    tags=["hub"],
 )
