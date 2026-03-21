@@ -110,6 +110,15 @@ class Settings(BaseSettings):
     # sensitive fields at rest (e.g. block content, entry data)
     data_encryption_key: Optional[str] = None
 
+    # Redis
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+
+    @property
+    def redis_url(self) -> str:
+        """Construct Redis connection URL."""
+        return f"redis://{self.redis_host}:{self.redis_port}/0"
+
     # Production mode
     production: bool = False
     require_https: bool = False

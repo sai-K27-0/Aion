@@ -33,3 +33,21 @@ class TestSystemSettings:
 
         assert settings.tunnel_domain == "aion.example.com"
         assert settings.tunnel_type == "permanent"
+
+
+class TestTokenBlacklistService:
+    @pytest.mark.asyncio
+    async def test_blacklist_and_check(self):
+        from app.services.token_blacklist_service import TokenBlacklistService
+
+        service = TokenBlacklistService()
+        # Falls back to in-memory since Redis isn't running in tests
+        await service.blacklist_token("test-jti-123", expires_in=3600)
+        assert await service.is_blacklisted("test-jti-123") is True
+
+    @pytest.mark.asyncio
+    async def test_not_blacklisted(self):
+        from app.services.token_blacklist_service import TokenBlacklistService
+
+        service = TokenBlacklistService()
+        assert await service.is_blacklisted("unknown-jti") is False
