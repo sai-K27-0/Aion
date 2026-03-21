@@ -47,6 +47,7 @@ async def test_engine():
     import app.models.plan           # noqa: F401
     import app.models.trigger        # noqa: F401
     import app.models.user           # noqa: F401
+    import app.models.system_settings  # noqa: F401
 
     from app.db.base import Base
 

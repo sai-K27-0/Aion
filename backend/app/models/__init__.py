@@ -7,10 +7,12 @@ from app.models.conversation import Conversation, ConversationMessage, Extracted
 from app.models.plan import Plan, PlanStep, PlanStatus, StepStatus
 from app.models.device import Device
 from app.models.device_ai_config import DeviceAIConfig
+from app.models.system_settings import SystemSettings
 
 __all__ = [
     "Block", "BlockField", "BlockEntry", "BlockContent",
     "Trigger", "User", "Device", "DeviceAIConfig",
     "Conversation", "ConversationMessage", "ExtractedFact",
     "Plan", "PlanStep", "PlanStatus", "StepStatus",
+    "SystemSettings",
 ]
