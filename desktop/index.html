@@ -19,6 +19,156 @@
 </head>
 
 <body data-theme="sky" style="background: transparent !important; background-color: transparent !important;">
+  <!-- Hub Setup Wizard Overlay -->
+  <div id="hub-wizard" class="hub-wizard" style="display:none;">
+    <div class="wizard-container">
+      <!-- Progress Bar -->
+      <div class="wizard-progress">
+        <div class="wizard-progress-fill" id="wizard-progress-fill"></div>
+      </div>
+      <div class="wizard-progress-text" id="wizard-progress-text">Step 1 of 7</div>
+
+      <!-- Step 1: Welcome -->
+      <div class="wizard-step" data-step="welcome">
+        <div class="wizard-logo">
+          <svg viewBox="0 0 100 100" width="80" height="80">
+            <defs>
+              <linearGradient id="crystal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:0.9"/>
+                <stop offset="50%" style="stop-color:#3b82f6;stop-opacity:1"/>
+                <stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.9"/>
+              </linearGradient>
+              <filter id="glow">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <polygon points="50,8 92,80 8,80" fill="url(#crystal-grad)" filter="url(#glow)" opacity="0.95"/>
+            <polygon points="50,20 78,72 22,72" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+            <polygon points="50,32 65,64 35,64" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+          </svg>
+        </div>
+        <h2 class="wizard-title">Welcome to Aion</h2>
+        <p class="wizard-subtitle">Your private AI-powered life management system</p>
+        <div class="wizard-actions">
+          <button class="wizard-btn wizard-btn-primary" id="btn-setup-hub">Set up as Hub</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-connect-hub">Connect to existing Hub</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Docker Check -->
+      <div class="wizard-step" data-step="docker_check" style="display:none;">
+        <h2 class="wizard-title">Docker Setup</h2>
+        <p class="wizard-subtitle">Aion uses Docker to run its backend services</p>
+        <div class="wizard-status-box" id="docker-status-box">
+          <div class="wizard-status-row">
+            <span class="wizard-status-icon" id="docker-check-icon">...</span>
+            <span>Checking Docker installation</span>
+          </div>
+        </div>
+        <div class="wizard-actions" id="docker-actions" style="display:none;">
+          <button class="wizard-btn wizard-btn-primary" id="btn-docker-auto">Auto-Install Docker</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-docker-manual">Download Manually</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-docker-recheck">Re-check</button>
+        </div>
+        <div class="wizard-actions" id="docker-ready-actions" style="display:none;">
+          <button class="wizard-btn wizard-btn-primary" id="btn-docker-continue">Continue</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Starting Backend -->
+      <div class="wizard-step" data-step="starting_backend" style="display:none;">
+        <h2 class="wizard-title">Starting Services</h2>
+        <p class="wizard-subtitle">Setting up your private hub</p>
+        <div class="wizard-status-box">
+          <div class="wizard-status-row" id="status-postgres"><span class="wizard-status-icon">...</span><span>PostgreSQL Database</span></div>
+          <div class="wizard-status-row" id="status-qdrant"><span class="wizard-status-icon">...</span><span>Qdrant Vector Database</span></div>
+          <div class="wizard-status-row" id="status-redis"><span class="wizard-status-icon">...</span><span>Redis Cache</span></div>
+          <div class="wizard-status-row" id="status-api"><span class="wizard-status-icon">...</span><span>Aion Backend API</span></div>
+          <div class="wizard-status-row" id="status-migrations"><span class="wizard-status-icon">...</span><span>Database Migrations</span></div>
+        </div>
+        <div class="wizard-error" id="backend-error" style="display:none;"></div>
+      </div>
+
+      <!-- Step 4: Create Account -->
+      <div class="wizard-step" data-step="needs_account" style="display:none;">
+        <h2 class="wizard-title">Create Your Account</h2>
+        <p class="wizard-subtitle">This will be the admin account for your hub</p>
+        <form class="wizard-form" id="account-form">
+          <div class="wizard-input-group">
+            <label for="wizard-username">Username</label>
+            <input type="text" id="wizard-username" class="wizard-input" placeholder="Choose a username" minlength="3" required autocomplete="username"/>
+          </div>
+          <div class="wizard-input-group">
+            <label for="wizard-password">Password</label>
+            <input type="password" id="wizard-password" class="wizard-input" placeholder="At least 8 characters" minlength="8" required autocomplete="new-password"/>
+          </div>
+          <div class="wizard-error" id="account-error" style="display:none;"></div>
+          <div class="wizard-actions">
+            <button type="submit" class="wizard-btn wizard-btn-primary">Create Account</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step 5: AI Setup (placeholder) -->
+      <div class="wizard-step" data-step="ai_setup" style="display:none;">
+        <h2 class="wizard-title">AI Configuration</h2>
+        <p class="wizard-subtitle">Setting up your local AI models</p>
+        <p class="wizard-text">This will use the existing AI setup wizard.</p>
+        <div class="wizard-actions">
+          <button class="wizard-btn wizard-btn-primary" id="btn-ai-continue">Continue</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-ai-skip">Skip for now</button>
+        </div>
+      </div>
+
+      <!-- Step 6: Remote Access -->
+      <div class="wizard-step" data-step="remote_access" style="display:none;">
+        <h2 class="wizard-title">Remote Access</h2>
+        <p class="wizard-subtitle">Access Aion from your phone or other devices</p>
+        <div class="wizard-option-cards">
+          <div class="wizard-option-card" id="opt-quick-tunnel">
+            <h3>Quick Tunnel</h3>
+            <p>Instant access via Cloudflare. No account needed. URL changes on restart.</p>
+          </div>
+          <div class="wizard-option-card" id="opt-skip-remote">
+            <h3>Local Only</h3>
+            <p>Access only from this device. You can enable remote access later.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7: Done -->
+      <div class="wizard-step" data-step="done" style="display:none;">
+        <div class="wizard-logo">
+          <svg viewBox="0 0 100 100" width="60" height="60">
+            <polygon points="50,8 92,80 8,80" fill="url(#crystal-grad)" filter="url(#glow)" opacity="0.95"/>
+            <polygon points="50,20 78,72 22,72" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+          </svg>
+        </div>
+        <h2 class="wizard-title">Aion is Ready</h2>
+        <p class="wizard-subtitle">Your private hub is configured and running</p>
+        <div class="wizard-summary" id="setup-summary"></div>
+        <div class="wizard-actions">
+          <button class="wizard-btn wizard-btn-primary" id="btn-enter-aion">Enter Aion</button>
+        </div>
+      </div>
+
+      <!-- Connect to Hub steps -->
+      <div class="wizard-step" data-step="discover" style="display:none;">
+        <h2 class="wizard-title">Connect to Hub</h2>
+        <p class="wizard-subtitle">Enter your hub's URL or find it on your network</p>
+        <div class="wizard-input-group">
+          <label for="hub-url-input">Hub URL</label>
+          <input type="url" id="hub-url-input" class="wizard-input" placeholder="http://192.168.1.x:8000"/>
+        </div>
+        <div class="wizard-actions">
+          <button class="wizard-btn wizard-btn-primary" id="btn-connect-url">Connect</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-back-welcome">Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SVG Icon Sprite -->
   <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
     <symbol id="icon-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v2M6 12h2M18 12h2M12 18v2M8 8l1.4 1.4M14.6 14.6l1.4 1.4M8 16l1.4-1.4M14.6 9.4l1.4-1.4"/></symbol>
