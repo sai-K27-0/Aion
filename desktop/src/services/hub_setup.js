@@ -168,7 +168,8 @@ export class HubSetupService {
                     key: 'aion_secret_key', value: secretKey
                 });
             } catch (e) {
-                localStorage.setItem(STORAGE_KEYS.SECRET_KEY, secretKey);
+                this._setProgress({ error: 'Failed to store secret key in OS keychain. Please ensure your system keychain is available.' });
+                return false;
             }
         }
 
@@ -298,6 +299,7 @@ export class HubSetupService {
         }
 
         const tokens = await resp.json();
+        this._accessToken = tokens.access_token;
 
         try {
             const { SecureStorage } = await import('./secure_storage.js');
@@ -365,10 +367,19 @@ export class HubSetupService {
         return false;
     }
 
+    _getAuthHeaders() {
+        const token = this._accessToken || localStorage.getItem('aion_access_token');
+        if (!token) return { 'Content-Type': 'application/json' };
+        return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    }
+
     async markComplete() {
         localStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'true');
         try {
-            await fetch(`${this._getApiBase()}/hub/setup-complete`, { method: 'POST' });
+            await fetch(`${this._getApiBase()}/hub/setup-complete`, {
+                method: 'POST',
+                headers: this._getAuthHeaders(),
+            });
         } catch (e) { /* best effort */ }
         this._setState(STATES.READY);
     }

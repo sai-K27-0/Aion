@@ -653,6 +653,7 @@ fn open_system_app(app_name: String) -> Result<String, String> {
 
 /// Generic HTTP proxy — used for remote API calls through the Rust backend
 /// to avoid CSP issues in the Tauri webview.
+/// URL is validated against an allowlist to prevent SSRF attacks.
 #[tauri::command]
 async fn proxy_request(
     url: String,
@@ -660,6 +661,20 @@ async fn proxy_request(
     body: Option<String>,
     headers: Option<std::collections::HashMap<String, String>>,
 ) -> Result<serde_json::Value, String> {
+    // SSRF protection: only allow requests to known safe destinations
+    let allowed_prefixes = [
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        "http://localhost:11434",  // Ollama
+        "http://127.0.0.1:11434",
+    ];
+    let url_lower = url.to_lowercase();
+    let is_allowed = allowed_prefixes.iter().any(|p| url_lower.starts_with(p))
+        || url_lower.starts_with("https://") && url_lower.contains(".trycloudflare.com");
+    if !is_allowed {
+        return Err(format!("URL not in allowlist: {}", url));
+    }
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
