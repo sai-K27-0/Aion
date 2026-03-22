@@ -14,6 +14,7 @@
 )]
 
 mod docker;
+mod cloudflare;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use screenshots::Screen;
@@ -650,6 +651,49 @@ fn open_system_app(app_name: String) -> Result<String, String> {
     }
 }
 
+/// Generic HTTP proxy — used for remote API calls through the Rust backend
+/// to avoid CSP issues in the Tauri webview.
+#[tauri::command]
+async fn proxy_request(
+    url: String,
+    method: String,
+    body: Option<String>,
+    headers: Option<std::collections::HashMap<String, String>>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut req = match method.to_uppercase().as_str() {
+        "GET" => client.get(&url),
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "DELETE" => client.delete(&url),
+        "PATCH" => client.patch(&url),
+        _ => return Err(format!("Unsupported method: {}", method)),
+    };
+
+    if let Some(hdrs) = headers {
+        for (key, value) in hdrs {
+            req = req.header(&key, &value);
+        }
+    }
+
+    if let Some(b) = body {
+        req = req.header("Content-Type", "application/json").body(b);
+    }
+
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let resp_body: String = resp.text().await.map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "status": status,
+        "body": resp_body,
+    }))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -728,6 +772,10 @@ fn main() {
             docker::stop_docker_compose,
             docker::get_docker_compose_status,
             docker::check_backend_health,
+            cloudflare::check_cloudflared,
+            cloudflare::install_cloudflared,
+            cloudflare::start_quick_tunnel,
+            proxy_request,
         ])
         .setup(|app| {
             // Tray menu (Tauri 2 API)
