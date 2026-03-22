@@ -13,6 +13,8 @@
     windows_subsystem = "windows"
 )]
 
+mod docker;
+
 use base64::{engine::general_purpose::STANDARD, Engine};
 use screenshots::Screen;
 use std::io::Cursor;
@@ -719,6 +721,13 @@ fn main() {
             is_window_visible,
             detect_hardware,
             check_ollama_local,
+            docker::check_docker_installed,
+            docker::check_docker_running,
+            docker::install_docker,
+            docker::start_docker_compose,
+            docker::stop_docker_compose,
+            docker::get_docker_compose_status,
+            docker::check_backend_health,
         ])
         .setup(|app| {
             // Tray menu (Tauri 2 API)
