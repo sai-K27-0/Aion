@@ -5765,8 +5765,12 @@ body.click-through-mode .ghost-exit-btn { display: block; }
   margin-bottom: 2rem;
 }
 
-.wizard-step {
+.hub-wizard .wizard-step {
+  display: none;
   animation: wizardFadeIn 0.3s ease;
+}
+.hub-wizard .wizard-step.active {
+  display: block;
 }
 
 @keyframes wizardFadeIn {

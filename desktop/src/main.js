@@ -5840,7 +5840,11 @@ function renderWizardState(state, service) {
   const steps = overlay.querySelectorAll('.wizard-step[data-step]');
   const activeStep = STATE_TO_STEP[state];
   steps.forEach(el => {
-    el.style.display = el.getAttribute('data-step') === activeStep ? '' : 'none';
+    if (el.getAttribute('data-step') === activeStep) {
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
   });
 
   // Update progress bar
