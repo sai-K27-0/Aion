@@ -5967,8 +5967,14 @@ function wireWizardEvents(hubSetup) {
       e.preventDefault();
       const username = document.getElementById('wizard-username').value.trim();
       const password = document.getElementById('wizard-password').value;
+      const confirmPassword = document.getElementById('wizard-password-confirm').value;
       const errEl = document.getElementById('account-error');
       if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+      if (password !== confirmPassword) {
+        if (errEl) { errEl.textContent = 'Passwords do not match'; errEl.style.display = ''; }
+        return;
+      }
 
       try {
         await hubSetup.createAccount(username, password);

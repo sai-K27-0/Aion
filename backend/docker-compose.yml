@@ -70,6 +70,7 @@ services:
       - QDRANT_HOST=qdrant
       - REDIS_HOST=redis
       - OLLAMA_HOST=host.docker.internal
+      - SECRET_KEY=${SECRET_KEY}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

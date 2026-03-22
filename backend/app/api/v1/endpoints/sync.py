@@ -826,7 +826,7 @@ async def verify_ws_token(token: str) -> Optional[str]:
     
     # Use the same JWT decoding logic as HTTP auth (AuthService.decode_token)
     try:
-        payload = AuthService.decode_token(token)
+        payload = await AuthService.decode_token(token)
         if payload and payload.type == "access":
             return payload.sub  # user_id
         return None

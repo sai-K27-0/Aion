@@ -22,8 +22,9 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# In-memory token blacklist (for logout). In production, use Redis.
-_token_blacklist: set[str] = set()
+# Token blacklist backed by Redis (falls back to in-memory if Redis unavailable)
+from app.services.token_blacklist_service import get_token_blacklist_service as _get_blacklist
+_blacklist_service = _get_blacklist()
 
 
 class AuthService:
@@ -52,14 +53,14 @@ class AuthService:
     # ========================================================================
 
     @staticmethod
-    def blacklist_token(jti: str) -> None:
-        """Add a token's JTI to the blacklist."""
-        _token_blacklist.add(jti)
+    async def blacklist_token(jti: str, expires_in: int = ACCESS_TOKEN_EXPIRE_MINUTES * 60) -> None:
+        """Add a token's JTI to the blacklist (Redis-backed with in-memory fallback)."""
+        await _blacklist_service.blacklist_token(jti, expires_in)
 
     @staticmethod
-    def is_token_blacklisted(jti: str) -> bool:
+    async def is_token_blacklisted(jti: str) -> bool:
         """Check if a token's JTI has been blacklisted."""
-        return jti in _token_blacklist
+        return await _blacklist_service.is_blacklisted(jti)
 
     # ========================================================================
     # Token Management
@@ -96,14 +97,14 @@ class AuthService:
         return token, expires_at
     
     @staticmethod
-    def decode_token(token: str) -> Optional[TokenPayload]:
+    async def decode_token(token: str) -> Optional[TokenPayload]:
         """Decode and validate a JWT token. Returns None if blacklisted or invalid."""
         try:
             payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
 
             # Check if the token has been blacklisted (logout)
             jti = payload.get("jti")
-            if jti and AuthService.is_token_blacklisted(jti):
+            if jti and await AuthService.is_token_blacklisted(jti):
                 return None
 
             return TokenPayload(
@@ -217,7 +218,7 @@ class AuthService:
 
     async def refresh_tokens(self, refresh_token: str, device_id: Optional[str] = None) -> Optional[TokenResponse]:
         """Refresh access token using refresh token."""
-        payload = self.decode_token(refresh_token)
+        payload = await self.decode_token(refresh_token)
         if not payload or payload.type != "refresh":
             return None
 
@@ -259,7 +260,7 @@ class AuthService:
             payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
             jti = payload.get("jti")
             if jti:
-                self.blacklist_token(jti)
+                await self.blacklist_token(jti)
         except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             # Even if the token is expired/invalid, nothing to blacklist
             pass

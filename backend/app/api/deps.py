@@ -100,7 +100,7 @@ async def get_current_user(
         )
     
     token = credentials.credentials
-    payload = AuthService.decode_token(token)
+    payload = await AuthService.decode_token(token)
     
     if not payload or payload.type != "access":
         raise HTTPException(
