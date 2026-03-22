@@ -89,25 +89,34 @@ export class HubSetupService {
             return;
         }
 
-        const savedState = this.loadState();
-        if (savedState && savedState !== STATES.CHECKING) {
-            this._setState(savedState);
-            return;
-        }
-
+        // Check if backend is already running (e.g. upgrade from older version)
         this._setState(STATES.CHECKING);
         const healthy = await this.checkBackendHealth();
 
         if (healthy) {
             const hubStatus = await this._fetchHubStatus();
-            if (hubStatus && hubStatus.setup_complete) {
+            if (hubStatus === null) {
+                // Hub endpoint doesn't exist — pre-v0.5.0 backend or unreachable.
+                // Backend is healthy so user already has a working setup. Mark complete.
+                localStorage.setItem(STORAGE_KEYS.SETUP_COMPLETE, 'true');
+                this._setState(STATES.READY);
+            } else if (hubStatus.setup_complete) {
                 this._setState(STATES.READY);
             } else {
                 this._setState(STATES.NEEDS_ACCOUNT);
             }
-        } else {
-            this._setState(STATES.WELCOME);
+            return;
         }
+
+        // No backend running — check if we have a saved state from a previous wizard run
+        const savedState = this.loadState();
+        if (savedState && savedState !== STATES.CHECKING && savedState !== STATES.READY) {
+            this._setState(savedState);
+            return;
+        }
+
+        // Fresh install: no backend, no saved state → show welcome wizard
+        this._setState(STATES.WELCOME);
     }
 
     async checkDocker() {
