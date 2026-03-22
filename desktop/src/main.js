@@ -8,6 +8,7 @@ import { initLocalDb, getLocalDb } from './services/local_db.js';
 import { initSyncService, getSyncService } from './services/sync.js';
 import { SecureStorage } from './services/secure_storage.js';
 import { AISetupWizard } from './services/ai_setup.js';
+import { HubSetupService, STATES } from './services/hub_setup.js';
 
 const CONFIG = {
   // Default API URL - can be overridden by user settings
@@ -5776,6 +5777,256 @@ function dismissAuthOverlay() {
 }
 
 // ============================================================================
+// Hub Setup Wizard
+// ============================================================================
+
+const WIZARD_STEP_PROGRESS = {
+  [STATES.CHECKING]:           { step: 0, total: 7 },
+  [STATES.WELCOME]:            { step: 1, total: 7 },
+  [STATES.DOCKER_CHECK]:       { step: 2, total: 7 },
+  [STATES.DOCKER_INSTALL]:     { step: 2, total: 7 },
+  [STATES.DOCKER_WAIT]:        { step: 2, total: 7 },
+  [STATES.STARTING_BACKEND]:   { step: 3, total: 7 },
+  [STATES.BACKEND_HEALTH_WAIT]:{ step: 3, total: 7 },
+  [STATES.NEEDS_ACCOUNT]:      { step: 4, total: 7 },
+  [STATES.AI_SETUP]:           { step: 5, total: 7 },
+  [STATES.REMOTE_ACCESS]:      { step: 6, total: 7 },
+  [STATES.QUICK_TUNNEL]:       { step: 6, total: 7 },
+  [STATES.PERMANENT_TUNNEL]:   { step: 6, total: 7 },
+  [STATES.DONE]:               { step: 7, total: 7 },
+  [STATES.READY]:              { step: 7, total: 7 },
+  [STATES.DISCOVER]:           { step: 1, total: 7 },
+  [STATES.CONNECT]:            { step: 1, total: 7 },
+  [STATES.DEVICE_APPROVE]:     { step: 2, total: 7 },
+  [STATES.LOGIN]:              { step: 3, total: 7 },
+};
+
+// Maps state names to the data-step attribute on wizard-step divs
+const STATE_TO_STEP = {
+  [STATES.WELCOME]:             'welcome',
+  [STATES.DOCKER_CHECK]:        'docker_check',
+  [STATES.DOCKER_INSTALL]:      'docker_check',
+  [STATES.DOCKER_WAIT]:         'docker_check',
+  [STATES.STARTING_BACKEND]:    'starting_backend',
+  [STATES.BACKEND_HEALTH_WAIT]: 'starting_backend',
+  [STATES.NEEDS_ACCOUNT]:       'needs_account',
+  [STATES.AI_SETUP]:            'ai_setup',
+  [STATES.REMOTE_ACCESS]:       'remote_access',
+  [STATES.QUICK_TUNNEL]:        'remote_access',
+  [STATES.PERMANENT_TUNNEL]:    'remote_access',
+  [STATES.DONE]:                'done',
+  [STATES.DISCOVER]:            'discover',
+  [STATES.CONNECT]:             'discover',
+  [STATES.DEVICE_APPROVE]:      'discover',
+  [STATES.LOGIN]:               'needs_account',
+};
+
+function renderWizardState(state, service) {
+  const overlay = document.getElementById('hub-wizard');
+  if (!overlay) return;
+
+  // If READY, hide wizard and reload the app to run full init with auth gate
+  if (state === STATES.READY) {
+    overlay.style.display = 'none';
+    // Re-run full init now that setup is complete
+    location.reload();
+    return;
+  }
+
+  // Show the wizard overlay
+  overlay.style.display = '';
+
+  // Hide all wizard steps, then show the active one
+  const steps = overlay.querySelectorAll('.wizard-step[data-step]');
+  const activeStep = STATE_TO_STEP[state];
+  steps.forEach(el => {
+    el.style.display = el.getAttribute('data-step') === activeStep ? '' : 'none';
+  });
+
+  // Update progress bar
+  const prog = WIZARD_STEP_PROGRESS[state] || { step: 0, total: 7 };
+  const pct = Math.round((prog.step / prog.total) * 100);
+  const fill = document.getElementById('wizard-progress-fill');
+  const text = document.getElementById('wizard-progress-text');
+  if (fill) fill.style.width = pct + '%';
+  if (text) text.textContent = `Step ${prog.step} of ${prog.total}`;
+
+  // Handle docker_check substates
+  if (state === STATES.DOCKER_CHECK) {
+    const icon = document.getElementById('docker-check-icon');
+    const actions = document.getElementById('docker-actions');
+    const readyActions = document.getElementById('docker-ready-actions');
+    if (icon) icon.textContent = '...';
+    if (actions) actions.style.display = 'none';
+    if (readyActions) readyActions.style.display = 'none';
+
+    // Run the docker check and update UI based on result
+    (async () => {
+      const result = await service.checkDocker();
+      if (result.installed) {
+        const running = await service.checkDockerRunning();
+        if (running.running) {
+          if (icon) icon.textContent = '\u2705';
+          if (readyActions) readyActions.style.display = '';
+        } else {
+          if (icon) icon.textContent = '\u26A0\uFE0F';
+          if (actions) actions.style.display = '';
+        }
+      } else {
+        if (icon) icon.textContent = '\u274C';
+        if (actions) actions.style.display = '';
+      }
+    })();
+  }
+}
+
+function renderWizardProgress(progress) {
+  // Update container status indicators
+  const statusIds = ['postgres', 'qdrant', 'redis', 'api', 'migrations'];
+  const statusIcons = { waiting: '...', starting: '\u23F3', running: '\u2705', done: '\u2705' };
+
+  if (progress.containerStatuses) {
+    for (const svc of statusIds) {
+      const row = document.getElementById('status-' + svc);
+      if (!row) continue;
+      const iconEl = row.querySelector('.wizard-status-icon');
+      if (!iconEl) continue;
+      const s = progress.containerStatuses[svc];
+      iconEl.textContent = statusIcons[s] || '...';
+    }
+  }
+
+  // Show/hide error
+  const errEl = document.getElementById('backend-error');
+  if (errEl) {
+    if (progress.error) {
+      errEl.textContent = progress.error;
+      errEl.style.display = '';
+    } else {
+      errEl.style.display = 'none';
+    }
+  }
+
+  // Update progress bar based on step
+  if (progress.step != null && progress.totalSteps) {
+    const pct = Math.round((progress.step / progress.totalSteps) * 100);
+    const fill = document.getElementById('wizard-progress-fill');
+    const text = document.getElementById('wizard-progress-text');
+    if (fill) fill.style.width = pct + '%';
+    if (text) text.textContent = `Step ${progress.step} of ${progress.totalSteps}`;
+  }
+}
+
+function wireWizardEvents(hubSetup) {
+  // Welcome buttons
+  const btnSetupHub = document.getElementById('btn-setup-hub');
+  if (btnSetupHub) {
+    btnSetupHub.addEventListener('click', async () => {
+      hubSetup._setState(STATES.DOCKER_CHECK);
+    });
+  }
+
+  const btnConnectHub = document.getElementById('btn-connect-hub');
+  if (btnConnectHub) {
+    btnConnectHub.addEventListener('click', () => {
+      hubSetup._setState(STATES.DISCOVER);
+    });
+  }
+
+  // Docker buttons
+  const btnDockerAuto = document.getElementById('btn-docker-auto');
+  if (btnDockerAuto) {
+    btnDockerAuto.addEventListener('click', () => hubSetup.installDocker(true));
+  }
+
+  const btnDockerManual = document.getElementById('btn-docker-manual');
+  if (btnDockerManual) {
+    btnDockerManual.addEventListener('click', () => hubSetup.installDocker(false));
+  }
+
+  const btnDockerRecheck = document.getElementById('btn-docker-recheck');
+  if (btnDockerRecheck) {
+    btnDockerRecheck.addEventListener('click', () => {
+      hubSetup._setState(STATES.DOCKER_CHECK);
+    });
+  }
+
+  const btnDockerContinue = document.getElementById('btn-docker-continue');
+  if (btnDockerContinue) {
+    btnDockerContinue.addEventListener('click', () => hubSetup.startBackend());
+  }
+
+  // Account form
+  const accountForm = document.getElementById('account-form');
+  if (accountForm) {
+    accountForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('wizard-username').value.trim();
+      const password = document.getElementById('wizard-password').value;
+      const errEl = document.getElementById('account-error');
+      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+
+      try {
+        await hubSetup.createAccount(username, password);
+        hubSetup._setState(STATES.AI_SETUP);
+      } catch (err) {
+        if (errEl) {
+          errEl.textContent = err.message || 'Account creation failed';
+          errEl.style.display = '';
+        }
+      }
+    });
+  }
+
+  // AI setup buttons
+  const btnAiContinue = document.getElementById('btn-ai-continue');
+  if (btnAiContinue) {
+    btnAiContinue.addEventListener('click', () => hubSetup._setState(STATES.REMOTE_ACCESS));
+  }
+
+  const btnAiSkip = document.getElementById('btn-ai-skip');
+  if (btnAiSkip) {
+    btnAiSkip.addEventListener('click', () => hubSetup._setState(STATES.REMOTE_ACCESS));
+  }
+
+  // Remote access options
+  const optQuickTunnel = document.getElementById('opt-quick-tunnel');
+  if (optQuickTunnel) {
+    optQuickTunnel.addEventListener('click', () => hubSetup.startQuickTunnel());
+  }
+
+  const optSkipRemote = document.getElementById('opt-skip-remote');
+  if (optSkipRemote) {
+    optSkipRemote.addEventListener('click', () => hubSetup._setState(STATES.DONE));
+  }
+
+  // Done button
+  const btnEnterAion = document.getElementById('btn-enter-aion');
+  if (btnEnterAion) {
+    btnEnterAion.addEventListener('click', () => hubSetup.markComplete());
+  }
+
+  // Connect to hub
+  const btnConnectUrl = document.getElementById('btn-connect-url');
+  if (btnConnectUrl) {
+    btnConnectUrl.addEventListener('click', async () => {
+      const urlInput = document.getElementById('hub-url-input');
+      const url = (urlInput ? urlInput.value : '').trim();
+      if (!url) return;
+      const ok = await hubSetup.connectToHub(url);
+      if (ok) {
+        hubSetup._setState(STATES.LOGIN);
+      }
+    });
+  }
+
+  const btnBackWelcome = document.getElementById('btn-back-welcome');
+  if (btnBackWelcome) {
+    btnBackWelcome.addEventListener('click', () => hubSetup._setState(STATES.WELCOME));
+  }
+}
+
+// ============================================================================
 // Init
 // ============================================================================
 
@@ -5861,6 +6112,21 @@ async function init() {
     ghostExitBtn.addEventListener('click', () => {
       toggleClickThroughMode();
     });
+  }
+
+  // ── Hub setup wizard ──────────────────────────────────────────────
+  // Must run before auth gate: the wizard is needed when there is no
+  // backend running at all.
+  const hubSetup = new HubSetupService();
+  hubSetup.onStateChange((newState) => renderWizardState(newState, hubSetup));
+  hubSetup.onProgress((progress) => renderWizardProgress(progress));
+  await hubSetup.initialize();
+
+  if (hubSetup.state !== STATES.READY) {
+    renderWizardState(hubSetup.state, hubSetup);
+    wireWizardEvents(hubSetup);
+    document.body.classList.add('overlay-ready');
+    return;
   }
 
   // ── Auth gate ─────────────────────────────────────────────────────
