@@ -73,7 +73,10 @@ class _ServerConnectionScreenState extends ConsumerState<ServerConnectionScreen>
       
       // Test connection with a simple endpoint
       final response = await client.get('/ai/status');
-      
+      if (response.statusCode != null && response.statusCode! >= 400) {
+        throw Exception('Server returned status ${response.statusCode}');
+      }
+
       // Save successful URL
       await AppConfig.setServerUrl(url);
 

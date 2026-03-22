@@ -5803,6 +5803,7 @@ const WIZARD_STEP_PROGRESS = {
 
 // Maps state names to the data-step attribute on wizard-step divs
 const STATE_TO_STEP = {
+  [STATES.CHECKING]:            'checking',
   [STATES.WELCOME]:             'welcome',
   [STATES.DOCKER_CHECK]:        'docker_check',
   [STATES.DOCKER_INSTALL]:      'docker_check',

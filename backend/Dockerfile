@@ -46,9 +46,10 @@ RUN chmod +x /app/entrypoint.sh
 
 USER aion
 
-# Copy wheels and install
+# Copy wheels and requirements, install from wheels
 COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache-dir --user /wheels/*
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --user --find-links=/wheels -r /app/requirements.txt
 
 # Copy application code
 COPY --chown=aion:aion . .
@@ -63,8 +64,8 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live || exit 1
 
 # Run the application
 ENTRYPOINT ["/app/entrypoint.sh"]

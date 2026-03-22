@@ -385,9 +385,10 @@ Structure your response as:
             difficulty: easy, medium, hard, mixed
             notes_content: Optional notes to base flashcards on
         """
+        notes_section = f"Based on these notes:\n{notes_content[:2000]}" if notes_content else ""
         prompt = f"""Create {count} flashcards for: {topic}
 
-{"Based on these notes:\n" + notes_content[:2000] if notes_content else ""}
+{notes_section}
 
 Difficulty: {difficulty}
 

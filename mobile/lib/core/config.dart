@@ -28,7 +28,9 @@ class AppConfig {
         return 'http://10.0.2.2:8000/api/v1';
       } else {
         // For physical devices, users must configure the server URL
-        return 'http://192.168.1.100:8000/api/v1';
+        // Physical device: user MUST configure server URL via connection screen.
+        // Use localhost as placeholder — connection screen will prompt for IP.
+        return 'http://localhost:8000/api/v1';
       }
     }
     
@@ -38,7 +40,9 @@ class AppConfig {
       if (_isEmulator) {
         return 'http://localhost:8000/api/v1';
       } else {
-        return 'http://192.168.1.100:8000/api/v1';
+        // Physical device: user MUST configure server URL via connection screen.
+        // Use localhost as placeholder — connection screen will prompt for IP.
+        return 'http://localhost:8000/api/v1';
       }
     }
     

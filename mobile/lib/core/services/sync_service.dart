@@ -369,7 +369,7 @@ class RestSyncService {
         lastSyncTime: _lastSyncTime,
       );
       
-      _updateState(result.conflicts.isNotEmpty ? SyncState.synced : SyncState.synced);
+      _updateState(result.conflicts.isNotEmpty ? SyncState.error : SyncState.synced);
       return result;
       
     } catch (e) {

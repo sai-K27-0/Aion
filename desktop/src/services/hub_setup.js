@@ -83,6 +83,14 @@ export class HubSetupService {
     }
 
     async initialize() {
+        // Version check: clear stale wizard state on upgrade
+        const wizardVersion = localStorage.getItem('aion_wizard_version');
+        if (wizardVersion !== '0.5.0') {
+            localStorage.removeItem(STORAGE_KEYS.STATE);
+            localStorage.removeItem(STORAGE_KEYS.SETUP_COMPLETE);
+            localStorage.setItem('aion_wizard_version', '0.5.0');
+        }
+
         const setupComplete = localStorage.getItem(STORAGE_KEYS.SETUP_COMPLETE);
         if (setupComplete === 'true') {
             this._setState(STATES.READY);
@@ -111,7 +119,13 @@ export class HubSetupService {
         // No backend running — check if we have a saved state from a previous wizard run
         const savedState = this.loadState();
         if (savedState && savedState !== STATES.CHECKING && savedState !== STATES.READY) {
-            this._setState(savedState);
+            // For states that need active work, restart from the right point
+            if (savedState === STATES.STARTING_BACKEND || savedState === STATES.BACKEND_HEALTH_WAIT) {
+                // Backend was being started but isn't running — go back to docker check
+                this._setState(STATES.DOCKER_CHECK);
+            } else {
+                this._setState(savedState);
+            }
             return;
         }
 
@@ -182,13 +196,19 @@ export class HubSetupService {
             }
         }
 
-        const composePath = this._getComposePath();
+        const composePath = await this._getComposePath();
+        console.log('[Hub] Using compose path:', composePath);
 
         try {
-            await window.__TAURI__.core.invoke('start_docker_compose', {
+            const composeResult = await window.__TAURI__.core.invoke('start_docker_compose', {
                 composePath,
                 envVars: { SECRET_KEY: secretKey },
             });
+            console.log('[Hub] Docker compose result:', composeResult);
+            if (composeResult && !composeResult.success) {
+                this._setProgress({ error: `Docker Compose failed: ${composeResult.error || composeResult.stderr || 'Unknown error'}` });
+                return false;
+            }
         } catch (e) {
             this._setProgress({ error: `Failed to start: ${e}` });
             return false;
@@ -198,9 +218,23 @@ export class HubSetupService {
         return true;
     }
 
-    _getComposePath() {
+    async _getComposePath() {
         const saved = localStorage.getItem(STORAGE_KEYS.COMPOSE_PATH);
         if (saved) return saved;
+
+        // Ask Rust to find the compose file
+        try {
+            const result = await window.__TAURI__.core.invoke('find_compose_file');
+            if (result.found) {
+                localStorage.setItem(STORAGE_KEYS.COMPOSE_PATH, result.path);
+                return result.path;
+            }
+            console.warn('[Hub] compose file not found:', result.searched);
+        } catch (e) {
+            console.warn('[Hub] find_compose_file failed:', e);
+        }
+
+        // Fallback
         return 'backend/docker-compose.yml';
     }
 

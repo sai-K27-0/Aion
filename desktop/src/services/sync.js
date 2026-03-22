@@ -450,9 +450,10 @@ let syncServiceInstance = null;
 /**
  * Get the SyncService singleton.
  */
-export function getSyncService(serverUrl = 'http://localhost:8000') {
+export function getSyncService(serverUrl) {
+    const url = serverUrl || _resolveServerBaseUrl();
     if (!syncServiceInstance) {
-        syncServiceInstance = new SyncService(serverUrl);
+        syncServiceInstance = new SyncService(url);
     }
     return syncServiceInstance;
 }
@@ -460,10 +461,17 @@ export function getSyncService(serverUrl = 'http://localhost:8000') {
 /**
  * Initialize the sync service.
  */
-export async function initSyncService(serverUrl = 'http://localhost:8000') {
+export async function initSyncService(serverUrl) {
     const service = getSyncService(serverUrl);
     await service.init();
     return service;
+}
+
+/** Derive the base server URL (no /api/v1) from the stored config or default. */
+function _resolveServerBaseUrl() {
+    const stored = localStorage.getItem('aion_server_url');
+    if (stored) return stored.replace(/\/api\/v1\/?$/, '');
+    return 'http://localhost:8000';
 }
 
 export default SyncService;

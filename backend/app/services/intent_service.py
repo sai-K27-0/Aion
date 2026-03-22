@@ -41,46 +41,44 @@ class IntentService:
         from datetime import datetime
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        system_prompt = f"""You are the Intent Parser for Aion, a personal OS.
-Current System Time: {current_time}
-Your job is to translate user natural language into structured system actions.
-
-Available Actions:
-1. create_block: For creating notes, lists, or entities.
-   Params: name (str), description (str), parent_id (str, optional), block_type (str: 'note', 'task', 'event', 'project')
-2. schedule_event: For calendar-related items.
-   Params: title (str), start_time (ISO string), end_time (ISO string), description (str)
-3. search: For finding information.
-   Params: query (str), filter_type (str, optional)
-4. open_app: For system control.
-   Params: app_name (str)
-5. web_search: For researching information online when local data is insufficient.
-   Params: query (str), reason (str)
-6. browser_task: For autonomous web automation (finding info, signing up, navigating).
-   Params: task (str: "Log into site X and...", "Find the latest news on Y")
-7. focus_mode: For preparing a specific work session by opening relevant tabs.
-   Params: topic (str), urls (list of str, optional)
-
-User Input Example: "Who is the current CEO of Google?"
-Output JSON:
-{
-  "actions": [
-    {
-      "action_type": "web_search",
-      "parameters": {
-        "query": "current CEO of Google",
-        "reason": "User is asking for factual information that might have changed."
-      },
-      "confidence": 0.98,
-      "reasoning": "This is a factual question that requires up-to-date information from the internet."
-    }
-  ],
-  "primary_intent": "research",
-  "summary": "Searching for the current CEO of Google."
-}
-
-Respond ONLY with raw JSON. If no action is clear, return an empty actions list.
-"""
+        system_prompt = (
+            f"You are the Intent Parser for Aion, a personal OS.\n"
+            f"Current System Time: {current_time}\n"
+            "Your job is to translate user natural language into structured system actions.\n\n"
+            "Available Actions:\n"
+            "1. create_block: For creating notes, lists, or entities.\n"
+            "   Params: name (str), description (str), parent_id (str, optional), block_type (str: 'note', 'task', 'event', 'project')\n"
+            "2. schedule_event: For calendar-related items.\n"
+            "   Params: title (str), start_time (ISO string), end_time (ISO string), description (str)\n"
+            "3. search: For finding information.\n"
+            "   Params: query (str), filter_type (str, optional)\n"
+            "4. open_app: For system control.\n"
+            "   Params: app_name (str)\n"
+            "5. web_search: For researching information online when local data is insufficient.\n"
+            "   Params: query (str), reason (str)\n"
+            "6. browser_task: For autonomous web automation (finding info, signing up, navigating).\n"
+            '   Params: task (str: "Log into site X and...", "Find the latest news on Y")\n'
+            "7. focus_mode: For preparing a specific work session by opening relevant tabs.\n"
+            "   Params: topic (str), urls (list of str, optional)\n\n"
+            'User Input Example: "Who is the current CEO of Google?"\n'
+            "Output JSON:\n"
+            '{\n'
+            '  "actions": [\n'
+            '    {\n'
+            '      "action_type": "web_search",\n'
+            '      "parameters": {\n'
+            '        "query": "current CEO of Google",\n'
+            '        "reason": "User is asking for factual information that might have changed."\n'
+            '      },\n'
+            '      "confidence": 0.98,\n'
+            '      "reasoning": "This is a factual question that requires up-to-date information from the internet."\n'
+            '    }\n'
+            '  ],\n'
+            '  "primary_intent": "research",\n'
+            '  "summary": "Searching for the current CEO of Google."\n'
+            '}\n\n'
+            "Respond ONLY with raw JSON. If no action is clear, return an empty actions list."
+        )
         
         full_prompt = f"User Message: {message}"
         if context:

@@ -1,38 +1,85 @@
 use serde_json::{json, Value as JsonValue};
 use std::process::Command;
 
-#[tauri::command]
-pub fn check_docker_installed() -> Result<JsonValue, String> {
-    let version_output = Command::new("docker")
+/// Find the docker executable, trying PATH first, then common install locations.
+fn find_docker() -> Option<String> {
+    // Try PATH first
+    let try_path = Command::new("docker")
         .arg("--version")
         .output();
-
-    let (installed, version) = match version_output {
-        Ok(output) if output.status.success() => {
-            (true, String::from_utf8_lossy(&output.stdout).trim().to_string())
+    if let Ok(output) = &try_path {
+        if output.status.success() {
+            return Some("docker".to_string());
         }
-        _ => (false, String::new()),
+    }
+
+    // Windows: try common install locations
+    #[cfg(target_os = "windows")]
+    {
+        let candidates = [
+            r"C:\Program Files\Docker\Docker\resources\bin\docker.exe",
+            r"C:\Program Files (x86)\Docker\Docker\resources\bin\docker.exe",
+        ];
+        for path in &candidates {
+            if std::path::Path::new(path).exists() {
+                return Some(path.to_string());
+            }
+        }
+    }
+
+    None
+}
+
+#[tauri::command]
+pub fn check_docker_installed() -> Result<JsonValue, String> {
+    let docker = find_docker();
+
+    let (installed, version) = match &docker {
+        Some(docker_path) => {
+            let version_output = Command::new(docker_path)
+                .arg("--version")
+                .output();
+            match version_output {
+                Ok(output) if output.status.success() => {
+                    (true, String::from_utf8_lossy(&output.stdout).trim().to_string())
+                }
+                _ => (false, String::new()),
+            }
+        }
+        None => (false, String::new()),
     };
 
-    let compose_installed = Command::new("docker")
-        .args(["compose", "version"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let compose_installed = match &docker {
+        Some(docker_path) => {
+            Command::new(docker_path)
+                .args(["compose", "version"])
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        }
+        None => false,
+    };
 
     Ok(json!({
         "installed": installed && compose_installed,
         "version": version,
+        "docker_path": docker,
     }))
 }
 
 #[tauri::command]
 pub fn check_docker_running() -> Result<JsonValue, String> {
-    let running = Command::new("docker")
-        .arg("info")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let docker = find_docker();
+    let running = match &docker {
+        Some(docker_path) => {
+            Command::new(docker_path)
+                .arg("info")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+        }
+        None => false,
+    };
 
     Ok(json!({ "running": running }))
 }
@@ -48,7 +95,7 @@ pub fn install_docker() -> Result<JsonValue, String> {
 
     let download = Command::new("powershell")
         .args([
-            "-Command",
+            "-NoProfile", "-Command",
             &format!(
                 "Invoke-WebRequest -Uri '{}' -OutFile '{}'",
                 url,
@@ -67,7 +114,7 @@ pub fn install_docker() -> Result<JsonValue, String> {
 
     let install = Command::new("powershell")
         .args([
-            "-Command",
+            "-NoProfile", "-Command",
             &format!(
                 "Start-Process '{}' -ArgumentList 'install','--quiet','--accept-license' -Verb RunAs -Wait",
                 installer_path.display()
@@ -141,13 +188,71 @@ pub fn start_docker_desktop() -> Result<JsonValue, String> {
     }
 }
 
+/// Find the docker-compose.yml file by walking up from the executable location.
+#[tauri::command]
+pub fn find_compose_file() -> Result<JsonValue, String> {
+    let exe_path = std::env::current_exe().unwrap_or_default();
+    let mut searched = Vec::new();
+
+    // Walk up from the exe directory looking for backend/docker-compose.yml
+    let mut dir = exe_path.parent();
+    while let Some(current) = dir {
+        let candidate = current.join("backend").join("docker-compose.yml");
+        searched.push(candidate.to_string_lossy().to_string());
+        if candidate.exists() {
+            // Return the parent directory (project root) so we can use
+            // `docker compose` with the working directory set correctly.
+            // Avoid canonicalize() on Windows — it adds \\?\ prefix which
+            // breaks Docker volume mounts (colon in C: conflicts).
+            let project_root = current.to_string_lossy().to_string();
+            return Ok(json!({
+                "found": true,
+                "path": format!("{}/backend/docker-compose.yml", project_root.replace('\\', "/")),
+                "project_root": project_root.replace('\\', "/"),
+            }));
+        }
+        dir = current.parent();
+    }
+
+    // Also check CWD
+    let cwd_candidate = std::path::PathBuf::from("backend/docker-compose.yml");
+    searched.push(cwd_candidate.to_string_lossy().to_string());
+    if cwd_candidate.exists() {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        return Ok(json!({
+            "found": true,
+            "path": "backend/docker-compose.yml",
+            "project_root": cwd.to_string_lossy().to_string().replace('\\', "/"),
+        }));
+    }
+
+    Ok(json!({
+        "found": false,
+        "error": "docker-compose.yml not found. Please ensure the backend directory is accessible.",
+        "searched": searched,
+    }))
+}
+
 #[tauri::command]
 pub fn start_docker_compose(
     compose_path: String,
     env_vars: Option<std::collections::HashMap<String, String>>,
 ) -> Result<JsonValue, String> {
-    let mut cmd = Command::new("docker");
-    cmd.args(["compose", "-f", &compose_path, "up", "-d"]);
+    let docker = find_docker().unwrap_or_else(|| "docker".to_string());
+    let compose_file = std::path::Path::new(&compose_path);
+    let mut cmd = Command::new(&docker);
+
+    // Set working directory to compose file's parent to avoid Windows path issues
+    if let Some(parent) = compose_file.parent() {
+        if parent.exists() {
+            cmd.current_dir(parent);
+            cmd.args(["compose", "up", "-d", "--build"]);
+        } else {
+            cmd.args(["compose", "-f", &compose_path, "up", "-d", "--build"]);
+        }
+    } else {
+        cmd.args(["compose", "-f", &compose_path, "up", "-d", "--build"]);
+    }
 
     if let Some(vars) = env_vars {
         for (key, value) in vars {
@@ -157,22 +262,28 @@ pub fn start_docker_compose(
 
     let output = cmd.output().map_err(|e| format!("Failed to start: {}", e))?;
     let success = output.status.success();
-    let error_msg = if success {
-        None
-    } else {
-        Some(String::from_utf8_lossy(&output.stderr).to_string())
-    };
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
     Ok(json!({
         "success": success,
-        "error": error_msg,
+        "error": if success { None } else { Some(&stderr) },
+        "stdout": stdout,
+        "stderr": stderr,
     }))
 }
 
 #[tauri::command]
 pub fn stop_docker_compose(compose_path: String) -> Result<JsonValue, String> {
-    let output = Command::new("docker")
-        .args(["compose", "-f", &compose_path, "down"])
+    let docker = find_docker().unwrap_or_else(|| "docker".to_string());
+    let compose_file = std::path::Path::new(&compose_path);
+    let mut cmd = Command::new(&docker);
+    if let Some(parent) = compose_file.parent() {
+        if parent.exists() {
+            cmd.current_dir(parent);
+        }
+    }
+    let output = cmd.args(["compose", "down"])
         .output()
         .map_err(|e| format!("Failed to stop: {}", e))?;
 
@@ -181,8 +292,15 @@ pub fn stop_docker_compose(compose_path: String) -> Result<JsonValue, String> {
 
 #[tauri::command]
 pub fn get_docker_compose_status(compose_path: String) -> Result<JsonValue, String> {
-    let output = Command::new("docker")
-        .args(["compose", "-f", &compose_path, "ps", "--format", "json"])
+    let docker = find_docker().unwrap_or_else(|| "docker".to_string());
+    let compose_file = std::path::Path::new(&compose_path);
+    let mut cmd = Command::new(&docker);
+    if let Some(parent) = compose_file.parent() {
+        if parent.exists() {
+            cmd.current_dir(parent);
+        }
+    }
+    let output = cmd.args(["compose", "ps", "--format", "json"])
         .output()
         .map_err(|e| format!("Failed to get status: {}", e))?;
 

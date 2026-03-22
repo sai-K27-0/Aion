@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../config.dart';
@@ -7,6 +8,9 @@ part 'api_client.g.dart';
 
 @riverpod
 Dio dio(DioRef ref) {
+  // Mutex to prevent concurrent token refresh attempts
+  Completer<bool>? refreshCompleter;
+
   final dio = Dio(
     BaseOptions(
       baseUrl: AppConfig.defaultBaseUrl,
@@ -32,10 +36,25 @@ Dio dio(DioRef ref) {
       if (error.response?.statusCode != 401) {
         return handler.next(error);
       }
+
+      // If another request is already refreshing, wait for it
+      if (refreshCompleter != null) {
+        final success = await refreshCompleter!.future;
+        if (success) {
+          final token = await SecureStorageService.instance.getAccessToken();
+          error.requestOptions.headers['Authorization'] = 'Bearer $token';
+          final retry = await dio.fetch(error.requestOptions);
+          return handler.resolve(retry);
+        }
+        return handler.next(error);
+      }
+
       final refreshToken = await SecureStorageService.instance.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
         return handler.next(error);
       }
+
+      refreshCompleter = Completer<bool>();
       try {
         final res = await dio.post(
           '/auth/refresh',
@@ -51,11 +70,15 @@ Dio dio(DioRef ref) {
         if (data['user_id'] != null) {
           await SecureStorageService.instance.setUserId(data['user_id'] as String);
         }
+        refreshCompleter!.complete(true);
+        refreshCompleter = null;
         final opts = error.requestOptions;
         opts.headers['Authorization'] = 'Bearer ${data['access_token']}';
         final retry = await dio.fetch(opts);
         return handler.resolve(retry);
       } catch (_) {
+        refreshCompleter!.complete(false);
+        refreshCompleter = null;
         return handler.next(error);
       }
     },

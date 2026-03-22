@@ -795,6 +795,7 @@ fn main() {
             docker::stop_docker_compose,
             docker::get_docker_compose_status,
             docker::check_backend_health,
+            docker::find_compose_file,
             cloudflare::check_cloudflared,
             cloudflare::install_cloudflared,
             cloudflare::start_quick_tunnel,
