@@ -5858,10 +5858,18 @@ function renderWizardState(state, service) {
   // Handle docker_check substates
   if (state === STATES.DOCKER_CHECK) {
     const icon = document.getElementById('docker-check-icon');
+    const label = document.getElementById('docker-check-label');
+    const helpText = document.getElementById('docker-help-text');
     const actions = document.getElementById('docker-actions');
+    const startActions = document.getElementById('docker-start-actions');
+    const installingEl = document.getElementById('docker-installing');
     const readyActions = document.getElementById('docker-ready-actions');
     if (icon) icon.textContent = '...';
+    if (label) label.textContent = 'Checking Docker installation';
+    if (helpText) helpText.style.display = 'none';
     if (actions) actions.style.display = 'none';
+    if (startActions) startActions.style.display = 'none';
+    if (installingEl) installingEl.style.display = 'none';
     if (readyActions) readyActions.style.display = 'none';
 
     // Run the docker check and update UI based on result
@@ -5871,13 +5879,24 @@ function renderWizardState(state, service) {
         const running = await service.checkDockerRunning();
         if (running.running) {
           if (icon) icon.textContent = '\u2705';
+          if (label) label.textContent = 'Docker is installed and running';
           if (readyActions) readyActions.style.display = '';
         } else {
           if (icon) icon.textContent = '\u26A0\uFE0F';
-          if (actions) actions.style.display = '';
+          if (label) label.textContent = 'Docker is installed but not running';
+          if (helpText) {
+            helpText.textContent = 'Docker Desktop needs to be started. Click below to launch it, then wait for it to finish starting up.';
+            helpText.style.display = '';
+          }
+          if (startActions) startActions.style.display = '';
         }
       } else {
         if (icon) icon.textContent = '\u274C';
+        if (label) label.textContent = 'Docker is not installed';
+        if (helpText) {
+          helpText.textContent = 'Docker Desktop is required to run Aion\'s backend services. You can install it automatically or download it manually.';
+          helpText.style.display = '';
+        }
         if (actions) actions.style.display = '';
       }
     })();
@@ -5940,7 +5959,29 @@ function wireWizardEvents(hubSetup) {
   // Docker buttons
   const btnDockerAuto = document.getElementById('btn-docker-auto');
   if (btnDockerAuto) {
-    btnDockerAuto.addEventListener('click', () => hubSetup.installDocker(true));
+    btnDockerAuto.addEventListener('click', async () => {
+      // Show installing progress
+      const actions = document.getElementById('docker-actions');
+      const installingEl = document.getElementById('docker-installing');
+      const icon = document.getElementById('docker-check-icon');
+      const label = document.getElementById('docker-check-label');
+      if (actions) actions.style.display = 'none';
+      if (installingEl) installingEl.style.display = '';
+      if (icon) icon.textContent = '\u23F3';
+      if (label) label.textContent = 'Installing Docker Desktop...';
+
+      const result = await hubSetup.installDocker(true);
+      if (result.success) {
+        // Re-check after install
+        hubSetup._setState(STATES.DOCKER_CHECK);
+      } else {
+        if (installingEl) installingEl.style.display = 'none';
+        if (actions) actions.style.display = '';
+        if (icon) icon.textContent = '\u274C';
+        if (label) label.textContent = 'Docker install failed';
+        hubSetup._setProgress({ error: result.error || 'Docker installation failed. Try downloading manually.' });
+      }
+    });
   }
 
   const btnDockerManual = document.getElementById('btn-docker-manual');
@@ -5951,6 +5992,37 @@ function wireWizardEvents(hubSetup) {
   const btnDockerRecheck = document.getElementById('btn-docker-recheck');
   if (btnDockerRecheck) {
     btnDockerRecheck.addEventListener('click', () => {
+      hubSetup._setState(STATES.DOCKER_CHECK);
+    });
+  }
+
+  // "Start Docker Desktop" button — launches Docker Desktop and polls until ready
+  const btnDockerStart = document.getElementById('btn-docker-start');
+  if (btnDockerStart) {
+    btnDockerStart.addEventListener('click', async () => {
+      btnDockerStart.disabled = true;
+      btnDockerStart.textContent = 'Starting Docker Desktop...';
+      try {
+        await window.__TAURI__.core.invoke('start_docker_desktop');
+      } catch (e) { /* may fail if already starting */ }
+      // Poll until Docker daemon is ready (up to 60s)
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const running = await hubSetup.checkDockerRunning();
+        if (running.running) {
+          hubSetup._setState(STATES.DOCKER_CHECK); // re-check — will now show ✅
+          return;
+        }
+      }
+      btnDockerStart.textContent = 'Start Docker Desktop';
+      btnDockerStart.disabled = false;
+      hubSetup._setProgress({ error: 'Docker Desktop did not start in time. Please start it manually and click Re-check.' });
+    });
+  }
+
+  const btnDockerRecheck2 = document.getElementById('btn-docker-recheck2');
+  if (btnDockerRecheck2) {
+    btnDockerRecheck2.addEventListener('click', () => {
       hubSetup._setState(STATES.DOCKER_CHECK);
     });
   }

@@ -789,6 +789,7 @@ fn main() {
             check_ollama_local,
             docker::check_docker_installed,
             docker::check_docker_running,
+            docker::start_docker_desktop,
             docker::install_docker,
             docker::start_docker_compose,
             docker::stop_docker_compose,

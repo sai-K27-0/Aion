@@ -63,14 +63,26 @@
         <div class="wizard-status-box" id="docker-status-box">
           <div class="wizard-status-row">
             <span class="wizard-status-icon" id="docker-check-icon">...</span>
-            <span>Checking Docker installation</span>
+            <span id="docker-check-label">Checking Docker installation</span>
           </div>
         </div>
+        <p class="wizard-text" id="docker-help-text" style="display:none;"></p>
+        <!-- Not installed -->
         <div class="wizard-actions" id="docker-actions" style="display:none;">
           <button class="wizard-btn wizard-btn-primary" id="btn-docker-auto">Auto-Install Docker</button>
           <button class="wizard-btn wizard-btn-secondary" id="btn-docker-manual">Download Manually</button>
           <button class="wizard-btn wizard-btn-secondary" id="btn-docker-recheck">Re-check</button>
         </div>
+        <!-- Installed but daemon not running -->
+        <div class="wizard-actions" id="docker-start-actions" style="display:none;">
+          <button class="wizard-btn wizard-btn-primary" id="btn-docker-start">Start Docker Desktop</button>
+          <button class="wizard-btn wizard-btn-secondary" id="btn-docker-recheck2">Re-check</button>
+        </div>
+        <!-- Installing (progress) -->
+        <div class="wizard-actions" id="docker-installing" style="display:none;">
+          <p class="wizard-text">Downloading and installing Docker Desktop... This may take a few minutes.</p>
+        </div>
+        <!-- Ready -->
         <div class="wizard-actions" id="docker-ready-actions" style="display:none;">
           <button class="wizard-btn wizard-btn-primary" id="btn-docker-continue">Continue</button>
         </div>

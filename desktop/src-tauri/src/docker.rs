@@ -98,6 +98,49 @@ pub fn install_docker() -> Result<JsonValue, String> {
     }))
 }
 
+/// Launch Docker Desktop application (non-blocking).
+#[tauri::command]
+pub fn start_docker_desktop() -> Result<JsonValue, String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Try common Docker Desktop install paths
+        let paths = [
+            r"C:\Program Files\Docker\Docker\Docker Desktop.exe",
+            r"C:\Program Files (x86)\Docker\Docker\Docker Desktop.exe",
+        ];
+        for path in &paths {
+            if std::path::Path::new(path).exists() {
+                Command::new(path)
+                    .spawn()
+                    .map_err(|e| format!("Failed to start Docker Desktop: {}", e))?;
+                return Ok(json!({ "success": true }));
+            }
+        }
+        // Fallback: try via shell
+        let _ = Command::new("cmd")
+            .args(["/C", "start", "", "Docker Desktop"])
+            .spawn();
+        return Ok(json!({ "success": true, "fallback": true }));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = Command::new("open")
+            .args(["-a", "Docker"])
+            .spawn()
+            .map_err(|e| format!("Failed to start Docker: {}", e))?;
+        return Ok(json!({ "success": true }));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let _ = Command::new("systemctl")
+            .args(["--user", "start", "docker-desktop"])
+            .spawn();
+        return Ok(json!({ "success": true }));
+    }
+}
+
 #[tauri::command]
 pub fn start_docker_compose(
     compose_path: String,
