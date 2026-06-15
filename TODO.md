@@ -5,6 +5,60 @@
 
 ---
 
+## Priority Order
+
+### P1 — Fix now (bugs / security / data integrity)
+
+1. **Block hard deletes** — data loss risk; `block_service.delete_block` must soft-delete + cascade (`backend/app/services/block_service.py:201`)
+2. **Logout + token blacklist** — security gap; users can't invalidate sessions (`backend/app/services/token_blacklist_service.py`)
+3. **Auth rate limiting** — brute-force exposure on `/auth/login` and `/auth/register`
+4. **Ghost mode race condition** — Rust must own `setIgnoreCursorEvents`; remove duplicate call in JS (`desktop/src-tauri/src/main.rs:112`, `desktop/src/main.js:1676`)
+5. **Settings tab navigation** — broken UX; click handlers don't reliably switch panes (`desktop/src/main.js:4117+`)
+
+### P2 — Backend foundations (everything else depends on these)
+
+6. **SystemSettings model + migration** — required by hub endpoints, registration lock, tunnel config
+7. **Registration lock logic** — first user → superuser + auto-lock; unblocks hub wizard (`backend/app/services/auth_service.py`)
+8. **Hub endpoints** — `/hub/status`, `/hub/registration-status`, `/hub/setup-complete` (`backend/app/api/v1/endpoints/hub.py`)
+9. **Real-IP utility** — `get_real_ip()` shared by rate limiter + auth endpoints (`backend/app/utils/request.py`)
+10. **Redis URL config property** — needed by token blacklist service (`backend/app/config.py`)
+11. **Device service async rewrite** — required by hub device-pair flow (`backend/app/services/device_service.py`)
+12. **Docker entrypoint** — `entrypoint.sh` for reliable container startup + migrations (`backend/entrypoint.sh`)
+
+### P3 — Core user-facing features
+
+13. **Multi-method auth fields** — `auth_provider`, `email_verified`, `oauth_provider_id` on `User` model + migration
+14. **First-time sign-in overlay** — desktop auth UI; prerequisite for all authenticated features
+15. **Docker management Rust commands** — `check_docker_installed`, `start_docker_compose`, `check_backend_health`, etc.
+16. **Cloudflare tunnel Rust commands** — `check_cloudflared`, `install_cloudflared`, `start_quick_tunnel`
+17. **HubSetupService state machine** — JS orchestration layer for wizard (`desktop/src/services/hub_setup.js`)
+18. **Wizard HTML + CSS + main.js wiring** — full 7-step hub setup UI
+19. **AIBlockService + `/ai/smart-action`** — autonomous block creation from natural language
+20. **Desktop AI input → smart-action** — wire orb chat to the new endpoint
+
+### P4 — Polish & infrastructure
+
+21. **Ghost mode exit button + visual feedback** — panels dim to 25%, always-clickable exit triangle
+22. **AI provider settings UI** — Ollama / OpenAI / Anthropic selector in settings
+23. **Account settings pane** — signed-in user info, sign out, manage devices
+24. **Sync status bar** — replace toasts with persistent ⟳ widget
+25. **Triangle logo in orb** — replace orb SVG with faceted triangle
+26. **Crystallize theme blur** — `backdrop-filter: blur(20px)` on panels
+27. **Native vibrancy** — macOS `NSVisualEffectMaterial` + Windows Acrylic via `window-vibrancy` crate
+28. **Desktop updater signing** — generate keypair, enable `createUpdaterArtifacts`
+29. **Dynamic CORS for tunnel** — read `tunnel_domain` from DB at runtime
+30. **Data reset button** — clear all local data and reload
+
+### P5 — Testing & mobile
+
+31. **Hub tests** — `test_hub.py`: SystemSettings, token blacklist, registration lock, hub endpoints
+32. **Device service tests** — auto-approve first device, pending second device
+33. **Auth endpoint tests** — rate limit headers on login/register
+34. **Tablet layout** — full two-panel Flutter implementation (`tablet_home_screen.dart`)
+35. **Background sync observer** — verify foreground-return sync trigger
+
+---
+
 ## Critical Fixes
 
 - [ ] **Ghost mode race condition** — `toggle_click_through` in Rust must be the single source of truth; JS frontend must NOT call `setIgnoreCursorEvents` independently (`desktop/src-tauri/src/main.rs:112-162`, `desktop/src/main.js:1676-1711`)
