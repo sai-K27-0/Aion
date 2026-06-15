@@ -120,7 +120,23 @@ class ApiClient {
       rethrow;
     }
   }
-  
+
+  Future<Response> put(String path, {dynamic data}) async {
+    try {
+      return await _dio.put(path, data: data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> delete(String path) async {
+    try {
+      return await _dio.delete(path);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // Update base URL dynamically (e.g. after user inputs IP)
   void updateBaseUrl(String url) {
     _dio.options.baseUrl = url;
