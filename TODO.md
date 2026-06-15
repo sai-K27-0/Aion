@@ -46,7 +46,7 @@
 26. ~~**Crystallize theme blur**~~ — `backdrop-filter: blur(20px) saturate(1.5)` in overlay.css ✓
 27. ~~**Native vibrancy**~~ — `window-vibrancy` crate applied in Rust setup for macOS + Windows ✓
 28. ~~**Desktop updater signing**~~ — `createUpdaterArtifacts: true` in tauri.conf.json ✓
-29. **Dynamic CORS for tunnel** — currently reads `tunnel_domain` from env var; could also read from `SystemSettings` DB row at runtime for live config changes without restart
+29. ~~**Dynamic CORS for tunnel**~~ — `DynamicCORSMiddleware` reads `SystemSettings.tunnel_domain` from DB (60 s cache) ✓
 30. ~~**Data reset button**~~ — `#btn-clear-data` → `clearData()` implemented ✓
 
 ### P5 — Testing & mobile
@@ -61,19 +61,14 @@
 
 ## Remaining Work
 
-Only **5 items** remain open:
+Only **4 items** remain open (all P5 — testing & mobile):
 
 | # | Item | File | Effort |
 |---|---|---|---|
-| 29 | Dynamic CORS from DB | `backend/app/main.py` | Small |
 | 32 | Device service tests | `backend/tests/` | Small |
 | 33 | Auth endpoint rate-limit tests | `backend/tests/` | Small |
 | 34 | Tablet two-panel layout | `mobile/lib/features/home/tablet_home_screen.dart` | Large |
 | 35 | Background sync observer | `mobile/lib/core/widgets/sync_on_background_observer.dart` | Small |
-
-### 29 — Dynamic CORS from DB
-
-In `backend/app/main.py`, the CORS tunnel domain is read from env var at startup. To support live config changes, also read from `SystemSettings` via a middleware that adds the current `tunnel_domain` to allowed origins on each request.
 
 ### 32 — Device service tests
 

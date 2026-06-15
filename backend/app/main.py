@@ -16,7 +16,6 @@ from typing import AsyncGenerator
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -68,7 +67,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
     """Redirect HTTP to HTTPS in production."""
-    
+
     async def dispatch(self, request: Request, call_next):
         if settings.production and settings.require_https:
             # Check if request is HTTP (not HTTPS)
@@ -76,8 +75,81 @@ class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
             if request.url.scheme == "http" and forwarded_proto != "https":
                 url = request.url.replace(scheme="https")
                 return RedirectResponse(url, status_code=301)
-        
+
         return await call_next(request)
+
+
+class DynamicCORSMiddleware(BaseHTTPMiddleware):
+    """CORS middleware that extends the static origin list with the tunnel domain
+    read live from SystemSettings (60-second cache) so CORS updates take effect
+    without a server restart when the user configures a Cloudflare tunnel."""
+
+    _ALLOW_METHODS = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    _ALLOW_HEADERS = "Authorization, Content-Type, X-Device-ID, X-Request-ID"
+
+    def __init__(self, app, static_origins: list[str]) -> None:
+        super().__init__(app)
+        self._static: frozenset[str] = frozenset(static_origins)
+        self._tunnel_origin: str | None = None
+        self._cache_ts: float = 0.0
+        self._cache_ttl: float = 60.0
+
+    async def _get_allowed(self) -> frozenset[str]:
+        import time
+        if time.monotonic() - self._cache_ts > self._cache_ttl:
+            await self._refresh()
+        extra = frozenset({self._tunnel_origin}) if self._tunnel_origin else frozenset()
+        return self._static | extra
+
+    async def _refresh(self) -> None:
+        import time
+        try:
+            from sqlalchemy import select
+            from app.db.session import async_session_maker
+            from app.models.system_settings import SystemSettings
+            if async_session_maker:
+                async with async_session_maker() as db:
+                    row = (await db.execute(select(SystemSettings).limit(1))).scalar_one_or_none()
+                    self._tunnel_origin = (
+                        f"https://{row.tunnel_domain}" if row and row.tunnel_domain else None
+                    )
+        except Exception:
+            pass  # keep stale cached value on DB error
+        self._cache_ts = time.monotonic()
+
+    async def dispatch(self, request: Request, call_next):
+        from fastapi.responses import Response as FastAPIResponse
+
+        origin = request.headers.get("origin", "")
+        if not origin:
+            return await call_next(request)
+
+        allowed = await self._get_allowed()
+        is_allowed = origin in allowed
+
+        if request.method == "OPTIONS":
+            if is_allowed:
+                return FastAPIResponse(
+                    status_code=204,
+                    headers={
+                        "Access-Control-Allow-Origin": origin,
+                        "Access-Control-Allow-Credentials": "true",
+                        "Access-Control-Allow-Methods": self._ALLOW_METHODS,
+                        "Access-Control-Allow-Headers": self._ALLOW_HEADERS,
+                        "Access-Control-Max-Age": "600",
+                        "Vary": "Origin",
+                    },
+                )
+            return FastAPIResponse(status_code=400, content="Origin not allowed")
+
+        response = await call_next(request)
+
+        if is_allowed:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Vary"] = "Origin"
+
+        return response
 
 # Rate limiter configuration
 limiter = Limiter(key_func=get_real_ip, default_limits=["100/minute"])
@@ -158,20 +230,14 @@ app.add_middleware(SecurityHeadersMiddleware)
 if settings.production and settings.require_https:
     app.add_middleware(HTTPSRedirectMiddleware)
 
-# Configure CORS
-# Build CORS origins list with optional tunnel domain
-cors_origins = list(settings.cors_origins)
+# Configure CORS — static origins + env-var tunnel domain seed the allow list;
+# DynamicCORSMiddleware also reads SystemSettings.tunnel_domain from the DB
+# (60 s cache) so tunnel config changes apply without a server restart.
+_static_cors_origins: list[str] = list(settings.cors_origins)
 if settings.tunnel_domain:
-    cors_origins.append(f"https://{settings.tunnel_domain}")
+    _static_cors_origins.append(f"https://{settings.tunnel_domain}")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Device-ID", "X-Request-ID"],
-    expose_headers=["X-Request-ID", "X-Rate-Limit-Remaining"],
-)
+app.add_middleware(DynamicCORSMiddleware, static_origins=_static_cors_origins)
 
 # Configure rate limiting
 app.state.limiter = limiter
