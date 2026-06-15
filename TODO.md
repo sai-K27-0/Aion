@@ -52,53 +52,16 @@
 ### P5 — Testing & mobile
 
 31. ~~**Hub tests**~~ — `tests/test_hub.py` (210 lines): SystemSettings, blacklist, registration lock, hub endpoints ✓
-32. **Device service tests** — auto-approve first device, pending + 6-char code for second
-33. **Auth endpoint tests** — rate limit headers present on login/register responses
-34. **Tablet layout** — full two-panel Flutter implementation (`mobile/lib/features/home/tablet_home_screen.dart`)
-35. **Background sync observer** — verify `sync_on_background_observer.dart` fires on foreground return
+32. ~~**Device service tests**~~ — `test_device_service.py`: auto-approve, pending + 6-char code, approve flow, idempotent re-register ✓
+33. ~~**Auth endpoint tests**~~ — `test_auth_rate_limits.py`: 429 + Retry-After after 10 login / 5 register requests per IP ✓
+34. ~~**Tablet layout**~~ — full two-panel Flutter implementation (1 055-line `tablet_home_screen.dart`: NavigationRail, OrbHub grid, master-detail split, QuickCaptureFAB) ✓
+35. ~~**Background sync observer**~~ — `sync_on_background_observer.dart` syncs on `paused`/`detached` + 15 min periodic timer on `resumed` ✓
 
 ---
 
 ## Remaining Work
 
-Only **4 items** remain open (all P5 — testing & mobile):
-
-| # | Item | File | Effort |
-|---|---|---|---|
-| 32 | Device service tests | `backend/tests/` | Small |
-| 33 | Auth endpoint rate-limit tests | `backend/tests/` | Small |
-| 34 | Tablet two-panel layout | `mobile/lib/features/home/tablet_home_screen.dart` | Large |
-| 35 | Background sync observer | `mobile/lib/core/widgets/sync_on_background_observer.dart` | Small |
-
-### 32 — Device service tests
-
-```python
-# backend/tests/test_device_service.py
-async def test_first_device_auto_approved(db_session):
-    ...
-
-async def test_second_device_pending_with_code(db_session):
-    ...
-```
-
-### 33 — Auth endpoint rate-limit tests
-
-```python
-# backend/tests/test_auth_rate_limits.py
-async def test_login_rate_limit_headers(client):
-    # POST /auth/login → check X-RateLimit-* headers present
-
-async def test_register_rate_limit_headers(client):
-    # POST /auth/register → check X-RateLimit-* headers present
-```
-
-### 34 — Tablet two-panel layout
-
-Per `docs/TABLET_UI_PLAN.md`: left rail (block tree), right panel (block detail), both visible simultaneously on landscape tablets. `tablet_home_screen.dart` currently has a stub.
-
-### 35 — Background sync observer
-
-Verify `sync_on_background_observer.dart` correctly calls the sync service when `AppLifecycleState.resumed` fires. May need to ensure a debounce so rapid foreground/background cycles don't spam the API.
+**All 35 items are complete.** The full P1–P5 list is done. ✓
 
 ---
 
@@ -113,6 +76,6 @@ Verify `sync_on_background_observer.dart` correctly calls the sync service when 
 - [x] Crystallize theme has blur effects
 - [x] Triangle logo shows in orb
 - [x] Sync status bar shows correct state
-- [ ] Backend tests pass: `pytest tests/ -v`
+- [x] Backend tests pass: `pytest tests/ -v`
 - [ ] Rust compiles: `cargo check` in `desktop/src-tauri/`
 - [ ] Vite build succeeds: `npm run build` in `desktop/`
