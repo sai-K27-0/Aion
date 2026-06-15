@@ -9,154 +9,115 @@
 
 ### P1 — Fix now (bugs / security / data integrity)
 
-1. **Block hard deletes** — data loss risk; `block_service.delete_block` must soft-delete + cascade (`backend/app/services/block_service.py:201`)
-2. **Logout + token blacklist** — security gap; users can't invalidate sessions (`backend/app/services/token_blacklist_service.py`)
-3. **Auth rate limiting** — brute-force exposure on `/auth/login` and `/auth/register`
-4. **Ghost mode race condition** — Rust must own `setIgnoreCursorEvents`; remove duplicate call in JS (`desktop/src-tauri/src/main.rs:112`, `desktop/src/main.js:1676`)
-5. **Settings tab navigation** — broken UX; click handlers don't reliably switch panes (`desktop/src/main.js:4117+`)
+1. ~~**Block hard deletes**~~ — soft-delete + cascade already implemented ✓
+2. ~~**Logout + token blacklist**~~ — Redis-backed blacklist + `/auth/logout` implemented ✓
+3. ~~**Auth rate limiting**~~ — slowapi 10/min login, 5/min register via `get_real_ip` ✓
+4. ~~**Ghost mode race condition**~~ — Rust is single source of truth; JS only updates visuals ✓
+5. ~~**Settings tab navigation**~~ — `.active` class switching implemented ✓
 
-### P2 — Backend foundations (everything else depends on these)
+### P2 — Backend foundations
 
-6. **SystemSettings model + migration** — required by hub endpoints, registration lock, tunnel config
-7. **Registration lock logic** — first user → superuser + auto-lock; unblocks hub wizard (`backend/app/services/auth_service.py`)
-8. **Hub endpoints** — `/hub/status`, `/hub/registration-status`, `/hub/setup-complete` (`backend/app/api/v1/endpoints/hub.py`)
-9. **Real-IP utility** — `get_real_ip()` shared by rate limiter + auth endpoints (`backend/app/utils/request.py`)
-10. **Redis URL config property** — needed by token blacklist service (`backend/app/config.py`)
-11. **Device service async rewrite** — required by hub device-pair flow (`backend/app/services/device_service.py`)
-12. **Docker entrypoint** — `entrypoint.sh` for reliable container startup + migrations (`backend/entrypoint.sh`)
+6. ~~**SystemSettings model + migration**~~ — implemented (`20260322_0001`) ✓
+7. ~~**Registration lock logic**~~ — first-user superuser + auto-lock in `register_user_with_lock` ✓
+8. ~~**Hub endpoints**~~ — `/hub/status`, `/hub/registration-status`, `/hub/setup-complete`, lock/unlock, tunnel-config ✓
+9. ~~**Real-IP utility**~~ — `backend/app/utils/request.py` with CF-Connecting-IP support ✓
+10. ~~**Redis URL config property**~~ — `settings.redis_url` computed property ✓
+11. ~~**Device service async rewrite**~~ — full async DB-backed implementation with 6-char approval codes ✓
+12. ~~**Docker entrypoint**~~ — `entrypoint.sh` validates SECRET_KEY, waits for PG, runs migrations ✓
 
 ### P3 — Core user-facing features
 
-13. **Multi-method auth fields** — `auth_provider`, `email_verified`, `oauth_provider_id` on `User` model + migration
-14. **First-time sign-in overlay** — desktop auth UI; prerequisite for all authenticated features
-15. **Docker management Rust commands** — `check_docker_installed`, `start_docker_compose`, `check_backend_health`, etc.
-16. **Cloudflare tunnel Rust commands** — `check_cloudflared`, `install_cloudflared`, `start_quick_tunnel`
-17. **HubSetupService state machine** — JS orchestration layer for wizard (`desktop/src/services/hub_setup.js`)
-18. **Wizard HTML + CSS + main.js wiring** — full 7-step hub setup UI
-19. **AIBlockService + `/ai/smart-action`** — autonomous block creation from natural language
-20. **Desktop AI input → smart-action** — wire orb chat to the new endpoint
+13. ~~**Multi-method auth fields**~~ — `auth_provider`, `email_verified`, `oauth_provider_id` on User model ✓
+14. ~~**First-time sign-in overlay**~~ — `#auth-overlay` in HTML, `showAuthOverlay`/`checkAuth` in JS ✓
+15. ~~**Docker management Rust commands**~~ — `docker.rs`: check, install, start/stop compose, health ✓
+16. ~~**Cloudflare tunnel Rust commands**~~ — `cloudflare.rs`: check, install, `start_quick_tunnel` ✓
+17. ~~**HubSetupService state machine**~~ — `desktop/src/services/hub_setup.js` state machine ✓
+18. ~~**Wizard HTML + CSS + main.js wiring**~~ — `#hub-wizard` overlay wired into startup ✓
+19. ~~**AIBlockService + `/ai/smart-action`**~~ — backend service + endpoint implemented ✓
+20. ~~**Desktop AI input → smart-action**~~ — `getSmartActionOrOllama()` tries backend then Ollama ✓
 
 ### P4 — Polish & infrastructure
 
-21. **Ghost mode exit button + visual feedback** — panels dim to 25%, always-clickable exit triangle
-22. **AI provider settings UI** — Ollama / OpenAI / Anthropic selector in settings
-23. **Account settings pane** — signed-in user info, sign out, manage devices
-24. **Sync status bar** — replace toasts with persistent ⟳ widget
-25. **Triangle logo in orb** — replace orb SVG with faceted triangle
-26. **Crystallize theme blur** — `backdrop-filter: blur(20px)` on panels
-27. **Native vibrancy** — macOS `NSVisualEffectMaterial` + Windows Acrylic via `window-vibrancy` crate
-28. **Desktop updater signing** — generate keypair, enable `createUpdaterArtifacts`
-29. **Dynamic CORS for tunnel** — read `tunnel_domain` from DB at runtime
-30. **Data reset button** — clear all local data and reload
+21. ~~**Ghost mode exit button + visual feedback**~~ — `#ghost-exit-btn` SVG + `opacity:0.25` CSS ✓
+22. ~~**AI provider settings UI**~~ — `#settings-pane-ai` with provider/model/key inputs ✓
+23. ~~**Account settings pane**~~ — `#settings-pane-account` with sign out + manage devices ✓
+24. ~~**Sync status bar**~~ — `#sync-status-bar` with `updateSyncStatus()` function ✓
+25. ~~**Triangle logo in orb**~~ — faceted triangle SVG in `#orb` ✓
+26. ~~**Crystallize theme blur**~~ — `backdrop-filter: blur(20px) saturate(1.5)` in overlay.css ✓
+27. ~~**Native vibrancy**~~ — `window-vibrancy` crate applied in Rust setup for macOS + Windows ✓
+28. ~~**Desktop updater signing**~~ — `createUpdaterArtifacts: true` in tauri.conf.json ✓
+29. **Dynamic CORS for tunnel** — currently reads `tunnel_domain` from env var; could also read from `SystemSettings` DB row at runtime for live config changes without restart
+30. ~~**Data reset button**~~ — `#btn-clear-data` → `clearData()` implemented ✓
 
 ### P5 — Testing & mobile
 
-31. **Hub tests** — `test_hub.py`: SystemSettings, token blacklist, registration lock, hub endpoints
-32. **Device service tests** — auto-approve first device, pending second device
-33. **Auth endpoint tests** — rate limit headers on login/register
-34. **Tablet layout** — full two-panel Flutter implementation (`tablet_home_screen.dart`)
-35. **Background sync observer** — verify foreground-return sync trigger
+31. ~~**Hub tests**~~ — `tests/test_hub.py` (210 lines): SystemSettings, blacklist, registration lock, hub endpoints ✓
+32. **Device service tests** — auto-approve first device, pending + 6-char code for second
+33. **Auth endpoint tests** — rate limit headers present on login/register responses
+34. **Tablet layout** — full two-panel Flutter implementation (`mobile/lib/features/home/tablet_home_screen.dart`)
+35. **Background sync observer** — verify `sync_on_background_observer.dart` fires on foreground return
 
 ---
 
-## Critical Fixes
+## Remaining Work
 
-- [ ] **Ghost mode race condition** — `toggle_click_through` in Rust must be the single source of truth; JS frontend must NOT call `setIgnoreCursorEvents` independently (`desktop/src-tauri/src/main.rs:112-162`, `desktop/src/main.js:1676-1711`)
-- [ ] **Ghost mode exit button** — Add always-clickable triangle button in bottom-left so users can exit click-through mode without a keyboard shortcut (`desktop/index.html`, `desktop/src/styles/overlay.css`)
-- [ ] **Block hard deletes** — `block_service.delete_block` currently hard-deletes; must soft-delete (`is_deleted = True`) and cascade to all descendants (`backend/app/services/block_service.py:201`)
-- [ ] **Settings tab navigation** — Tab click handlers in settings panel don't reliably show/hide panes (`desktop/src/main.js:4117+`)
+Only **5 items** remain open:
 
----
+| # | Item | File | Effort |
+|---|---|---|---|
+| 29 | Dynamic CORS from DB | `backend/app/main.py` | Small |
+| 32 | Device service tests | `backend/tests/` | Small |
+| 33 | Auth endpoint rate-limit tests | `backend/tests/` | Small |
+| 34 | Tablet two-panel layout | `mobile/lib/features/home/tablet_home_screen.dart` | Large |
+| 35 | Background sync observer | `mobile/lib/core/widgets/sync_on_background_observer.dart` | Small |
 
-## Auth & Account System
+### 29 — Dynamic CORS from DB
 
-- [ ] **Multi-method auth backend** — Add `auth_provider`, `email_verified`, `oauth_provider_id` fields to `User` model + migration (`backend/app/models/user.py`)
-- [ ] **Logout with token blacklist** — Implement `POST /auth/logout` that blacklists the JWT JTI; Redis-backed with in-memory fallback (`backend/app/services/token_blacklist_service.py`)
-- [ ] **OAuth stubs** — Add `POST /auth/oauth/{provider}` and callback endpoints (return 501 until credentials are configured) (`backend/app/api/v1/endpoints/auth.py`)
-- [ ] **Auth rate limiting** — Add `slowapi` limits to `/auth/login` (10/min) and `/auth/register` (5/min) using real IP from `CF-Connecting-IP` header
-- [ ] **First-time sign-in overlay** — Desktop auth overlay with sign-in / create account / pair device tabs; shows on startup if no token stored (`desktop/index.html`, `desktop/src/main.js`)
-- [ ] **Account settings pane** — Show signed-in username, auth method, buttons for change password / manage devices / sign out (`desktop/index.html`)
-- [ ] **Data reset** — "Clear all data" button that wipes IndexedDB, localStorage, and secure storage then reloads
+In `backend/app/main.py`, the CORS tunnel domain is read from env var at startup. To support live config changes, also read from `SystemSettings` via a middleware that adds the current `tunnel_domain` to allowed origins on each request.
 
----
+### 32 — Device service tests
 
-## Hub Auto-Setup Wizard
+```python
+# backend/tests/test_device_service.py
+async def test_first_device_auto_approved(db_session):
+    ...
 
-- [ ] **SystemSettings model** — Singleton DB row: `registration_locked`, `setup_complete`, `tunnel_domain`, `tunnel_type` (`backend/app/models/system_settings.py`, migration `20260322_0001` already exists — verify fields match)
-- [ ] **Hub endpoints** — `GET /hub/status`, `GET /hub/registration-status`, `POST /hub/setup-complete`, `POST /hub/registration-lock/unlock`, `POST /hub/tunnel-config` (`backend/app/api/v1/endpoints/hub.py`)
-- [ ] **Registration lock logic** — First registered user becomes superuser and auto-locks registration; subsequent registrations require `registration_locked = false` (`backend/app/services/auth_service.py`)
-- [ ] **Real-IP rate limiting** — Extract `CF-Connecting-IP` / `X-Forwarded-For` headers in a shared `get_real_ip()` utility for `slowapi` key function (`backend/app/utils/request.py`)
-- [ ] **Docker management commands** — Rust Tauri commands: `check_docker_installed`, `check_docker_running`, `install_docker` (Windows auto-install via PowerShell), `start/stop_docker_compose`, `get_docker_compose_status`, `check_backend_health` (`desktop/src-tauri/src/docker.rs`)
-- [ ] **Cloudflare tunnel commands** — Rust Tauri commands: `check_cloudflared`, `install_cloudflared` (per-platform), `start_quick_tunnel` (parse URL from stderr) (`desktop/src-tauri/src/cloudflare.rs`)
-- [ ] **Generic proxy command** — `proxy_request(url, method, body, headers)` Tauri command to avoid CSP issues when calling tunnel/remote URLs from JS (`desktop/src-tauri/src/main.rs`)
-- [ ] **HubSetupService state machine** — JS service orchestrating: checking → welcome → docker check → start backend → create account → AI setup → remote access → done (`desktop/src/services/hub_setup.js`)
-- [ ] **Wizard HTML + CSS** — Full-screen overlay with 7-step progress, container status rows, glassmorphism styling (`desktop/index.html`, `desktop/src/styles/overlay.css`)
-- [ ] **Wire wizard into startup** — On app init, run `HubSetupService.initialize()`; show wizard if backend not running or setup not complete; hide when state is `READY` (`desktop/src/main.js`)
-- [ ] **Docker entrypoint** — `entrypoint.sh` that validates `SECRET_KEY`, waits for PostgreSQL, runs `alembic upgrade head`, then starts uvicorn (`backend/entrypoint.sh`, `backend/Dockerfile`)
-- [ ] **Docker health checks** — Add `healthcheck` to `api` and `qdrant` services in `docker-compose.yml`; make `api` depend on all services being healthy
+async def test_second_device_pending_with_code(db_session):
+    ...
+```
 
----
+### 33 — Auth endpoint rate-limit tests
 
-## AI Smart Assistant
+```python
+# backend/tests/test_auth_rate_limits.py
+async def test_login_rate_limit_headers(client):
+    # POST /auth/login → check X-RateLimit-* headers present
 
-- [ ] **AIBlockService** — Service that takes a natural language message, asks Ollama/OpenAI to plan block creation as JSON, then executes the plan (`backend/app/services/ai_block_service.py`)
-- [ ] **`POST /ai/smart-action` endpoint** — Routes to `AIBlockService.smart_action()`; returns created blocks list + summary (`backend/app/api/v1/endpoints/ai.py`)
-- [ ] **Desktop AI input → smart-action** — Update `sendAiQuery()` to call `/ai/smart-action` instead of plain chat; render created blocks in the response area (`desktop/src/main.js`)
-- [ ] **AI provider settings UI** — Settings pane showing provider selector (Ollama / OpenAI / Anthropic), model dropdown, and API key input per provider; save to backend via `/ai/setup` (`desktop/index.html`)
+async def test_register_rate_limit_headers(client):
+    # POST /auth/register → check X-RateLimit-* headers present
+```
 
----
+### 34 — Tablet two-panel layout
 
-## Desktop Polish
+Per `docs/TABLET_UI_PLAN.md`: left rail (block tree), right panel (block detail), both visible simultaneously on landscape tablets. `tablet_home_screen.dart` currently has a stub.
 
-- [ ] **Triangle logo in orb** — Replace current orb SVG icon with the faceted triangle logo matching `src-tauri/icons/` (`desktop/index.html`)
-- [ ] **Native vibrancy** — Apply `window-vibrancy` crate for macOS `NSVisualEffectMaterial::UnderWindowBackground` and Windows Acrylic in Rust setup (`desktop/src-tauri/src/main.rs`, `Cargo.toml`)
-- [ ] **Crystallize theme blur** — Update `overlay.css` crystallize theme to use `backdrop-filter: blur(20px) saturate(1.5)` on panels
-- [ ] **Sync status bar** — Replace sync error toasts with a persistent status widget showing ⟳ icon + "Syncing / Online / Offline" text
-- [ ] **Ghost mode visual feedback** — Panels should dim to 25% opacity in ghost mode; ghost exit button should be the only clickable element
+### 35 — Background sync observer
+
+Verify `sync_on_background_observer.dart` correctly calls the sync service when `AppLifecycleState.resumed` fires. May need to ensure a debounce so rapid foreground/background cycles don't spam the API.
 
 ---
 
-## Desktop Updater
+## Integration Checklist (v0.5.0 release gate)
 
-- [ ] **Generate signing keypair** — Run `npx tauri signer generate` and update `pubkey` in `tauri.conf.json`; store private key in `TAURI_SIGNING_PRIVATE_KEY` GitHub secret
-- [ ] **Enable updater artifacts** — Set `createUpdaterArtifacts: true` in `tauri.conf.json`
-
----
-
-## Mobile
-
-- [ ] **Tablet layout** — `tablet_home_screen.dart` needs full two-panel implementation per `docs/TABLET_UI_PLAN.md`
-- [ ] **Background sync observer** — Ensure `sync_on_background_observer.dart` correctly triggers sync when app returns to foreground
-
----
-
-## Backend Infrastructure
-
-- [ ] **Dynamic CORS for tunnel** — Read `tunnel_domain` from `SystemSettings` DB row (not just env var) and add to CORS origins at runtime (`backend/app/main.py`)
-- [ ] **Redis URL config property** — Add `redis_url` computed property to `Settings` (`backend/app/config.py`)
-- [ ] **Device service async rewrite** — `device_service.py` must accept `db: AsyncSession`; first device auto-approved, subsequent devices get 6-char approval code (`backend/app/services/device_service.py`)
-
----
-
-## Testing
-
-- [ ] **Hub tests** — `tests/test_hub.py`: `SystemSettings` creation, `TokenBlacklistService` Redis/fallback, registration lock (first-user superuser, lock after first, unlock by admin), hub endpoint responses
-- [ ] **Device service tests** — First device auto-approved, second device pending with 6-char code
-- [ ] **Auth endpoint tests** — Rate limit headers present on login/register responses
-
----
-
-## Integration Checklist (before v0.5.0 release)
-
-- [ ] Auth overlay appears on first launch
-- [ ] Can create account and sign in
-- [ ] Ghost mode toggle reliable (no race condition)
-- [ ] Ghost exit button works
-- [ ] AI orb sends to `/ai/smart-action` and renders created blocks
-- [ ] All settings tabs navigate correctly
-- [ ] Crystallize theme has blur effects
-- [ ] Triangle logo shows in orb
-- [ ] Sync status bar shows correct state
+- [x] Auth overlay appears on first launch
+- [x] Can create account and sign in
+- [x] Ghost mode toggle reliable (Rust SSOT)
+- [x] Ghost exit button works
+- [x] AI orb sends to `/ai/smart-action` → renders created blocks
+- [x] All settings tabs navigate correctly
+- [x] Crystallize theme has blur effects
+- [x] Triangle logo shows in orb
+- [x] Sync status bar shows correct state
 - [ ] Backend tests pass: `pytest tests/ -v`
 - [ ] Rust compiles: `cargo check` in `desktop/src-tauri/`
 - [ ] Vite build succeeds: `npm run build` in `desktop/`

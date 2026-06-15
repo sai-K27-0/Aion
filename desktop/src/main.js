@@ -686,8 +686,8 @@ async function processAiCommand(input) {
     return handleThemeCommand(input);
   }
 
-  // Default - try Ollama first for real AI; fallback to help message
-  return await getOllamaResponse(input);
+  // Default - try backend smart-action (creates blocks or chats), then local Ollama
+  return await getSmartActionOrOllama(input);
 }
 
 function handleClearOrDeleteBlock(input) {
@@ -1292,6 +1292,48 @@ async function getOllamaResponse(input) {
     console.warn('Ollama not available:', e);
     return getSmartResponse(input);
   }
+}
+
+async function getSmartActionOrOllama(input) {
+  const useBackendAi = localStorage.getItem('aion_use_backend_ai') === 'true';
+  if (useBackendAi) {
+    try {
+      const { getSyncService } = await import('./services/sync.js');
+      const sync = getSyncService();
+      const baseUrl = (sync && sync.getServerBaseUrl && sync.getServerBaseUrl()) || CONFIG.API_BASE.replace(/\/api\/v1\/?$/, '');
+      const headers = sync && typeof sync.getAuthHeaders === 'function'
+        ? await sync.getAuthHeaders()
+        : { 'Content-Type': 'application/json' };
+      headers['Content-Type'] = 'application/json';
+
+      const res = await fetch(`${baseUrl}/api/v1/ai/smart-action`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message: input }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.blocks_created && data.blocks_created.length > 0) {
+          const list = data.blocks_created
+            .map(b => `<li>${escHtml(b.name)} <span class="ai-muted">(${escHtml(b.block_type)})</span></li>`)
+            .join('');
+          return {
+            html: `<div class="ai-success">
+              <strong>${escHtml(data.summary)}</strong>
+              <ul style="margin-top:8px;padding-left:16px">${list}</ul>
+            </div>`,
+            actions: [{ type: 'toast', message: `Created ${data.blocks_created.length} block(s)` }],
+          };
+        }
+        const text = data.summary || data.response || '';
+        if (text.trim()) return { html: `<div class="ai-info">${formatAiResponse(text)}</div>`, actions: [] };
+      }
+    } catch (e) {
+      console.warn('smart-action not available, falling back to Ollama:', e);
+    }
+  }
+  return await getOllamaResponse(input);
 }
 
 function getSmartResponse(input) {
